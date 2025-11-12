@@ -65,3 +65,28 @@ footer {
   margin-top: 40px;
 }
 
+/* Basic styling for tabs */
+.tab-links a {
+  display: inline-block;
+  margin-right: 10px;
+  padding: 8px 16px;
+  background-color: #1f1f1f;
+  color: #f5f5f5;
+  text-decoration: none;
+  border: 1px solid #00ffff;
+  cursor: pointer;
+}
+
+.tab-links a.active {
+  background-color: #00ffff;
+  color: #121212;
+}
+
+.psg-section {
+  display: none;  /* hide by default */
+  margin-top: 20px;
+}
+
+.psg-section.active {
+  display: block; /* show active section */
+}

@@ -22,24 +22,24 @@
   <section class="psg">
     <h2>Punk Squad Games</h2>
     
-    <!-- Tab buttons -->
-    <div class="psg">
-      <button onclick="showSection('psg2025')">PSG 2025</button>
-      <button onclick="showSection('psg2026')">PSG 2026</button>
+    <!-- Tab links -->
+    <div class="tab-links">
+      <a href="#psg2025" onclick="showSection('psg2025', this)">PSG 2025</a>
+      <a href="#psg2026" onclick="showSection('psg2026', this)" class="active">PSG 2026</a>
     </div>
 
-    <!-- Tab sections -->
-    <div id="psg2025" class="psg">
+    <!-- Tab content -->
+    <div id="psg2025" class="psg-section">
       <h3>PSG 2025</h3>
       <h4>Last Years Winners</h4>
       <ul>
         <li>Jack Kelleher</li>
         <li>Chris Blangiardi</li>
       </ul>
-      <img src="images/psg2025.jpg" alt="Credit Card Parser" width="400">
+      <img src="images/psg2025.jpg" alt="PSG 2025 Screenshot" width="400">
     </div>
 
-    <div id="psg2026" class="psg">
+    <div id="psg2026" class="psg-section active">
       <h3>PSG 2026</h3>
       <p>More details coming soon!</p>
     </div>
@@ -50,11 +50,20 @@
 </footer>
 
 <script>
-  function showSection(id) {
-    const sections = document.querySelectorAll('psg');
-    sections.forEach(section => section.classList.remove('active')); // hide all
-    document.getElementById(id).classList.add('active'); // show selected
-  }
+function showSection(id, link) {
+  // Hide all sections
+  const sections = document.querySelectorAll('psg-section');
+  sections.forEach(sec => sec.classList.remove('active'));
+
+  // Remove active class from all tab links
+  const tabs = document.querySelectorAll('.tab-links a');
+  tabs.forEach(tab => tab.classList.remove('active'));
+
+  // Show selected section
+  document.getElementById(id).classList.add('active');
+  // Highlight clicked tab
+  link.classList.add('active');
+}
 </script>
 </body>
 </html>
