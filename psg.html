@@ -1,0 +1,60 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projects - Kelleher Innovations</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Kelleher Innovations</h1>
+  <p>Building Intelligent Systems</p>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="portfolio.html">Portfolio</a>
+    <a href="projects.html">Projects</a>
+    <a href="psg.html">Punk Squad Games</a>
+  </nav>
+</header>
+<main>
+  <section class="psg">
+    <h2>Punk Squad Games</h2>
+    
+    <!-- Tab buttons -->
+    <div class="psg">
+      <button onclick="showSection('psg2025')">PSG 2025</button>
+      <button onclick="showSection('psg2026')">PSG 2026</button>
+    </div>
+
+    <!-- Tab sections -->
+    <div id="psg2025" class="psg">
+      <h3>PSG 2025</h3>
+      <h4>Last Years Winners</h4>
+      <ul>
+        <li>Jack Kelleher</li>
+        <li>Chris Blangiardi</li>
+      </ul>
+      <img src="images/psg2025.jpg" alt="Credit Card Parser" width="400">
+    </div>
+
+    <div id="psg2026" class="psg">
+      <h3>PSG 2026</h3>
+      <p>More details coming soon!</p>
+    </div>
+  </section>
+</main>
+<footer>
+  <p>&copy; 2025 Kelleher Innovations</p>
+</footer>
+
+<script>
+  function showSection(id) {
+    const sections = document.querySelectorAll('.tab-section');
+    sections.forEach(section => section.classList.remove('active')); // hide all
+    document.getElementById(id).classList.add('active'); // show selected
+  }
+</script>
+</body>
+</html>

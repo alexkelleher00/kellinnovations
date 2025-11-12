@@ -42,6 +42,9 @@ main {
 
 section h2 {
   color: #00ffff;
+  display: flex;        /* side by side */
+  justify-content: space-between; /* spread out */
+  align-items: center;  /* vertical alignment */
 }
 
 ul {
@@ -61,3 +64,4 @@ footer {
   color: #888888;
   margin-top: 40px;
 }
+
