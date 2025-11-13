@@ -79,11 +79,6 @@ footer {
   color: #121212;
 }
 
-.psg-section {
-  display: none;  /* hide by default */
-  margin-top: 20px;
-}
-
 .psg-section.active {
   display: block; /* show active section */
 }
@@ -119,4 +114,61 @@ button {
 
 button:hover {
   background-color: #00cccc;
+}
+
+/* --- Three-column layout --- */
+.psg-section {
+  display: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-top: 20px;
+}
+
+.left, .center, .right {
+  background-color: #1f1f1f;
+  padding: 15px;
+  border-radius: 10px;
+  flex: 1; /* All take equal space by default */
+}
+
+.center {
+  flex: 2; /* Make middle section larger */
+}
+
+aside h3, section h2 {
+  color: #00ffff;
+}
+
+form input {
+  width: 100%;
+  margin: 5px 0;
+  padding: 8px;
+  border-radius: 5px;
+  border: none;
+  background: #2a2a2a;
+  color: #fff;
+}
+
+form button {
+  background: #00ffff;
+  border: none;
+  color: #000;
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+form button:hover {
+  background: #00cccc;
+}
+
+/* Make layout stack nicely on phones */
+@media (max-width: 800px) {
+  .three-column {
+    flex-direction: column;
+  }
 }
