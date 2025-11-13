@@ -1,11 +1,3 @@
-main {
-  padding: 40px; /* adds breathing room inside the page */
-  text-align: center;
-  max-width: 1200px; /* keeps the content from stretching too wide */
-  margin: 0 auto; /* centers the main content horizontally */
-}
-
-
 /* === Base Styles === */
 body {
   margin: 0;
