@@ -55,7 +55,7 @@ nav a.active {
 
 /* === Sections === */
 .psg-section {
-  display: flex;
+  display: none;
   justify-content: space-between;
   gap: 25px;
   align-items: flex-start;
