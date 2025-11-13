@@ -42,9 +42,6 @@ main {
 
 section h2 {
   color: #00ffff;
-  display: flex;        /* side by side */
-  justify-content: space-between; /* spread out */
-  align-items: center;  /* vertical alignment */
 }
 
 ul {
@@ -89,4 +86,37 @@ footer {
 
 .psg-section.active {
   display: block; /* show active section */
+}
+
+form {
+  margin-top: 20px;
+  background-color: #1f1f1f;
+  padding: 20px;
+  border-radius: 10px;
+  display: inline-block;
+  text-align: left;
+}
+
+input {
+  width: 100%;
+  padding: 8px;
+  margin: 5px 0;
+  border-radius: 5px;
+  border: 1px solid #00ffff;
+  background-color: #121212;
+  color: #f5f5f5;
+}
+
+button {
+  background-color: #00ffff;
+  color: #121212;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+button:hover {
+  background-color: #00cccc;
 }
