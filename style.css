@@ -1,4 +1,4 @@
-
+/* === Base Styles === */
 body {
   margin: 0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -31,58 +31,54 @@ nav a {
   font-weight: bold;
 }
 
-nav a:hover {
+nav a:hover,
+nav a.active {
   color: #00ffff;
 }
 
-main {
-  padding: 20px;
-  text-align: center;
-}
-
-section h2 {
-  color: #00ffff;
-}
-
-ul {
-  list-style: none;
-  padding: 0;
-}
-
-ul li {
-  margin: 10px 0;
-  font-size: 1.1em;
-}
-
-footer {
-  background-color: #1f1f1f;
-  padding: 15px;
-  text-align: center;
-  color: #888888;
-  margin-top: 40px;
-}
-
-/* Basic styling for tabs */
+/* === Tabs === */
 .tab-links a {
   display: inline-block;
-  margin-right: 10px;
+  margin: 0 5px;
   padding: 8px 16px;
-  background-color: #1f1f1f;
+  border: 1px solid #00ffff;
+  background: #1f1f1f;
   color: #f5f5f5;
   text-decoration: none;
-  border: 1px solid #00ffff;
-  cursor: pointer;
+  border-radius: 6px;
 }
 
 .tab-links a.active {
-  background-color: #00ffff;
+  background: #00ffff;
   color: #121212;
 }
 
-.psg-section.active {
-  display: block; /* show active section */
+/* === Sections === */
+.psg-section {
+  display: none;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-top: 20px;
 }
 
+.psg-section.active {
+  display: flex;
+}
+
+/* === 3-Column Layout === */
+.left, .center, .right {
+  background-color: #1f1f1f;
+  padding: 15px;
+  border-radius: 10px;
+  flex: 1;
+}
+
+.center {
+  flex: 2;
+}
+
+/* === Forms === */
 form {
   margin-top: 20px;
   background-color: #1f1f1f;
@@ -92,7 +88,7 @@ form {
   text-align: left;
 }
 
-input {
+form input {
   width: 100%;
   padding: 8px;
   margin: 5px 0;
@@ -100,55 +96,6 @@ input {
   border: 1px solid #00ffff;
   background-color: #121212;
   color: #f5f5f5;
-}
-
-button {
-  background-color: #00ffff;
-  color: #121212;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-button:hover {
-  background-color: #00cccc;
-}
-
-/* --- Three-column layout --- */
-.psg-section {
-  display: none;
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  align-items: flex-start;
-  margin-top: 20px;
-}
-
-.left, .center, .right {
-  background-color: #1f1f1f;
-  padding: 15px;
-  border-radius: 10px;
-  flex: 1; /* All take equal space by default */
-}
-
-.center {
-  flex: 2; /* Make middle section larger */
-}
-
-aside h3, section h2 {
-  color: #00ffff;
-}
-
-form input {
-  width: 100%;
-  margin: 5px 0;
-  padding: 8px;
-  border-radius: 5px;
-  border: none;
-  background: #2a2a2a;
-  color: #fff;
 }
 
 form button {
@@ -166,9 +113,28 @@ form button:hover {
   background: #00cccc;
 }
 
-/* Make layout stack nicely on phones */
+/* === Misc === */
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+ul li {
+  margin: 8px 0;
+  font-size: 1.1em;
+}
+
+footer {
+  background-color: #1f1f1f;
+  padding: 15px;
+  text-align: center;
+  color: #888888;
+  margin-top: 40px;
+}
+
+/* Responsive */
 @media (max-width: 800px) {
-  .three-column {
+  .psg-section {
     flex-direction: column;
   }
 }
