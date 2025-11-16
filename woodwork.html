@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Woodworking — Kelleher Innovations</title>
+  <link rel="stylesheet" href="woodwork.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>Kelleher Innovations</h1>
+    <p>Building Intelligent Systems</p>
+    <nav>
+      <a href="index.html" class="active">Home</a>
+      <a href="portfolio.html">Portfolio</a>
+      <a href="psg.html">Punk Squad Games</a>
+      <a href="planterboy-content.html">Planter Boy Content</a>
+    </nav>
+    <div class="container">
+      <h1>Woodworking Portfolio</h1>
+      <p class="subtitle">Projects, builds, and shop work — click an image to open.</p>
+      <nav class="controls">
+        <button class="filter-btn active" data-filter="*">All</button>
+        <button class="filter-btn" data-filter="furniture">Furniture</button>
+        <button class="filter-btn" data-filter="turning">Turning</button>
+        <button class="filter-btn" data-filter="small-projects">Small Projects</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="gallery" class="gallery">
+      <!-- Example card. Duplicate & change data- attributes for your images -->
+      <figure class="card" data-category="furniture" data-caption="Walnut dining table — hand planed top">
+        <img src="assets/images/table-walnut.jpg" alt="Walnut dining table" loading="lazy">
+        <figcaption>
+          <h3>Walnut Dining Table</h3>
+          <p class="tag">Furniture • 2024</p>
+        </figcaption>
+      </figure>
+
+      <figure class="card" data-category="turning" data-caption="Maple bowl, finished with food-safe oil">
+        <img src="assets/images/maple-bowl.jpg" alt="Maple turned bowl" loading="lazy">
+        <figcaption>
+          <h3>Maple Bowl</h3>
+          <p class="tag">Turning • 2023</p>
+        </figcaption>
+      </figure>
+
+      <figure class="card" data-category="small-projects" data-caption="Reclaimed shelf with dovetail details">
+        <img src="assets/images/reclaimed-shelf.jpg" alt="Reclaimed shelf" loading="lazy">
+        <figcaption>
+          <h3>Reclaimed Shelf</h3>
+          <p class="tag">Small Projects • 2022</p>
+        </figcaption>
+      </figure>
+
+      <!-- Add as many <figure class="card"> blocks as you need. -->
+    </section>
+  </main>
+
+  <!-- Lightbox Modal -->
+  <div id="lightbox" class="lightbox" aria-hidden="true" role="dialog" aria-label="Image preview">
+    <button id="lbClose" class="lb-close" aria-label="Close">✕</button>
+    <button id="lbPrev" class="lb-nav lb-prev" aria-label="Previous">◀</button>
+    <div class="lb-stage">
+      <img id="lbImage" src="" alt="">
+      <div id="lbCaption" class="lb-caption"></div>
+    </div>
+    <button id="lbNext" class="lb-nav lb-next" aria-label="Next">▶</button>
+  </div>
+
+<script>
+/* ----- FILTERING ----- */
+const filterBtns = document.querySelectorAll('.filter-btn');
+const cards = document.querySelectorAll('.card');
+
+filterBtns.forEach(btn=>{
+  btn.addEventListener('click', () => {
+    filterBtns.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const filter = btn.getAttribute('data-filter');
+    cards.forEach(card=>{
+      if (filter === '*' || card.dataset.category === filter) {
+        card.style.display = ''; // show (default)
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  });
+});
+
+/* ----- LIGHTBOX ----- */
+const lightbox = document.getElementById('lightbox');
+const lbImage = document.getElementById('lbImage');
+const lbCaption = document.getElementById('lbCaption');
+const lbClose = document.getElementById('lbClose');
+const lbPrev = document.getElementById('lbPrev');
+const lbNext = document.getElementById('lbNext');
+
+let visibleIndex = -1;
+let visibleCards = Array.from(cards);
+
+function openLightbox(index) {
+  visibleIndex = index;
+  const card = visibleCards[visibleIndex];
+  const img = card.querySelector('img');
+  lbImage.src = img.src;
+  lbImage.alt = img.alt || '';
+  lbCaption.textContent = card.dataset.caption || card.querySelector('figcaption h3')?.textContent || '';
+  lightbox.setAttribute('aria-hidden', 'false');
+  lightbox.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  lightbox.setAttribute('aria-hidden', 'true');
+  lightbox.classList.remove('open');
+  lbImage.src = '';
+  document.body.style.overflow = '';
+}
+
+function updateVisibleCards() {
+  // Only include currently shown cards (after filtering)
+  visibleCards = Array.from(document.querySelectorAll('.card')).filter(c => c.style.display !== 'none');
+}
+
+cards.forEach((card, i) => {
+  card.addEventListener('click', () => {
+    updateVisibleCards();
+    const idx = visibleCards.indexOf(card);
+    openLightbox(idx);
+  });
+});
+
+lbClose.addEventListener('click', closeLightbox);
+lightbox.addEventListener('click', (e) => {
+  if (e.target === lightbox) closeLightbox(); // click backdrop to close
+});
+
+lbPrev.addEventListener('click', () => {
+  if (visibleIndex > 0) openLightbox(visibleIndex - 1);
+});
+lbNext.addEventListener('click', () => {
+  if (visibleIndex < visibleCards.length - 1) openLightbox(visibleIndex + 1);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (lightbox.classList.contains('open')) {
+    if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'ArrowLeft') lbPrev.click();
+    if (e.key === 'ArrowRight') lbNext.click();
+  }
+});
+</script>
+</body>
+</html>
