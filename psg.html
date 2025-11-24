@@ -184,6 +184,11 @@
         </aside>
 
         <section class="center">
+          <!-- COUNTDOWN TIMER (added) -->
+          <div class="countdown-container">
+            <div class="countdown-title">Countdown to Punk Squad Games!</div>
+            <div id="countdown">Days Remaining</div>
+          </div>
           <h3>Champions (TBD)</h3>
           <p>Stay tuned for this year’s results!</p>
 
@@ -230,6 +235,31 @@
       document.getElementById(id).classList.add('active');
       link.classList.add('active');
     }
+  </script>
+  <script>
+    // Set your target date here
+    const targetDate = new Date("2026-07-10T12:00:00").getTime(); // ✔ change date here
+
+    function updateCountdown() {
+      const now = new Date().getTime();
+      const diff = targetDate - now;
+
+      if (diff <= 0) {
+        document.getElementById("countdown").textContent = "Event Started!";
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      document.getElementById("countdown").textContent =
+        `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    }
+
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
   </script>
 </body>
 </html>

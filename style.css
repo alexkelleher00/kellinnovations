@@ -248,9 +248,31 @@ footer {
   font-size: 0.95em;
 }
 
+.countdown-container {
+    text-align: center;
+    margin: 60px auto;
+    padding: 25px;
+    max-width: 500px;
+    background: #ffffffee;
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+  }
+
+  .countdown-title {
+    font-size: 26px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  #countdown {
+    font-size: 32px;
+    font-weight: bold;
+    margin-top: 5px;
+  }
 /* Responsive */
 @media (max-width: 800px) {
   .psg-section {
     flex-direction: column;
   }
 }
+

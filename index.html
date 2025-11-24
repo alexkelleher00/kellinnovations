@@ -60,7 +60,19 @@
       <p>Drop anything you want in the blog - maybe even how much you enjoy The Wire</p>
     </a>
 
+    <a href="https://www.zola.com/wedding/evaandscott2026" class="project-card">
+      <img src="images/WeddingPic.jpg" alt="Wedding">
+      <h3>Eva And Scott</h3>
+      <p>Link to their Wedding Website</p>
+    </a>
+
   </section>
+
+  <!-- COUNTDOWN TIMER (added) -->
+  <div class="countdown-container">
+    <div class="countdown-title">Countdown to Eva and Scott's Wedding!</div>
+    <div id="countdown">Days Remaining</div>
+  </div>
 
 </main>
 
@@ -68,5 +80,31 @@
 <footer>
   <p>&copy; 2025 Kelleher Innovations</p>
 </footer>
+
+<script>
+  // Set your target date here
+  const targetDate = new Date("2026-11-07T12:00:00").getTime(); // ✔ change date here
+
+  function updateCountdown() {
+    const now = new Date().getTime();
+    const diff = targetDate - now;
+
+    if (diff <= 0) {
+      document.getElementById("countdown").textContent = "Event Started!";
+      return;
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    document.getElementById("countdown").textContent =
+      `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  }
+
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+</script>
 </body>
 </html>
