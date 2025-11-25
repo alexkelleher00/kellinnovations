@@ -15,7 +15,6 @@
       <a href="portfolio.html">Portfolio</a>
       <a href="woodwork.html">Woodwork</a>
       <a href="psg.html" class="active">Punk Squad Games</a>
-      <a href="planterboy-content.html">Planter Boy Content</a>
     </nav>
   </header>
 
@@ -24,13 +23,14 @@
       <h2>Punk Squad Games</h2>
 
       <!-- Tab Navigation -->
-      <div class="tab-links">
-        <a href="#psg2019" onclick="showSection('psg2019', this)">PSG 2019</a>
-        <a href="#psg2022" onclick="showSection('psg2022', this)">PSG 2022</a>
-        <a href="#psg2023" onclick="showSection('psg2023', this)">PSG 2023</a>
-        <a href="#psg2024" onclick="showSection('psg2024', this)">PSG 2024</a>
-        <a href="#psg2025" onclick="showSection('psg2025', this)">PSG 2025</a>
-        <a href="#psg2026" onclick="showSection('psg2026', this)" class="active">PSG 2026</a>
+      <div class="tab-section">
+        <button onclick="showSection('psg2019', this)">PSG 2019</button>
+        <button class="filter-btn" data-filter="small-projects">Small Projects</button>
+        <button onclick="showSection('psg2022', this)">PSG 2022</button>
+        <button onclick="showSection('psg2023', this)">PSG 2023</button>
+        <button onclick="showSection('psg2024', this)">PSG 2024</button>
+        <button onclick="showSection('psg2025', this)">PSG 2025</button>
+        <button onclick="showSection('psg2026', this)" class="active">PSG 2026</button>
       </div>
 
       <!-- ================== PSG YEAR SECTIONS ================== -->
@@ -78,7 +78,7 @@
             <li>Chris O'Donnell</li>
             <li>Neil Brennan</li>
           </ul>
-          <img src="images/psg2025.jpg" alt="PSG 2022 Highlights" width="400">
+          <img src="images/psg-card.jpg" alt="PSG 2022 Highlights" width="400">
         </section>
 
         <aside class="right">
