@@ -71,10 +71,13 @@ function escapeHtml(unsafe) {
 async function loadPosts() {
   try {
     const res = await fetch(API_POSTS);
+    console.log(res); // <--- debug
     if (!res.ok) throw new Error("Network error");
     const posts = await res.json();
+    console.log(posts); // <--- debug
     renderPosts(posts);
   } catch (e) {
+    console.error(e);
     postsList.innerHTML = "<p style='color:#c33'>Unable to load posts.</p>";
   }
 }
