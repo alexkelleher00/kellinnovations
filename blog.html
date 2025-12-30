@@ -51,7 +51,7 @@
 </style>
 
 <script>
-const API_BASE = "https://0307ee195fd7.ngrok-free.app"; // Render API
+const API_BASE = "https://97717febfb7b.ngrok-free.app//blog"; // Render API
 const API_POSTS = API_BASE + "/api/posts";
 
 const postsList = document.getElementById("postsList");
@@ -69,6 +69,7 @@ function escapeHtml(unsafe) {
 }
 
 async function loadPosts() {
+  
   try {
     const res = await fetch(API_POSTS);
     console.log(res); // <--- debug
