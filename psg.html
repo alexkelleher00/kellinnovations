@@ -212,6 +212,8 @@
           <p>🏆 Scoredboard updates coming soon!</p>
           <p>🏆 PSG draft date sometime in May/June.</p>
           <p>🏆 New games, trophies, awards and more!</p>
+          <h3>Registered Players</h3>
+          <ul id="registrationsList"></ul>
         </aside>
       </div>
 
@@ -262,5 +264,50 @@
     updateCountdown();
     setInterval(updateCountdown, 1000);
   </script>
+  <script>
+    const API_BASE = "https://97717febfb7b.ngrok-free.app/psg";
+
+    document.getElementById("registerForm2026").addEventListener("submit", async e => {
+      e.preventDefault();
+
+      const form = e.target;
+      const payload = {
+        name: form.name.value,
+        email: form.email.value
+      };
+
+      const res = await fetch(`${API_BASE}/api/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || "Registration failed");
+        return;
+      }
+
+      alert("Registered successfully!");
+      form.reset();
+      loadRegistrations();
+    });
+
+    async function loadRegistrations() {
+      const res = await fetch(`${API_BASE}/api/registrations`);
+      const regs = await res.json();
+
+      const container = document.getElementById("registrationsList");
+      if (!container) return;
+
+      container.innerHTML = regs.map(r =>
+        `<li>${r.name}</li>`
+      ).join("");
+    }
+
+    loadRegistrations();
+    </script>
+
 </body>
 </html>
