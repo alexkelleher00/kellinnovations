@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ROLL CALL</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root{--ng:#00ff87;--np:#ff2d78;--nb:#00cfff;--gold:#ffd700;--bg:#080810;--card:#10101c;--border:#1c1c30;--muted:#5050a0;--text:#f0f0ff}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif}
+
+/* SCREENS */
+.screen{display:none;position:absolute;inset:0;z-index:1;flex-direction:column;align-items:center;overflow-y:auto;overflow-x:hidden;padding:20px 16px 50px;-webkit-overflow-scrolling:touch;animation:fadeUp .35s ease}
+.screen.active{display:flex}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+/* LOGO */
+.logo{text-align:center;margin-top:18px;margin-bottom:4px}
+.logo-main{font-family:'Bebas Neue',sans-serif;font-size:clamp(52px,14vw,82px);line-height:.85;letter-spacing:4px;background:linear-gradient(135deg,var(--ng) 0%,var(--nb) 50%,var(--np) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 20px rgba(0,255,135,.5))}
+.logo-sub{font-size:11px;letter-spacing:6px;color:var(--muted);margin-top:4px;text-transform:uppercase}
+.home-preview{display:flex;gap:22px;margin:10px 0;justify-content:center;align-items:center;min-height:86px}
+
+/* CARD */
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;width:100%;max-width:420px;margin-bottom:12px}
+.sec-label{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;color:var(--nb);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.sec-label::after{content:'';flex:1;height:1px;background:linear-gradient(to right,var(--nb),transparent);opacity:.3}
+
+/* PLAYERS */
+.players-list{display:flex;flex-direction:column;gap:9px;margin-bottom:11px}
+.player-row{display:flex;align-items:center;gap:8px;animation:rowIn .25s ease}
+@keyframes rowIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+.player-num{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--ng);width:26px;text-align:center;flex-shrink:0}
+input[type=text]{flex:1;background:#14142a;border:1.5px solid #222240;border-radius:10px;padding:11px 13px;color:var(--text);font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:600;outline:none;transition:border-color .2s,box-shadow .2s}
+input[type=text]:focus{border-color:var(--ng);box-shadow:0 0 0 3px rgba(0,255,135,.1)}
+input[type=text]::placeholder{color:#282855}
+.btn-remove{width:32px;height:32px;border-radius:8px;background:rgba(255,45,120,.1);border:1px solid rgba(255,45,120,.28);color:var(--np);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.btn-remove:active{background:rgba(255,45,120,.28)}
+
+/* BUTTONS */
+.btn{width:100%;max-width:420px;padding:14px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;cursor:pointer;border:none;transition:transform .15s}
+.btn:active{transform:scale(.97)}
+.btn-add{background:transparent;border:1.5px dashed #20204a;color:var(--muted);font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;letter-spacing:2px;padding:11px}
+.btn-dice{background:linear-gradient(135deg,#12122a,#10102a);border:1.5px solid var(--nb);color:var(--nb);box-shadow:0 0 14px rgba(0,207,255,.15);display:flex;align-items:center;justify-content:center;gap:10px}
+.btn-play{background:linear-gradient(135deg,var(--ng),#00c06a);color:#061408;font-size:24px;padding:16px;box-shadow:0 4px 28px rgba(0,255,135,.35)}
+.btn-play:disabled{background:#12122a;color:#282855;box-shadow:none;cursor:not-allowed}
+.btn-play:disabled:active{transform:none}
+.home-btns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:420px}
+.btn-back{background:transparent;border:none;color:var(--muted);font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;padding:8px 0;display:flex;align-items:center;gap:5px;align-self:flex-start;transition:color .2s}
+.btn-back:active{color:var(--nb)}
+.btn-confirm{background:linear-gradient(135deg,var(--ng),#00c06a);color:#061408;box-shadow:0 4px 20px rgba(0,255,135,.3)}
+.page-header{width:100%;max-width:420px;margin-bottom:4px}
+.page-title{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:5px;background:linear-gradient(135deg,var(--nb),var(--ng));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.page-desc{font-size:12px;color:var(--muted);letter-spacing:1px;margin-top:1px}
+
+/* PICKER TABS */
+.picker-tabs{display:flex;width:100%;max-width:420px;border-bottom:2px solid var(--border);margin:10px 0 0}
+.picker-tab{flex:1;padding:10px 6px;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--muted);text-align:center;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.picker-tab.active{color:var(--ng);border-bottom-color:var(--ng)}
+.picker-panel{display:none;width:100%;max-width:420px}
+.picker-panel.active{display:block}
+
+/* DICE PICKER */
+.dice-picker-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;width:100%;margin:12px 0}
+.dice-option{background:var(--card);border:2px solid var(--border);border-radius:14px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;transition:all .2s;position:relative}
+.dice-option:active{transform:scale(.96)}
+.dice-option.selected{border-color:var(--ng);box-shadow:0 0 16px rgba(0,255,135,.2);background:rgba(0,255,135,.04)}
+.dice-option.selected::after{content:'CHECK';position:absolute;top:7px;right:8px;color:var(--ng);font-size:10px;font-family:'Bebas Neue',sans-serif;letter-spacing:1px}
+.dice-option-name{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;color:var(--muted)}
+.dice-option.selected .dice-option-name{color:var(--ng)}
+.face-toggle{display:flex;gap:9px;width:100%;margin:12px 0 4px}
+.tog-btn{flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;text-align:center;transition:all .2s}
+.tog-btn.active{border-color:var(--ng);color:var(--ng);background:rgba(0,255,135,.07)}
+
+/* BG PICKER - full visual swatches */
+.bg-picker-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;width:100%;margin:12px 0}
+.bg-option{border-radius:14px;overflow:hidden;cursor:pointer;border:2px solid var(--border);position:relative;transition:all .2s}
+.bg-option:active{transform:scale(.96)}
+.bg-option.selected{border-color:var(--ng);box-shadow:0 0 18px rgba(0,255,135,.3)}
+.bg-option.selected .bg-check{opacity:1}
+.bg-swatch-canvas{width:100%;aspect-ratio:3/2;display:block;border-radius:12px}
+.bg-swatch-label{position:absolute;bottom:0;left:0;right:0;padding:6px 8px;background:linear-gradient(to top,rgba(0,0,0,.85),transparent);font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;color:#fff}
+.bg-check{position:absolute;top:6px;right:8px;width:20px;height:20px;background:var(--ng);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;color:#061408;font-weight:900;opacity:0;transition:opacity .2s}
+
+/* GAME SCREEN - full bleed */
+#screen-game{padding:0;overflow:hidden;user-select:none;-webkit-user-select:none;position:relative}
+#game-bg{position:absolute;inset:0;z-index:0;pointer-events:none;transition:background 0.6s}
+
+/* Game header - compact with 3 icon buttons */
+.game-header{width:100%;padding:10px 14px 6px;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:10;flex-shrink:0}
+.game-logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:4px;background:linear-gradient(135deg,var(--ng),var(--nb));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.round-badge{display:inline-flex;background:rgba(255,215,0,.07);border:1px solid rgba(255,215,0,.2);border-radius:20px;padding:2px 9px;font-size:9px;font-weight:700;letter-spacing:2px;color:rgba(255,215,0,.65);text-transform:uppercase;margin-top:2px}
+.game-header-right{display:flex;align-items:center;gap:7px}
+.hdr-btn{padding:6px 10px;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:1.5px;cursor:pointer;border:none;transition:all .2s}
+.hdr-btn-end{background:rgba(255,45,120,.1);border:1px solid rgba(255,45,120,.32);color:var(--np)}
+.hdr-btn-end:active{background:rgba(255,45,120,.28)}
+.hdr-btn-3man{background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.25);color:var(--gold)}
+.hdr-btn-3man:active{background:rgba(255,215,0,.2)}
+.hdr-btn-settings{background:rgba(0,207,255,.08);border:1px solid rgba(0,207,255,.25);color:var(--nb);font-size:14px;padding:5px 9px}
+.hdr-btn-settings:active{background:rgba(0,207,255,.2)}
+
+/* Turn banner */
+.turn-banner{width:100%;padding:2px 16px 2px;text-align:center;flex-shrink:0;position:relative;z-index:5}
+.turn-lbl{font-size:10px;letter-spacing:4px;color:rgba(255,255,255,.35);text-transform:uppercase}
+.cur-player{font-family:'Bebas Neue',sans-serif;font-size:clamp(42px,12vw,66px);letter-spacing:3px;color:var(--gold);text-shadow:0 0 22px rgba(255,215,0,.5);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92vw;display:inline-block}
+.three-crown{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:3px;color:var(--np);text-shadow:0 0 12px rgba(255,45,120,.6);margin-top:1px;display:none}
+.three-crown.show{display:block}
+
+/* Player chips */
+.players-strip{display:flex;gap:7px;padding:4px 16px;overflow-x:auto;width:100%;scrollbar-width:none;flex-shrink:0;position:relative;z-index:5}
+.players-strip::-webkit-scrollbar{display:none}
+.pchip{flex-shrink:0;padding:4px 10px;border-radius:20px;background:rgba(8,8,18,.75);border:1px solid #20203a;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;transition:all .3s;white-space:nowrap;position:relative}
+.pchip.active{background:rgba(255,215,0,.1);border-color:var(--gold);color:var(--gold);box-shadow:0 0 9px rgba(255,215,0,.18)}
+.pchip.is3man{border-color:rgba(255,45,120,.4);color:rgba(255,45,120,.75)}
+.pchip.is3man::after{content:'crown';font-size:8px;position:absolute;top:-5px;right:-2px}
+
+/* Canvas - fills remaining space, no gaps */
+.canvas-wrap{flex:1;width:100%;position:relative;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+#dice-canvas{flex:1;width:100%;display:block;min-height:0;touch-action:none;position:relative;z-index:2}
+
+/* Tap hint */
+.tap-hint-wrap{position:absolute;bottom:10px;left:0;right:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:6}
+.tap-hint{font-size:10px;letter-spacing:4px;text-transform:uppercase;color:rgba(255,255,255,.35);animation:blink 2.2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:.6}50%{opacity:.15}}
+
+/* TOTAL FLASH */
+.total-flash{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);font-family:'Bebas Neue',sans-serif;font-size:clamp(80px,24vw,140px);color:#fff;text-shadow:0 0 50px rgba(255,255,255,.75);pointer-events:none;z-index:50;opacity:0}
+.total-flash.pop{animation:tpop .9s ease forwards}
+@keyframes tpop{0%{transform:translate(-50%,-50%) scale(0);opacity:0}25%{transform:translate(-50%,-50%) scale(1.2);opacity:.9}65%{transform:translate(-50%,-50%) scale(.95);opacity:.65}100%{transform:translate(-50%,-50%) scale(.5);opacity:0}}
+
+/* FLASH OVERLAY */
+.flash-overlay{position:fixed;inset:0;z-index:70;pointer-events:none;opacity:0}
+.flash-overlay.flash3{animation:flash3Anim 1.4s ease forwards}
+@keyframes flash3Anim{0%{opacity:0}8%{opacity:1;background:rgba(255,45,120,.4)}18%{opacity:.2}28%{opacity:1;background:rgba(255,215,0,.35)}38%{opacity:.2}48%{opacity:1;background:rgba(255,45,120,.45)}62%{opacity:.4;background:rgba(0,207,255,.2)}78%{opacity:.8;background:rgba(255,45,120,.3)}100%{opacity:0}}
+
+/* RULE POPUP */
+.rule-popup{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:20px;pointer-events:none;opacity:0;transition:opacity .3s;background:rgba(0,0,0,.5)}
+.rule-popup.show{opacity:1;pointer-events:all}
+.rule-card{border-radius:22px;padding:28px 24px 22px;max-width:360px;width:100%;text-align:center;transform:scale(.85) translateY(20px);transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
+.rule-popup.show .rule-card{transform:scale(1) translateY(0)}
+.rule-icon{font-size:52px;margin-bottom:8px;display:block;animation:iconBounce .6s cubic-bezier(.34,1.56,.64,1) .1s both}
+@keyframes iconBounce{from{transform:scale(0) rotate(-20deg)}to{transform:scale(1) rotate(0)}}
+.rule-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(26px,8vw,38px);letter-spacing:4px;margin-bottom:8px;line-height:1}
+.rule-msg{font-size:clamp(14px,4vw,17px);font-weight:600;color:rgba(255,255,255,.85);letter-spacing:.3px;line-height:1.5;margin-bottom:18px}
+.rule-dismiss{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:3px;padding:12px 30px;border-radius:12px;border:none;cursor:pointer;transition:transform .15s;color:#fff}
+.rule-dismiss:active{transform:scale(.96)}
+
+/* MULTI-RULE list */
+.multi-rule-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;text-align:left}
+.multi-rule-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.06)}
+.mri-icon{font-size:22px;flex-shrink:0}
+.mri-text{font-size:14px;font-weight:600;color:rgba(255,255,255,.85);line-height:1.3}
+
+/* PLAYER SELECT OVERLAY */
+.player-select{position:fixed;inset:0;z-index:90;background:rgba(6,6,14,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .3s}
+.player-select.show{opacity:1;pointer-events:all}
+.ps-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(24px,7vw,36px);letter-spacing:4px;color:var(--gold);text-shadow:0 0 18px rgba(255,215,0,.45);margin-bottom:6px;text-align:center}
+.ps-sub{font-size:13px;letter-spacing:2px;color:rgba(255,255,255,.4);margin-bottom:18px;text-align:center}
+.ps-list{display:flex;flex-direction:column;gap:9px;width:100%;max-width:320px}
+.ps-btn{padding:14px 16px;border-radius:12px;background:#12122a;border:1.5px solid #242450;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;cursor:pointer;transition:all .2s;text-align:center;width:100%}
+.ps-btn:active{transform:scale(.97)}
+.ps-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+/* DOUBLES DIE ROLL */
+.doubles-roll-screen{position:fixed;inset:0;z-index:90;background:rgba(6,6,14,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .3s;gap:12px}
+.doubles-roll-screen.show{opacity:1;pointer-events:all}
+.dr-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(26px,7vw,38px);letter-spacing:4px;color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,.5);text-align:center}
+.dr-sub{font-size:13px;letter-spacing:2px;color:rgba(255,255,255,.4);text-align:center;margin-top:-6px}
+.dr-dice-area{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin:8px 0}
+.dr-die-slot{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:120px}
+.dr-die-owner{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:var(--muted);text-align:center}
+.dr-die-box{width:90px;height:90px;background:#141428;border:2px solid #28285a;border-radius:16px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:52px;color:var(--gold);cursor:pointer;transition:all .25s;position:relative;overflow:hidden}
+.dr-die-box.rolled{border-color:var(--ng);background:rgba(0,255,135,.08);animation:dieSettle .3s cubic-bezier(.34,1.56,.64,1)}
+@keyframes dieSettle{from{transform:scale(1.15)}to{transform:scale(1)}}
+.dr-die-box.waiting{animation:diePulse 1s ease-in-out infinite}
+@keyframes diePulse{0%,100%{border-color:#28285a}50%{border-color:var(--gold);box-shadow:0 0 12px rgba(255,215,0,.3)}}
+.dr-die-hint{font-size:10px;letter-spacing:3px;color:rgba(255,255,255,.3);text-transform:uppercase}
+.dr-result-secs{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;color:var(--nb);margin-top:2px;min-height:20px}
+.dr-dismiss{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;padding:13px 32px;border-radius:12px;background:linear-gradient(135deg,var(--ng),#00c06a);color:#061408;border:none;cursor:pointer;margin-top:4px;opacity:0;transition:opacity .4s}
+.dr-dismiss.show{opacity:1}
+
+/* WATERFALL TIMER */
+.waterfall-screen{position:fixed;inset:0;z-index:95;background:rgba(6,6,14,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .3s}
+.waterfall-screen.show{opacity:1;pointer-events:all}
+.wf-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,8vw,44px);letter-spacing:5px;color:var(--nb);text-shadow:0 0 20px rgba(0,207,255,.5);margin-bottom:16px}
+.wf-players{display:flex;flex-direction:column;gap:10px;width:100%;max-width:360px;margin-bottom:20px}
+.wf-row{display:flex;align-items:center;gap:10px;background:#10101e;border-radius:14px;padding:12px 14px;border:1px solid #1c1c38}
+.wf-row.drinking{border-color:var(--nb);background:rgba(0,207,255,.06)}
+.wf-name{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wf-bar-wrap{height:6px;width:80px;background:#1c1c38;border-radius:3px;overflow:hidden;flex-shrink:0}
+.wf-bar{height:100%;background:linear-gradient(to right,var(--nb),var(--ng));border-radius:3px;transition:width .1s linear}
+.wf-timer{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:var(--nb);min-width:44px;text-align:right;flex-shrink:0}
+.wf-timer.done{color:var(--ng)}
+.wf-dismiss{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;padding:14px 36px;border-radius:12px;background:linear-gradient(135deg,var(--ng),#00c06a);color:#061408;border:none;cursor:pointer}
+
+/* TURN TRANSITION */
+.turn-trans{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;opacity:0;pointer-events:none;transition:opacity .25s}
+.turn-trans.show{opacity:1;pointer-events:all}
+#tt-bg{position:absolute;inset:0;z-index:0}
+.tt-inner{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:8px}
+.tt-label{font-size:11px;letter-spacing:5px;color:rgba(255,255,255,.4);text-transform:uppercase}
+.tt-name{font-family:'Bebas Neue',sans-serif;font-size:clamp(46px,14vw,72px);letter-spacing:4px;color:var(--ng);text-shadow:0 0 30px rgba(0,255,135,.55);text-align:center;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+.tt-sub{font-size:13px;letter-spacing:3px;color:rgba(255,255,255,.3);text-transform:uppercase}
+
+/* 3-MAN CEREMONY */
+.ceremony{position:fixed;inset:0;background:rgba(8,8,16,.97);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s;overflow:hidden}
+.ceremony.show{opacity:1;pointer-events:all}
+.cer-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(17px,5vw,24px);letter-spacing:6px;color:var(--muted);text-transform:uppercase;margin-bottom:20px}
+.cer-slot{font-family:'Bebas Neue',sans-serif;font-size:clamp(50px,15vw,86px);letter-spacing:4px;color:var(--ng);text-shadow:0 0 28px rgba(0,255,135,.55);height:1.15em;display:flex;align-items:center;justify-content:center;min-width:80vw;text-align:center;overflow:hidden;transition:color .3s,text-shadow .3s}
+.cer-crown{font-size:clamp(56px,16vw,88px);opacity:0;transform:scale(0) rotate(-25deg);transition:all .55s cubic-bezier(.34,1.56,.64,1);margin:6px 0}
+.cer-crown.show{opacity:1;transform:scale(1) rotate(0)}
+.cer-sub{font-family:'Bebas Neue',sans-serif;font-size:clamp(19px,5vw,28px);letter-spacing:5px;color:var(--np);text-shadow:0 0 16px rgba(255,45,120,.6);opacity:0;transform:translateY(8px);transition:all .4s .3s}
+.cer-sub.show{opacity:1;transform:translateY(0)}
+.cer-tap{font-size:11px;letter-spacing:4px;color:var(--muted);position:absolute;bottom:44px;animation:blink 1.8s ease-in-out infinite}
+.confetti-p{position:absolute;border-radius:2px;pointer-events:none;animation:cfFall linear forwards}
+@keyframes cfFall{0%{transform:translateY(-30px) rotate(0);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+
+/* IN-GAME SETTINGS OVERLAY */
+.game-settings{position:fixed;inset:0;z-index:85;background:rgba(6,6,14,.95);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px 16px 40px;opacity:0;pointer-events:none;transition:opacity .3s;overflow-y:auto}
+.game-settings.show{opacity:1;pointer-events:all}
+.gs-header{width:100%;max-width:420px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.gs-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:4px;background:linear-gradient(135deg,var(--nb),var(--ng));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.gs-close{background:rgba(255,45,120,.1);border:1px solid rgba(255,45,120,.3);color:var(--np);font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px;padding:7px 12px;border-radius:8px;cursor:pointer}
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div class="screen active" id="screen-home">
+  <div class="logo">
+    <div class="logo-main">ROLL<br>CALL</div>
+    <div class="logo-sub">The Ultimate Dice Game</div>
+  </div>
+  <div class="home-preview" id="home-preview"></div>
+  <div class="card">
+    <div class="sec-label">Players</div>
+    <div class="players-list" id="players-list"></div>
+    <button class="btn btn-add" id="btn-add-player">+ ADD PLAYER</button>
+  </div>
+  <div class="home-btns">
+    <button class="btn btn-dice" onclick="openPicker('home')">CHOOSE DICE &amp; BACKGROUND</button>
+    <button class="btn btn-play" id="btn-play" disabled>PLAY GAME</button>
+  </div>
+</div>
+
+<!-- PICKER (shared for home + in-game) -->
+<div class="screen" id="screen-dice">
+  <div class="page-header">
+    <button class="btn-back" id="picker-back-btn">BACK</button>
+    <div class="page-title">Customize</div>
+    <div class="page-desc">Dice style and table background</div>
+  </div>
+  <div class="picker-tabs">
+    <div class="picker-tab active" id="tab-dice" onclick="switchPickerTab('dice')">DICE</div>
+    <div class="picker-tab" id="tab-bg" onclick="switchPickerTab('bg')">BACKGROUND</div>
+  </div>
+  <div class="picker-panel active" id="panel-dice">
+    <div style="width:100%">
+      <div class="sec-label" style="margin:12px 0 8px">Face Style</div>
+      <div class="face-toggle">
+        <div class="tog-btn active" id="tog-num" onclick="setFaceStyle('numbers')">1 2 3 NUMBERS</div>
+        <div class="tog-btn" id="tog-dot" onclick="setFaceStyle('dots')">DOTS</div>
+      </div>
+    </div>
+    <div class="dice-picker-grid" id="dice-picker-grid"></div>
+  </div>
+  <div class="picker-panel" id="panel-bg">
+    <div class="bg-picker-grid" id="bg-picker-grid"></div>
+  </div>
+  <button class="btn btn-confirm" style="max-width:420px;margin-top:8px" onclick="confirmPicker()">CONFIRM</button>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="screen-game">
+  <div id="game-bg"></div>
+  <div class="game-header">
+    <div>
+      <div class="game-logo">ROLL CALL</div>
+      <div class="round-badge" id="round-badge">ROUND 1</div>
+    </div>
+    <div class="game-header-right">
+      <button class="hdr-btn hdr-btn-3man" onclick="open3ManPicker()">CROWN</button>
+      <button class="hdr-btn hdr-btn-settings" onclick="openGameSettings()">SETTINGS</button>
+      <button class="hdr-btn hdr-btn-end" onclick="endGame()">END</button>
+    </div>
+  </div>
+  <div class="turn-banner">
+    <div class="turn-lbl">Now Rolling</div>
+    <div class="cur-player" id="cur-player">-</div>
+    <div class="three-crown" id="three-crown">CROWN THE THREE MAN</div>
+  </div>
+  <div class="players-strip" id="players-strip"></div>
+  <div class="canvas-wrap">
+    <canvas id="dice-canvas"></canvas>
+    <div class="tap-hint-wrap"><div class="tap-hint">TAP TO ROLL</div></div>
+  </div>
+</div>
+
+<!-- TOTAL FLASH -->
+<div class="total-flash" id="total-flash"></div>
+<!-- FLASH OVERLAY -->
+<div class="flash-overlay" id="flash-overlay"></div>
+
+<!-- RULE POPUP -->
+<div class="rule-popup" id="rule-popup">
+  <div class="rule-card" id="rule-card">
+    <span class="rule-icon" id="rule-icon">BEER</span>
+    <div class="rule-title" id="rule-title">DRINK UP</div>
+    <div class="rule-msg" id="rule-msg"></div>
+    <div class="multi-rule-list" id="multi-rule-list" style="display:none"></div>
+    <button class="rule-dismiss" id="rule-dismiss" onclick="dismissRule()">GOT IT</button>
+  </div>
+</div>
+
+<!-- PLAYER SELECT (for 3-man pick + doubles assign) -->
+<div class="player-select" id="player-select">
+  <div class="ps-title" id="ps-title">SELECT PLAYER</div>
+  <div class="ps-sub" id="ps-sub"></div>
+  <div class="ps-list" id="ps-list"></div>
+</div>
+
+<!-- DOUBLES ROLL SCREEN -->
+<div class="doubles-roll-screen" id="doubles-roll-screen">
+  <div class="dr-title">WATERFALL ROLL</div>
+  <div class="dr-sub">Each player taps their die to roll</div>
+  <div class="dr-dice-area" id="dr-dice-area"></div>
+  <button class="dr-dismiss" id="dr-dismiss" onclick="startWaterfall()">START WATERFALL</button>
+</div>
+
+<!-- WATERFALL SCREEN -->
+<div class="waterfall-screen" id="waterfall-screen">
+  <div class="wf-title">WATERFALL</div>
+  <div class="wf-players" id="wf-players"></div>
+  <button class="wf-dismiss" onclick="dismissWaterfall()">DONE - NEXT TURN</button>
+</div>
+
+<!-- TURN TRANSITION -->
+<div class="turn-trans" id="turn-trans">
+  <div id="tt-bg"></div>
+  <div class="tt-inner">
+    <div class="tt-label">Next Up</div>
+    <div class="tt-name" id="tt-name"></div>
+    <div class="tt-sub">Get Ready...</div>
+  </div>
+</div>
+
+<!-- 3-MAN CEREMONY -->
+<div class="ceremony" id="ceremony">
+  <div class="cer-title">Choosing the Three Man...</div>
+  <div class="cer-slot" id="cer-slot">?</div>
+  <div class="cer-crown" id="cer-crown">CROWN</div>
+  <div class="cer-sub" id="cer-sub">IS THE THREE MAN</div>
+  <div class="cer-tap" id="cer-tap" style="opacity:0">TAP TO START GAME</div>
+</div>
+
+<script>
+// STATE
+var players=['',''];
+var selectedDice='neon-green',tempDice='neon-green';
+var faceStyle='numbers',tempFaceStyle='numbers';
+var selectedBg='warm-bar',tempBg='warm-bar';
+var currentPlayerIndex=0,round=1;
+var isRolling=false,waitingForRule=false;
+var threeManIndex=-1,gamePlayers=[];
+var pickerReturnScreen='home';
+// doubles state
+var dblPlayers=[-1,-1]; // player indices for die1, die2
+var dblRolled=[0,0]; // rolled values
+var dblRollDone=[false,false];
+
+// BACKGROUND THEMES with full scene data
+var BG_THEMES=[
+  {id:'warm-bar',name:'Warm Bar',
+   scene:{sky:['#1a0800','#100500','#060200'],felt:'#2a1600',feltLine:'rgba(120,65,10,.22)',rail:'#6a3800',lamp:0xffaa44,lampI:1.0},
+   css:'radial-gradient(ellipse at 50% -20%,#2a1200 0%,#120600 45%,#060200 100%)',
+   ttbg:'radial-gradient(ellipse at 50% 0%,#1a0a00 0%,#080300 100%)',
+   preview:['#3a1800','#1a0800','#6a3800','#ff9944']},
+  {id:'dive-bar',name:'Dive Bar',
+   scene:{sky:['#1a0e00','#0f0800','#050300'],felt:'#241200',feltLine:'rgba(100,55,5,.22)',rail:'#552a00',lamp:0xff8833,lampI:0.9},
+   css:'radial-gradient(ellipse at 50% -20%,#1e1000 0%,#0e0800 45%,#040300 100%)',
+   ttbg:'radial-gradient(ellipse at 50% 0%,#140a00 0%,#060300 100%)',
+   preview:['#2a1400','#140a00','#552a00','#ff7722']},
+  {id:'casino',name:'Casino Green',
+   scene:{sky:['#041808','#020e04','#010602'],felt:'#082a10',feltLine:'rgba(0,100,40,.2)',rail:'#1a5a28',lamp:0x88ffaa,lampI:0.7},
+   css:'radial-gradient(ellipse at 50% -20%,#062010 0%,#030e06 45%,#010503 100%)',
+   ttbg:'radial-gradient(ellipse at 50% 0%,#041408 0%,#020803 100%)',
+   preview:['#082a10','#041808','#1a5a28','#44ff88']},
+  {id:'speakeasy',name:'Speakeasy',
+   scene:{sky:['#160826','#0c0418','#060210'],felt:'#1c0a30',feltLine:'rgba(100,30,160,.18)',rail:'#4a1270',lamp:0xcc88ff,lampI:0.8},
+   css:'radial-gradient(ellipse at 50% -20%,#1a0a30 0%,#0c0418 45%,#040210 100%)',
+   ttbg:'radial-gradient(ellipse at 50% 0%,#120620 0%,#060210 100%)',
+   preview:['#1a0a30','#0c0418','#4a1270','#cc88ff']},
+  {id:'rooftop',name:'Rooftop Bar',
+   scene:{sky:['#060c1c','#030814','#010408'],felt:'#080e20',feltLine:'rgba(20,60,200,.15)',rail:'#162048',lamp:0x8899ff,lampI:0.6},
+   css:'radial-gradient(ellipse at 50% -20%,#080e22 0%,#030a16 45%,#010408 100%)',
+   ttbg:'radial-gradient(ellipse at 50% 0%,#060a18 0%,#020408 100%)',
+   preview:['#080e22','#030a16','#162048','#4466ff']},
+  {id:'red-room',name:'Red Room',
+   scene:{sky:['#1a0006','#0e0004','#060002'],felt:'#220008',feltLine:'rgba(180,0,25,.2)',rail:'#5a0018',lamp:0xff4455,lampI:0.9},
+   css:'radial-gradient(ellipse at 50% -20%,#220008 0%,#110004 45%,#060002 100%)',
+   ttbg:'radial-gradient(ellipse at 50% 0%,#180006 0%,#060002 100%)',
+   preview:['#220008','#110004','#5a0018','#ff2244']},
+  {id:'whiskey',name:'Whiskey Lounge',
+   scene:{sky:['#1c1000','#120a00','#060400'],felt:'#201400',feltLine:'rgba(100,60,5,.2)',rail:'#604020',lamp:0xffbb66,lampI:0.85},
+   css:'radial-gradient(ellipse at 50% -20%,#201400 0%,#120a00 45%,#060400 100%)',
+   ttbg:'radial-gradient(ellipse at 50% 0%,#160e00 0%,#060400 100%)',
+   preview:['#201400','#120a00','#604020','#ffaa44']},
+  {id:'tiki',name:'Tiki Bar',
+   scene:{sky:['#081600','#041000','#020800'],felt:'#0c1a00',feltLine:'rgba(50,110,0,.18)',rail:'#2a5000',lamp:0x88ff66,lampI:0.7},
+   css:'radial-gradient(ellipse at 50% -20%,#0c1a00 0%,#060e00 45%,#020800 100%)',
+   ttbg:'radial-gradient(ellipse at 50% 0%,#081400 0%,#020800 100%)',
+   preview:['#0c1a00','#060e00','#2a5000','#66ff44']},
+];
+function getBg(id){return BG_THEMES.find(function(b){return b.id===id;})||BG_THEMES[0];}
+
+// DICE STYLES
+var DICE_STYLES=[
+  {id:'neon-green',name:'Neon Green',body:'#071510',face:'#00ff87',glow:'#00ff87'},
+  {id:'neon-pink',name:'Hot Pink',body:'#150810',face:'#ff2d78',glow:'#ff2d78'},
+  {id:'neon-blue',name:'Cyber Blue',body:'#060e18',face:'#00cfff',glow:'#00cfff'},
+  {id:'gold',name:'Gold Rush',body:'#141000',face:'#ffd700',glow:'#ffd700'},
+  {id:'fire',name:'Fire',body:'#180600',face:'#ff7700',glow:'#ff5500'},
+  {id:'ice',name:'Ice',body:'#050f18',face:'#b8eeff',glow:'#90d8f8'},
+  {id:'crimson',name:'Crimson',body:'#150404',face:'#ff5555',glow:'#ff3333'},
+  {id:'venom',name:'Venom',body:'#0c0518',face:'#c060ff',glow:'#b040ff'},
+  {id:'classic',name:'Classic',body:'#f2ebd8',face:'#111111',glow:null},
+  {id:'obsidian',name:'Obsidian',body:'#0c0c18',face:'#9898cc',glow:'#8888bb'},
+  {id:'emerald',name:'Emerald',body:'#041508',face:'#00e676',glow:'#00d466'},
+  {id:'solar',name:'Solar',body:'#180a00',face:'#ffaa00',glow:'#ff8800'},
+];
+function getDiceStyle(id){return DICE_STYLES.find(function(s){return s.id===id;})||DICE_STYLES[0];}
+
+var PIPS={1:[[50,50]],2:[[30,30],[70,70]],3:[[30,30],[50,50],[70,70]],4:[[30,30],[70,30],[30,70],[70,70]],5:[[30,30],[70,30],[50,50],[30,70],[70,70]],6:[[30,25],[70,25],[30,50],[70,50],[30,75],[70,75]]};
+
+// SVG DIE
+function svgDie(val,styleId,sz,fs){
+  var s=getDiceStyle(styleId),glow=s.glow,r=sz*0.14,inner='';
+  var useFace=fs||faceStyle;
+  if(useFace==='numbers'){
+    var fz=sz*0.5,glowF=glow?'drop-shadow(0 0 '+sz*0.06+'px '+glow+')':'none';
+    inner='<text x="'+sz/2+'" y="'+sz*0.555+'" text-anchor="middle" dominant-baseline="middle" font-family="Bebas Neue,Impact,sans-serif" font-size="'+fz+'" fill="'+s.face+'" style="filter:'+glowF+'">'+val+'</text>';
+  } else {
+    var pips=PIPS[val]||PIPS[1],pr=sz*0.072;
+    var glowF2=glow?'drop-shadow(0 0 '+sz*0.04+'px '+glow+')':'none';
+    inner=pips.map(function(p){return '<circle cx="'+p[0]/100*sz+'" cy="'+p[1]/100*sz+'" r="'+pr+'" fill="'+s.face+'" style="filter:'+glowF2+'"/>';}).join('');
+  }
+  var bc=s.id==='classic'?'#c8b860':s.face;
+  var gs=glow?'drop-shadow(0 0 '+sz*0.1+'px '+glow+'55)':'drop-shadow(0 4px 8px rgba(0,0,0,.6))';
+  return '<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'" xmlns="http://www.w3.org/2000/svg" style="filter:'+gs+';display:block"><rect x="3" y="3" width="'+(sz-6)+'" height="'+(sz-6)+'" rx="'+r+'" fill="'+s.body+'" stroke="'+bc+'" stroke-width="2"/>'+inner+'</svg>';
+}
+
+// THREE.JS
+var renderer,scene,camera,mesh1,mesh2,tableMesh,tableRail,pointLamp;
+var rollAnim=null,animId=null,d1Val=1,d2Val=1,threeReady=false;
+var FACE_VALUES=[3,4,2,5,1,6];
+var FACE_ROT={1:[0,0,0],6:[0,Math.PI,0],3:[0,-Math.PI/2,0],4:[0,Math.PI/2,0],2:[Math.PI/2,0,0],5:[-Math.PI/2,0,0]};
+
+function makeTex(val,styleId,fs){
+  var sz=256,cv=document.createElement('canvas');cv.width=cv.height=sz;
+  var ctx=cv.getContext('2d'),s=getDiceStyle(styleId);
+  ctx.fillStyle=s.body;ctx.fillRect(0,0,sz,sz);
+  var rr=sz*0.13,bw=5;
+  ctx.strokeStyle=s.id==='classic'?'#c8b860':s.face;ctx.lineWidth=bw;
+  rrect(ctx,bw/2,bw/2,sz-bw,sz-bw,rr);ctx.stroke();
+  if(s.glow){var gr=ctx.createRadialGradient(sz/2,sz/2,sz*0.08,sz/2,sz/2,sz*0.65);gr.addColorStop(0,s.glow+'22');gr.addColorStop(1,'transparent');ctx.fillStyle=gr;ctx.fillRect(0,0,sz,sz);}
+  ctx.fillStyle=s.face;
+  if(s.glow){ctx.shadowColor=s.glow;ctx.shadowBlur=22;}
+  var useFace=fs||faceStyle;
+  if(useFace==='numbers'){ctx.font='bold '+sz*0.54+'px Bebas Neue,Impact,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(val),sz/2,sz*0.53);}
+  else{var pips2=PIPS[val]||PIPS[1],pr2=sz*0.075;pips2.forEach(function(p){ctx.beginPath();ctx.arc(p[0]/100*sz,p[1]/100*sz,pr2,0,Math.PI*2);ctx.fill();});}
+  ctx.shadowBlur=0;
+  return new THREE.CanvasTexture(cv);
+}
+function rrect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
+
+function buildMesh(styleId){
+  var geo=new THREE.BoxGeometry(1.7,1.7,1.7,1,1,1);
+  var mats=FACE_VALUES.map(function(v){return new THREE.MeshStandardMaterial({map:makeTex(v,styleId),roughness:0.22,metalness:0.08});});
+  return new THREE.Mesh(geo,mats);
+}
+function setFaceUp(mesh,val){var r=FACE_ROT[val]||[0,0,0];mesh.rotation.set(r[0],r[1],r[2]);}
+
+function hexToColor(hex){return new THREE.Color(hex);}
+
+function buildTable(bgId){
+  var bg=getBg(bgId),sc=bg.scene;
+  if(tableMesh){scene.remove(tableMesh);}
+  if(tableRail){scene.remove(tableRail);}
+
+  var feltCv=document.createElement('canvas');feltCv.width=512;feltCv.height=256;
+  var ctx=feltCv.getContext('2d');
+  var gr=ctx.createLinearGradient(0,0,0,256);
+  gr.addColorStop(0,sc.felt+'ff');gr.addColorStop(0.6,sc.felt+'cc');gr.addColorStop(1,sc.felt+'88');
+  ctx.fillStyle=gr;ctx.fillRect(0,0,512,256);
+  // Weave lines
+  ctx.strokeStyle=sc.feltLine;ctx.lineWidth=0.8;
+  for(var i=0;i<512;i+=14){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,256);ctx.stroke();}
+  for(var j=0;j<256;j+=14){ctx.beginPath();ctx.moveTo(0,j);ctx.lineTo(512,j);ctx.stroke();}
+  // Drink silhouettes for warm themes
+  if(bgId==='warm-bar'||bgId==='dive-bar'||bgId==='whiskey'){
+    ctx.globalAlpha=0.10;ctx.fillStyle='#ffffff';
+    drawDrink(ctx,60,100,42,'mug');
+    drawDrink(ctx,430,90,38,'wine');
+    drawDrink(ctx,270,95,24,'shot');
+    ctx.globalAlpha=1;
+  }
+  // Rail edge
+  ctx.strokeStyle=sc.rail+'cc';ctx.lineWidth=10;ctx.strokeRect(5,5,502,246);
+  var tex=new THREE.CanvasTexture(feltCv);
+  tableMesh=new THREE.Mesh(new THREE.PlaneGeometry(18,8),new THREE.MeshStandardMaterial({map:tex,roughness:0.9,metalness:0}));
+  tableMesh.rotation.x=-Math.PI/2;tableMesh.position.set(0,-1.5,-0.5);
+  scene.add(tableMesh);
+  var railMat=new THREE.MeshStandardMaterial({color:new THREE.Color(sc.rail),roughness:0.6,metalness:0.3});
+  tableRail=new THREE.Mesh(new THREE.BoxGeometry(18,0.14,0.2),railMat);
+  tableRail.position.set(0,-1.42,-1.6);
+  scene.add(tableRail);
+  // Update lamp color
+  if(pointLamp){pointLamp.color.setHex(sc.lamp);pointLamp.intensity=sc.lampI;}
+}
+
+function drawDrink(ctx,x,y,sz,type){
+  if(type==='mug'){
+    ctx.beginPath();
+    if(ctx.roundRect){ctx.roundRect(x-sz*0.3,y-sz*0.8,sz*0.6,sz*0.9,4);}
+    else{ctx.rect(x-sz*0.3,y-sz*0.8,sz*0.6,sz*0.9);}
+    ctx.fill();
+  } else if(type==='wine'){
+    ctx.beginPath();ctx.ellipse(x,y-sz*0.2,sz*0.35,sz*0.45,0,0,Math.PI*2);ctx.fill();
+    ctx.fillRect(x-3,y+sz*0.2,6,sz*0.5);
+    ctx.beginPath();ctx.ellipse(x,y+sz*0.72,sz*0.3,sz*0.08,0,0,Math.PI*2);ctx.fill();
+  } else {
+    ctx.beginPath();ctx.moveTo(x-sz*0.35,y-sz*0.6);ctx.lineTo(x+sz*0.35,y-sz*0.6);ctx.lineTo(x+sz*0.28,y+sz*0.42);ctx.lineTo(x-sz*0.28,y+sz*0.42);ctx.closePath();ctx.fill();
+  }
+}
+
+function initThree(){
+  if(threeReady)return;
+  var canvas=document.getElementById('dice-canvas');
+  var W=canvas.clientWidth,H=canvas.clientHeight;
+  renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W,H,false);
+  renderer.setClearColor(0x000000,0);
+  renderer.shadowMap.enabled=true;
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(44,W/H,0.1,100);
+  // Camera positioned to look down at table, dice centered
+  camera.position.set(0,2.2,7.5);
+  camera.lookAt(0,-0.3,0);
+  scene.add(new THREE.AmbientLight(0xffffff,0.28));
+  var key=new THREE.DirectionalLight(0xffffff,1.4);key.position.set(2,7,5);scene.add(key);
+  var fill=new THREE.PointLight(0x3355ff,0.8,22);fill.position.set(-4,-1,3);scene.add(fill);
+  var rim=new THREE.PointLight(0xff3366,0.5,18);rim.position.set(0,-5,2);scene.add(rim);
+  // Warm overhead lamp (matches theme)
+  var bg=getBg(selectedBg);
+  pointLamp=new THREE.PointLight(bg.scene.lamp,bg.scene.lampI,16);
+  pointLamp.position.set(0,5,0);scene.add(pointLamp);
+
+  buildTable(selectedBg);
+  mesh1=buildMesh(selectedDice);mesh2=buildMesh(selectedDice);
+  setFaceUp(mesh1,1);setFaceUp(mesh2,1);
+  mesh1.position.set(-1.2,0.15,0);mesh2.position.set(1.2,0.15,0);
+  scene.add(mesh1);scene.add(mesh2);
+  threeReady=true;
+  resizeThree();
+  window.addEventListener('resize',resizeThree);
+  loopThree();
+}
+
+function resizeThree(){
+  var canvas=document.getElementById('dice-canvas');
+  if(!canvas||!renderer||!camera)return;
+  var W=canvas.clientWidth,H=canvas.clientHeight;
+  if(!W||!H)return;
+  renderer.setSize(W,H,false);camera.aspect=W/H;camera.updateProjectionMatrix();
+}
+
+function rebuildDice(){
+  if(!scene)return;
+  scene.remove(mesh1);scene.remove(mesh2);
+  mesh1=buildMesh(selectedDice);mesh2=buildMesh(selectedDice);
+  setFaceUp(mesh1,d1Val);setFaceUp(mesh2,d2Val);
+  mesh1.position.set(-1.2,0.15,0);mesh2.position.set(1.2,0.15,0);
+  scene.add(mesh1);scene.add(mesh2);
+}
+
+function loopThree(){
+  animId=requestAnimationFrame(loopThree);
+  if(!renderer||!scene||!camera)return;
+  if(rollAnim){
+    rollAnim.t+=rollAnim.spd;
+    var t=rollAnim.t;
+    if(t<1){
+      // Spin fast during throw
+      mesh1.rotation.x+=rollAnim.r1[0];mesh1.rotation.y+=rollAnim.r1[1];mesh1.rotation.z+=rollAnim.r1[2];
+      mesh2.rotation.x+=rollAnim.r2[0];mesh2.rotation.y+=rollAnim.r2[1];mesh2.rotation.z+=rollAnim.r2[2];
+      // Arc throw: dice come from ABOVE (thrown downward onto table)
+      // Start high, arc down and land at table level
+      var ease=t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+      // Height: starts elevated, drops hard, small bounces at end
+      var height;
+      if(t<0.7){
+        // Main drop from height
+        height=4.5*(1-ease)*(1-ease);
+      } else {
+        // Bounce on table
+        var bt=(t-0.7)/0.3;
+        height=Math.abs(Math.sin(bt*Math.PI*2.5))*(1-bt)*0.8;
+      }
+      // Horizontal drift - dice start closer together, spread slightly
+      var spreadEase=t<0.5?t*2:1.0;
+      mesh1.position.set(-1.2*spreadEase,0.15+height,rollAnim.d1z*(1-ease));
+      mesh2.position.set(1.2*spreadEase,0.15+height*0.9,rollAnim.d2z*(1-ease));
+    } else {
+      d1Val=rollAnim.v1;d2Val=rollAnim.v2;
+      setFaceUp(mesh1,d1Val);setFaceUp(mesh2,d2Val);
+      mesh1.position.set(-1.2,0.15,0);mesh2.position.set(1.2,0.15,0);
+      var total=d1Val+d2Val;
+      rollAnim=null;
+      var tf=document.getElementById('total-flash');
+      tf.textContent=total;tf.classList.remove('pop');void tf.offsetWidth;tf.classList.add('pop');
+      setTimeout(function(){evaluateRoll(d1Val,d2Val);},2400);
+    }
+  } else {
+    // Gentle idle float only - no rotation
+    var now=Date.now()*0.001;
+    mesh1.position.y=0.15+Math.sin(now)*0.07;
+    mesh2.position.y=0.15+Math.sin(now+1.2)*0.07;
+  }
+  renderer.render(scene,camera);
+}
+
+function roll3D(){
+  if(isRolling||rollAnim||waitingForRule)return;
+  isRolling=true;
+  if(navigator.vibrate)navigator.vibrate([25,10,25]);
+  var v1=1+Math.floor(Math.random()*6),v2=1+Math.floor(Math.random()*6);
+  function rnd(a,b){return a+Math.random()*(b-a);}
+  rollAnim={t:0,spd:0.013,v1:v1,v2:v2,
+    r1:[rnd(0.2,0.38),rnd(0.25,0.42),rnd(-0.1,0.1)],
+    r2:[rnd(-0.38,-0.2),rnd(0.25,0.42),rnd(-0.1,0.1)],
+    d1z:rnd(-0.8,0.8),d2z:rnd(-0.8,0.8)};
+}
+
+// RULE ENGINE - handles multiple simultaneous rules
+function evaluateRoll(d1,d2){
+  isRolling=false;
+  var total=d1+d2;
+  var isDoubles=d1===d2;
+  var has3=d1===3||d2===3; // a 3 was physically on a die face (not just total)
+  var is3man=currentPlayerIndex===threeManIndex;
+
+  var rules=[];
+
+  // Check 3 on a die face
+  if(has3){
+    if(is3man){
+      // 3-man rolled a 3 - gets to pick new 3 man - handled separately
+      rules.push({type:'3man-escape'});
+    } else {
+      rules.push({type:'3-drink',icon:'FIRE',color:'#ff2d78',msg:gamePlayers[threeManIndex]+' IS THE THREE MAN - DRINK!'});
+    }
+  }
+
+  // Check totals (these stack with the 3 rule)
+  if(total===7){
+    var rightIdx=(currentPlayerIndex+1)%gamePlayers.length;
+    var rightName=gamePlayers[rightIdx];
+    rules.push({type:'7',icon:'ARROW',color:'#ffd700',msg:rightName+' drinks! (to the right)'});
+  }
+  if(total===11){
+    var leftIdx=(currentPlayerIndex-1+gamePlayers.length)%gamePlayers.length;
+    var leftName=gamePlayers[leftIdx];
+    rules.push({type:'11',icon:'ARROW',color:'#00cfff',msg:leftName+' drinks! (to the left)'});
+  }
+
+  // Check doubles (always fires if present)
+  if(isDoubles){
+    rules.push({type:'doubles',val:d1});
+  }
+
+  if(rules.length===0){
+    advanceTurnDelayed();
+    return;
+  }
+
+  // Flash for 3-man rules
+  var hasThree=rules.some(function(r){return r.type==='3-drink'||r.type==='3man-escape';});
+  if(hasThree)triggerFlashLights();
+
+  // Process rules in sequence
+  processRules(rules,0);
+}
+
+function processRules(rules,idx){
+  if(idx>=rules.length){
+    // All rules done
+    waitingForRule=false;
+    advanceTurn();
+    return;
+  }
+  var rule=rules[idx];
+  var next=function(){processRules(rules,idx+1);};
+
+  if(rule.type==='3-drink'){
+    waitingForRule=true;
+    showRulePopup('FIRE','THREE!',gamePlayers[threeManIndex]+' IS THE THREE MAN - DRINK!','#ff2d78',next);
+  } else if(rule.type==='3man-escape'){
+    waitingForRule=true;
+    showRulePopup('CROWN','THREE MAN ESCAPE!','You rolled a THREE - pick the new Three Man!','#ff2d78',function(){
+      openManualPicker(null,function(chosen){
+        threeManIndex=chosen;
+        updateGameUI();
+        showRulePopup('CROWN','NEW THREE MAN!',gamePlayers[chosen]+' is now the Three Man!','#ff2d78',next);
+      });
+    });
+  } else if(rule.type==='7'){
+    waitingForRule=true;
+    showRulePopup('ARROW','SEVEN!',rule.msg,'#ffd700',next);
+  } else if(rule.type==='11'){
+    waitingForRule=true;
+    showRulePopup('ARROW','ELEVEN!',rule.msg,'#00cfff',next);
+  } else if(rule.type==='doubles'){
+    waitingForRule=true;
+    showDoublesPicker(rule.val,next);
+  }
+}
+
+function advanceTurnDelayed(){
+  waitingForRule=false;
+  advanceTurn();
+}
+
+// FLASH LIGHTS
+function triggerFlashLights(){
+  var fo=document.getElementById('flash-overlay');
+  fo.classList.remove('flash3');void fo.offsetWidth;fo.classList.add('flash3');
+  if(navigator.vibrate)navigator.vibrate([30,20,30,20,60,20,30]);
+}
+
+// RULE POPUP
+var ruleCallback=null;
+function showRulePopup(icon,title,msg,color,callback){
+  ruleCallback=callback;
+  var icons={'FIRE':'FIRE','CROWN':'CROWN','ARROW':'>>','BEER':'BEER'};
+  document.getElementById('rule-icon').textContent=icon==='FIRE'?'FIRE':icon==='CROWN'?'CROWN':icon==='ARROW'?'>>':'!!';
+  document.getElementById('rule-title').textContent=title;
+  document.getElementById('rule-title').style.color=color;
+  document.getElementById('rule-msg').textContent=msg;
+  document.getElementById('rule-msg').style.display='block';
+  document.getElementById('multi-rule-list').style.display='none';
+  document.getElementById('rule-dismiss').style.background=color;
+  document.getElementById('rule-dismiss').style.color=color==='#ffd700'?'#1a1000':'#fff';
+  document.getElementById('rule-card').style.background='linear-gradient(145deg,#0e0e1e,#16101e)';
+  document.getElementById('rule-card').style.border='1.5px solid '+color+'44';
+  document.getElementById('rule-card').style.boxShadow='0 0 40px '+color+'33,0 20px 60px rgba(0,0,0,.8)';
+  document.getElementById('rule-popup').classList.add('show');
+}
+function dismissRule(){
+  document.getElementById('rule-popup').classList.remove('show');
+  var cb=ruleCallback;ruleCallback=null;
+  if(cb)setTimeout(cb,220);
+}
+
+// PLAYER SELECT (generic)
+var psCallback=null,psExclude=-1;
+function openManualPicker(excludeIdx,callback){
+  psCallback=callback;psExclude=excludeIdx==null?-1:excludeIdx;
+  document.getElementById('ps-title').textContent='SELECT PLAYER';
+  document.getElementById('ps-sub').textContent='Who is the new Three Man?';
+  var list=document.getElementById('ps-list');
+  list.innerHTML=gamePlayers.map(function(n,i){
+    if(i===psExclude)return '';
+    return '<button class="ps-btn" onclick="selectPlayer('+i+')">'+n+'</button>';
+  }).join('');
+  document.getElementById('player-select').classList.add('show');
+}
+function selectPlayer(idx){
+  document.getElementById('player-select').classList.remove('show');
+  var cb=psCallback;psCallback=null;
+  if(cb)setTimeout(function(){cb(idx);},200);
+}
+
+// MANUAL 3-MAN PICK from header button
+function open3ManPicker(){
+  if(waitingForRule||isRolling)return;
+  openManualPicker(null,function(chosen){
+    threeManIndex=chosen;
+    updateGameUI();
+    showRulePopup('CROWN','NEW THREE MAN!',gamePlayers[chosen]+' is the new Three Man!','#ff2d78',function(){
+      waitingForRule=false;
+    });
+  });
+}
+
+// DOUBLES - assign dice to players then roll
+var dblValue=0,dblNextCallback=null;
+function showDoublesPicker(val,nextCallback){
+  dblValue=val;dblNextCallback=nextCallback;
+  dblPlayers=[-1,-1];dblRolled=[0,0];dblRollDone=[false,false];
+  // First pick player for die 1
+  pickDblPlayer(1);
+}
+
+function pickDblPlayer(dieNum){
+  psCallback=function(idx){
+    dblPlayers[dieNum-1]=idx;
+    if(dieNum===1){
+      // Pick player for die 2 (can be same)
+      document.getElementById('ps-title').textContent='DIE 2 GOES TO...';
+      document.getElementById('ps-sub').textContent='Who gets Die 2? (can be same player)';
+      var list=document.getElementById('ps-list');
+      list.innerHTML=gamePlayers.map(function(n,i){
+        return '<button class="ps-btn" onclick="selectPlayer('+i+')">'+n+'</button>';
+      }).join('');
+      psCallback=function(idx2){
+        dblPlayers[1]=idx2;
+        document.getElementById('player-select').classList.remove('show');
+        showDoublesRollScreen();
+      };
+      document.getElementById('player-select').classList.add('show');
+    }
+  };
+  document.getElementById('ps-title').textContent='DIE 1 GOES TO...';
+  document.getElementById('ps-sub').textContent='Who gets Die 1?';
+  var list=document.getElementById('ps-list');
+  list.innerHTML=gamePlayers.map(function(n,i){
+    return '<button class="ps-btn" onclick="selectPlayer('+i+')">'+n+'</button>';
+  }).join('');
+  document.getElementById('player-select').classList.add('show');
+}
+
+function showDoublesRollScreen(){
+  dblRolled=[0,0];dblRollDone=[false,false];
+  var area=document.getElementById('dr-dice-area');
+  var isSame=dblPlayers[0]===dblPlayers[1];
+  var dismiss=document.getElementById('dr-dismiss');
+  dismiss.classList.remove('show');
+
+  if(isSame){
+    // One player, roll both dice
+    area.innerHTML='<div class="dr-die-slot">'
+      +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[0]]+'</div>'
+      +'<div class="dr-die-box waiting" id="dr-box-0" onclick="rollDblDie(0)">'+dblValue+'</div>'
+      +'<div class="dr-die-hint">Tap to roll Die 1</div>'
+      +'<div class="dr-result-secs" id="dr-secs-0"></div>'
+      +'</div>'
+      +'<div class="dr-die-slot">'
+      +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[1]]+'</div>'
+      +'<div class="dr-die-box waiting" id="dr-box-1" onclick="rollDblDie(1)">'+dblValue+'</div>'
+      +'<div class="dr-die-hint">Tap to roll Die 2</div>'
+      +'<div class="dr-result-secs" id="dr-secs-1"></div>'
+      +'</div>';
+  } else {
+    area.innerHTML='<div class="dr-die-slot">'
+      +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[0]]+'</div>'
+      +'<div class="dr-die-box waiting" id="dr-box-0" onclick="rollDblDie(0)">'+dblValue+'</div>'
+      +'<div class="dr-die-hint">Tap to roll</div>'
+      +'<div class="dr-result-secs" id="dr-secs-0"></div>'
+      +'</div>'
+      +'<div class="dr-die-slot">'
+      +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[1]]+'</div>'
+      +'<div class="dr-die-box waiting" id="dr-box-1" onclick="rollDblDie(1)">'+dblValue+'</div>'
+      +'<div class="dr-die-hint">Tap to roll</div>'
+      +'<div class="dr-result-secs" id="dr-secs-1"></div>'
+      +'</div>';
+  }
+  document.getElementById('doubles-roll-screen').classList.add('show');
+}
+
+function rollDblDie(dieIdx){
+  var box=document.getElementById('dr-box-'+dieIdx);
+  if(!box||dblRollDone[dieIdx])return;
+  var val=1+Math.floor(Math.random()*6);
+  dblRolled[dieIdx]=val;
+  dblRollDone[dieIdx]=true;
+  box.textContent=val;
+  box.classList.remove('waiting');box.classList.add('rolled');
+  var secs=document.getElementById('dr-secs-'+dieIdx);
+  if(secs)secs.textContent=val+' SECOND'+(val!==1?'S':'');
+  if(navigator.vibrate)navigator.vibrate(50);
+  // If both rolled, show dismiss
+  if(dblRollDone[0]&&dblRollDone[1]){
+    setTimeout(function(){document.getElementById('dr-dismiss').classList.add('show');},400);
+  }
+}
+
+function startWaterfall(){
+  document.getElementById('doubles-roll-screen').classList.remove('show');
+  // Build waterfall entries
+  var entries=[];
+  var isSame=dblPlayers[0]===dblPlayers[1];
+  if(isSame){
+    entries.push({name:gamePlayers[dblPlayers[0]],secs:dblRolled[0]+dblRolled[1]});
+  } else {
+    entries.push({name:gamePlayers[dblPlayers[0]],secs:dblRolled[0]});
+    entries.push({name:gamePlayers[dblPlayers[1]],secs:dblRolled[1]});
+  }
+  showWaterfall(entries);
+}
+
+// WATERFALL
+var wfTimers=[];
+function showWaterfall(entries){
+  wfTimers.forEach(function(t){clearInterval(t);});wfTimers=[];
+  var container=document.getElementById('wf-players');
+  container.innerHTML=entries.map(function(e,i){
+    return '<div class="wf-row drinking" id="wf-row-'+i+'">'
+      +'<div class="wf-name">'+e.name+'</div>'
+      +'<div class="wf-bar-wrap"><div class="wf-bar" id="wf-bar-'+i+'" style="width:100%"></div></div>'
+      +'<div class="wf-timer" id="wf-timer-'+i+'">'+e.secs+'s</div>'
+      +'</div>';
+  }).join('');
+  document.getElementById('waterfall-screen').classList.add('show');
+  entries.forEach(function(e,i){
+    var remaining=e.secs;
+    var timer=setInterval(function(){
+      remaining-=0.1;
+      var pct=Math.max(0,remaining/e.secs*100);
+      var barEl=document.getElementById('wf-bar-'+i);
+      var timeEl=document.getElementById('wf-timer-'+i);
+      if(barEl)barEl.style.width=pct+'%';
+      if(timeEl)timeEl.textContent=remaining<=0?'DONE':Math.ceil(remaining)+'s';
+      if(remaining<=0){clearInterval(timer);if(timeEl){timeEl.textContent='DONE';timeEl.classList.add('done');}if(barEl)barEl.style.background='#00ff87';}
+    },100);
+    wfTimers.push(timer);
+  });
+}
+function dismissWaterfall(){
+  wfTimers.forEach(function(t){clearInterval(t);});wfTimers=[];
+  document.getElementById('waterfall-screen').classList.remove('show');
+  var cb=dblNextCallback;dblNextCallback=null;
+  if(cb)cb();
+}
+
+// APPLY BG
+function applyGameBg(bgId){
+  var bg=getBg(bgId);
+  document.getElementById('game-bg').style.background=bg.css;
+  document.getElementById('tt-bg').style.background=bg.ttbg||bg.css;
+  if(threeReady&&pointLamp){pointLamp.color.setHex(bg.scene.lamp);pointLamp.intensity=bg.scene.lampI;}
+}
+
+// SCREEN NAV
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.getElementById('screen-'+id).classList.add('active');
+  if(id==='game')setTimeout(resizeThree,60);
+}
+
+// HOME
+function renderHome(){renderPlayersList();renderHomePreview();updatePlayBtn();}
+function renderHomePreview(){
+  document.getElementById('home-preview').innerHTML='<div>'+svgDie(5,selectedDice,80,faceStyle)+'</div><div>'+svgDie(3,selectedDice,80,faceStyle)+'</div>';
+}
+function renderPlayersList(){
+  document.getElementById('players-list').innerHTML=players.map(function(n,i){
+    return '<div class="player-row"><span class="player-num">'+(i+1)+'</span>'
+      +'<input type="text" placeholder="Player '+(i+1)+'" value="'+esc(n)+'" oninput="players['+i+']=this.value;updatePlayBtn()" maxlength="14" autocomplete="off">'
+      +(players.length>2?'<button class="btn-remove" onclick="removePlayer('+i+')">X</button>':'')
+      +'</div>';
+  }).join('');
+}
+function updatePlayBtn(){document.getElementById('btn-play').disabled=players.filter(function(p){return p.trim();}).length<2;}
+function esc(s){return s.replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+document.getElementById('btn-add-player').addEventListener('click',function(){
+  if(players.length>=8)return;players.push('');renderPlayersList();updatePlayBtn();
+  setTimeout(function(){var i=document.querySelectorAll('#players-list input');if(i[i.length-1])i[i.length-1].focus();},80);
+});
+function removePlayer(i){players.splice(i,1);renderPlayersList();updatePlayBtn();}
+
+// PICKER
+function openPicker(returnScreen){
+  pickerReturnScreen=returnScreen||'home';
+  tempDice=selectedDice;tempFaceStyle=faceStyle;tempBg=selectedBg;
+  renderDicePicker();renderBgPicker();
+  switchPickerTab('dice');
+  document.getElementById('picker-back-btn').onclick=function(){
+    if(pickerReturnScreen==='game'){closeGameSettings();}
+    else{showScreen('home');}
+  };
+  showScreen('dice');
+}
+function switchPickerTab(tab){
+  document.getElementById('tab-dice').classList.toggle('active',tab==='dice');
+  document.getElementById('tab-bg').classList.toggle('active',tab==='bg');
+  document.getElementById('panel-dice').classList.toggle('active',tab==='dice');
+  document.getElementById('panel-bg').classList.toggle('active',tab==='bg');
+}
+function renderDicePicker(){
+  document.getElementById('dice-picker-grid').innerHTML=DICE_STYLES.map(function(s){
+    return '<div class="dice-option'+(tempDice===s.id?' selected':'')+'" onclick="pickDice(\''+s.id+'\')">'
+      +svgDie(6,s.id,60,tempFaceStyle)
+      +'<div class="dice-option-name">'+s.name+'</div>'
+      +(tempDice===s.id?'<div class="bg-check" style="opacity:1">OK</div>':'')
+      +'</div>';
+  }).join('');
+  document.getElementById('tog-num').classList.toggle('active',tempFaceStyle==='numbers');
+  document.getElementById('tog-dot').classList.toggle('active',tempFaceStyle==='dots');
+}
+function pickDice(id){tempDice=id;renderDicePicker();}
+function setFaceStyle(fs){tempFaceStyle=fs;renderDicePicker();}
+
+// BG PICKER with canvas previews
+function renderBgPicker(){
+  var grid=document.getElementById('bg-picker-grid');
+  grid.innerHTML=BG_THEMES.map(function(b){
+    return '<div class="bg-option'+(tempBg===b.id?' selected':'')+'" onclick="pickBg(\''+b.id+'\')" id="bgo-'+b.id+'">'
+      +'<canvas class="bg-swatch-canvas" id="bgc-'+b.id+'" width="300" height="200"></canvas>'
+      +'<div class="bg-swatch-label">'+b.name+'</div>'
+      +'<div class="bg-check">OK</div>'
+      +'</div>';
+  }).join('');
+  // Draw each swatch
+  BG_THEMES.forEach(function(b){
+    drawBgSwatch(b);
+  });
+}
+function drawBgSwatch(b){
+  var cv=document.getElementById('bgc-'+b.id);
+  if(!cv)return;
+  var ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  // Sky gradient
+  var gr=ctx.createRadialGradient(W*0.5,0,0,W*0.5,H*0.3,W*0.8);
+  gr.addColorStop(0,b.preview[0]);gr.addColorStop(0.5,b.preview[1]);gr.addColorStop(1,b.preview[1]);
+  ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
+  // Table felt bottom 40%
+  var tableY=H*0.6;
+  var feltGr=ctx.createLinearGradient(0,tableY,0,H);
+  feltGr.addColorStop(0,b.scene.felt+'ff');feltGr.addColorStop(1,b.scene.felt+'cc');
+  ctx.fillStyle=feltGr;ctx.fillRect(0,tableY,W,H-tableY);
+  // Rail
+  ctx.fillStyle=b.preview[2];ctx.fillRect(0,tableY,W,8);
+  // Warm light glow from above
+  var lampGr=ctx.createRadialGradient(W*0.5,tableY,0,W*0.5,tableY,W*0.5);
+  lampGr.addColorStop(0,b.preview[3]+'55');lampGr.addColorStop(1,'transparent');
+  ctx.fillStyle=lampGr;ctx.fillRect(0,0,W,H);
+  // Mini dice silhouettes
+  ctx.fillStyle='rgba(255,255,255,0.15)';
+  roundRectCtx(ctx,W*0.36,tableY-22,20,20,3);ctx.fill();
+  roundRectCtx(ctx,W*0.57,tableY-22,20,20,3);ctx.fill();
+  // Drink silhouettes
+  if(b.drinks){
+    ctx.fillStyle='rgba(255,255,255,0.1)';
+    roundRectCtx(ctx,W*0.12,tableY-28,12,24,2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(W*0.86,tableY-18,6,12,0,0,Math.PI*2);ctx.fill();
+  }
+}
+function roundRectCtx(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  if(ctx.roundRect){ctx.roundRect(x,y,w,h,r);}
+  else{ctx.rect(x,y,w,h);}
+  ctx.closePath();
+}
+function pickBg(id){tempBg=id;renderBgPicker();}
+function confirmPicker(){
+  selectedDice=tempDice;faceStyle=tempFaceStyle;selectedBg=tempBg;
+  renderHomePreview();
+  if(threeReady){rebuildDice();buildTable(selectedBg);}
+  applyGameBg(selectedBg);
+  if(pickerReturnScreen==='game'){showScreen('game');}
+  else{showScreen('home');}
+}
+
+// IN-GAME SETTINGS
+function openGameSettings(){
+  openPicker('game');
+}
+function closeGameSettings(){
+  showScreen('game');
+}
+
+// GAME START
+document.getElementById('btn-play').addEventListener('click',startGame);
+function startGame(){
+  document.querySelectorAll('#players-list input').forEach(function(inp,i){players[i]=inp.value;});
+  gamePlayers=players.filter(function(p){return p.trim();});
+  if(gamePlayers.length<2)return;
+  currentPlayerIndex=0;round=1;isRolling=false;rollAnim=null;waitingForRule=false;
+  threeManIndex=Math.floor(Math.random()*gamePlayers.length);
+  applyGameBg(selectedBg);
+  showScreen('game');
+  if(!threeReady){
+    setTimeout(function(){
+      initThree();
+      setTimeout(function(){setFaceUp(mesh1,1);setFaceUp(mesh2,1);runCeremony();},160);
+    },80);
+  } else {
+    rebuildDice();buildTable(selectedBg);setFaceUp(mesh1,1);setFaceUp(mesh2,1);
+    setTimeout(runCeremony,100);
+  }
+}
+
+// 3-MAN CEREMONY
+function runCeremony(){
+  var cer=document.getElementById('ceremony'),slot=document.getElementById('cer-slot');
+  var crown=document.getElementById('cer-crown'),sub=document.getElementById('cer-sub'),tap=document.getElementById('cer-tap');
+  slot.style.color='';slot.style.textShadow='';
+  crown.classList.remove('show');sub.classList.remove('show');tap.style.opacity='0';
+  cer.classList.add('show');
+  var totalFrames=30+gamePlayers.length*5,frame=0,idx=0,delay=55;
+  function spin(){
+    slot.textContent=gamePlayers[idx%gamePlayers.length];idx++;frame++;
+    if(frame>totalFrames*0.65)delay=Math.min(delay+16,260);
+    if(frame>totalFrames*0.85)delay=Math.min(delay+28,400);
+    if(frame>=totalFrames){
+      slot.textContent=gamePlayers[threeManIndex];
+      slot.style.color='#ff2d78';slot.style.textShadow='0 0 30px rgba(255,45,120,.85),0 0 60px rgba(255,45,120,.4)';
+      if(navigator.vibrate)navigator.vibrate([40,20,40,20,80]);
+      setTimeout(function(){crown.classList.add('show');},350);
+      setTimeout(function(){sub.classList.add('show');spawnConfetti();},700);
+      setTimeout(function(){tap.style.opacity='1';enableDismiss();},1200);
+      return;
+    }
+    setTimeout(spin,delay);
+  }
+  setTimeout(spin,100);
+}
+function enableDismiss(){
+  var cer=document.getElementById('ceremony');
+  function dismiss(){
+    cer.classList.remove('show');
+    document.getElementById('cer-slot').style.color='';
+    document.getElementById('cer-slot').style.textShadow='';
+    setupGameUI();
+    cer.removeEventListener('touchstart',dismiss);
+    cer.removeEventListener('click',dismiss);
+  }
+  setTimeout(function(){
+    cer.addEventListener('touchstart',dismiss,{passive:true});
+    cer.addEventListener('click',dismiss);
+  },200);
+}
+function spawnConfetti(){
+  var cer=document.getElementById('ceremony'),cols=['#ff2d78','#00ff87','#00cfff','#ffd700','#c060ff','#ff7700'];
+  for(var i=0;i<45;i++){
+    var el=document.createElement('div');el.className='confetti-p';
+    var col=cols[Math.floor(Math.random()*cols.length)],sz=5+Math.random()*9;
+    el.style.cssText='left:'+Math.random()*100+'%;top:0;width:'+sz+'px;height:'+sz+'px;background:'+col+';border-radius:'+(Math.random()>0.5?'50%':'2px')+';animation-duration:'+(1.4+Math.random()*2)+'s;animation-delay:'+(Math.random()*0.9)+'s;';
+    cer.appendChild(el);
+    el.addEventListener('animationend',function(){this.remove();});
+  }
+}
+function setupGameUI(){
+  updateGameUI();d1Val=1;d2Val=1;
+  if(mesh1&&mesh2){setFaceUp(mesh1,1);setFaceUp(mesh2,1);mesh1.position.set(-1.2,0.15,0);mesh2.position.set(1.2,0.15,0);}
+  isRolling=false;rollAnim=null;waitingForRule=false;
+}
+function updateGameUI(){
+  var p=gamePlayers[currentPlayerIndex];
+  document.getElementById('cur-player').textContent=p;
+  document.getElementById('round-badge').textContent='ROUND '+round;
+  document.getElementById('three-crown').classList.toggle('show',currentPlayerIndex===threeManIndex);
+  document.getElementById('players-strip').innerHTML=gamePlayers.map(function(n,i){
+    return '<div class="pchip'+(i===currentPlayerIndex?' active':'')+(i===threeManIndex?' is3man':'')+'">'
+      +n+(i===threeManIndex?' [3]':'')+'</div>';
+  }).join('');
+}
+
+// ADVANCE TURN
+function advanceTurn(){
+  currentPlayerIndex=(currentPlayerIndex+1)%gamePlayers.length;
+  if(currentPlayerIndex===0)round++;
+  var tt=document.getElementById('turn-trans');
+  document.getElementById('tt-name').textContent=gamePlayers[currentPlayerIndex];
+  tt.classList.add('show');
+  setTimeout(function(){tt.classList.remove('show');updateGameUI();},1200);
+}
+
+// TAP
+var diceCanvas=document.getElementById('dice-canvas');
+diceCanvas.addEventListener('touchstart',function(e){
+  e.preventDefault();
+  if(document.getElementById('screen-game').classList.contains('active')&&!isRolling&&!rollAnim&&!waitingForRule)roll3D();
+},{passive:false});
+diceCanvas.addEventListener('click',function(){
+  if(document.getElementById('screen-game').classList.contains('active')&&!isRolling&&!rollAnim&&!waitingForRule)roll3D();
+});
+
+// END GAME
+function endGame(){
+  document.getElementById('turn-trans').classList.remove('show');
+  document.getElementById('ceremony').classList.remove('show');
+  document.getElementById('rule-popup').classList.remove('show');
+  document.getElementById('player-select').classList.remove('show');
+  document.getElementById('doubles-roll-screen').classList.remove('show');
+  document.getElementById('waterfall-screen').classList.remove('show');
+  wfTimers.forEach(function(t){clearInterval(t);});wfTimers=[];
+  rollAnim=null;isRolling=false;waitingForRule=false;
+  showScreen('home');renderHome();
+}
+
+// INIT
+renderHome();
+</script>
+</body>
+</html>
