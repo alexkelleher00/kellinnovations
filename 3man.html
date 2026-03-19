@@ -20,7 +20,7 @@ body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif}
 /* LOGO */
 .logo{text-align:center;margin-top:16px;margin-bottom:4px}
 .logo-main{font-family:'Bebas Neue',sans-serif;font-size:clamp(60px,18vw,100px);line-height:.82;letter-spacing:6px;background:linear-gradient(135deg,var(--np) 0%,var(--gold) 50%,var(--np) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 24px rgba(255,45,120,.6))}
-.logo-sub{font-size:11px;letter-spacing:7px;color:var(--muted);margin-top:5px;text-transform:uppercase}
+.logo-sub{font-size:11px;letter-spacing:7px;color:rgba(255,180,80,.75);margin-top:5px;text-transform:uppercase;text-shadow:0 0 12px rgba(255,140,40,.4)}
 .home-preview{display:flex;gap:22px;margin:10px 0;justify-content:center;align-items:center;min-height:86px}
 
 /* CARD */
@@ -279,41 +279,50 @@ input[type=text]::placeholder{color:#282855}
   <!-- RULES PANEL -->
   <div class="picker-panel active" id="panel-rules">
     <div class="rules-section">
+
+      <!-- ROLL FOR 3 MAN -->
+      <div class="rule-toggle-row">
+        <div class="rtl-left">
+          <div class="rtl-title">ROLL FOR 3 MAN</div>
+          <div class="rtl-desc">Players take turns rolling until someone rolls a 3 - that player becomes the Three Man to start the game.</div>
+        </div>
+        <div class="rtl-toggle" id="tog-roll3" onclick="toggleRule('roll3')"></div>
+      </div>
+
+      <!-- SIPS MODE -->
+      <div class="rule-toggle-row">
+        <div class="rtl-left">
+          <div class="rtl-title">SIPS MODE</div>
+          <div class="rtl-desc">ON = light mode. When doubles are rolled, you hand the dice - each die given = 1 sip. No rolling or timers needed. OFF = full drink mode with waterfall timers.</div>
+        </div>
+        <div class="rtl-toggle" id="tog-sips" onclick="toggleRule('sips')"></div>
+      </div>
+
+      <!-- DOUBLES RULE -->
       <div class="rule-toggle-row">
         <div class="rtl-left">
           <div class="rtl-title">DOUBLES RULE</div>
-          <div class="rtl-desc">Doubles = hand dice to players who drink</div>
+          <div class="rtl-desc">When doubles are rolled, the roller picks who gets each die. Those players drink based on what they roll (or sip if Sips Mode is on).</div>
         </div>
         <div class="rtl-toggle on" id="tog-doubles" onclick="toggleRule('doubles')"></div>
       </div>
       <div class="sub-options" id="sub-doubles">
-        <div class="sub-opt-label">WHEN DOUBLES ARE HANDED OFF...</div>
+        <div class="sub-opt-label">WHEN NOT IN SIPS MODE: HOW DO THEY DRINK?</div>
         <div class="sub-opt-row">
           <div class="sub-opt-btn active" id="sopt-waterfall" onclick="setDoublesSub('waterfall')">WATERFALL TIMER</div>
-          <div class="sub-opt-btn" id="sopt-count" onclick="setDoublesSub('count')">COUNT IT YOURSELF</div>
+          <div class="sub-opt-btn" id="sopt-count" onclick="setDoublesSub('count')">COUNT YOURSELF</div>
         </div>
       </div>
+
+      <!-- 7 AND 11 -->
       <div class="rule-toggle-row">
         <div class="rtl-left">
           <div class="rtl-title">7 &amp; 11 RULE</div>
-          <div class="rtl-desc">7 = right drinks, 11 = left drinks</div>
+          <div class="rtl-desc">Total of 7 = player to the RIGHT drinks. Total of 11 = player to the LEFT drinks. Stacks with other rules.</div>
         </div>
         <div class="rtl-toggle on" id="tog-711" onclick="toggleRule('711')"></div>
       </div>
-      <div class="rule-toggle-row">
-        <div class="rtl-left">
-          <div class="rtl-title">SIPS vs DRINKS</div>
-          <div class="rtl-desc">Toggle between "sips" or "drinks" language</div>
-        </div>
-        <div class="rtl-toggle" id="tog-sips" onclick="toggleRule('sips')"></div>
-      </div>
-      <div class="rule-toggle-row">
-        <div class="rtl-left">
-          <div class="rtl-title">ROLL FOR 3 MAN</div>
-          <div class="rtl-desc">Players roll until someone rolls a 3</div>
-        </div>
-        <div class="rtl-toggle" id="tog-roll3" onclick="toggleRule('roll3')"></div>
-      </div>
+
     </div>
   </div>
 
@@ -671,24 +680,268 @@ function buildBarScene(bgId){
   // Inner felt edge
   ctx2.strokeStyle='rgba(0,0,0,0.3)';ctx2.lineWidth=4;ctx2.strokeRect(18,18,476,220);
   var feltTex=new THREE.CanvasTexture(feltCv);
-  tableMesh=new THREE.Mesh(new THREE.PlaneGeometry(20,10),new THREE.MeshStandardMaterial({map:feltTex,roughness:0.92,metalness:0}));
-  tableMesh.rotation.x=-Math.PI/2;tableMesh.position.set(0,-1.6,1.5);
+  tableMesh=new THREE.Mesh(new THREE.PlaneGeometry(20,12),new THREE.MeshStandardMaterial({map:feltTex,roughness:0.92,metalness:0}));
+  tableMesh.rotation.x=-Math.PI/2;tableMesh.position.set(0,-1.6,3.5);
   barSceneGroup.add(tableMesh);
 
-  // Rail (thick wooden edge)
+  // Rail (thick wooden edge) - at near edge of table
   var railMat=new THREE.MeshStandardMaterial({color:new THREE.Color(bc.railColor),roughness:0.55,metalness:0.25});
-  var rail=new THREE.Mesh(new THREE.BoxGeometry(20,0.18,0.24),railMat);
-  rail.position.set(0,-1.5,-1.0);barSceneGroup.add(rail);
-  // Table legs suggestion
-  [-7,7].forEach(function(lx){
-    var leg=new THREE.Mesh(new THREE.BoxGeometry(0.35,2.5,0.35),new THREE.MeshStandardMaterial({color:new THREE.Color(bc.railColor),roughness:0.6,metalness:0.2}));
-    leg.position.set(lx,-2.8,0.5);barSceneGroup.add(leg);
+  var rail=new THREE.Mesh(new THREE.BoxGeometry(20,0.22,0.3),railMat);
+  rail.position.set(0,-1.48,-0.5);barSceneGroup.add(rail);
+  // Far rail
+  var railFar=new THREE.Mesh(new THREE.BoxGeometry(20,0.22,0.3),railMat);
+  railFar.position.set(0,-1.48,7.5);barSceneGroup.add(railFar);
+  // Side rails
+  var railL=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.22,8.3),railMat);
+  railL.position.set(-10,-1.48,3.5);barSceneGroup.add(railL);
+  var railR=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.22,8.3),railMat);
+  railR.position.set(10,-1.48,3.5);barSceneGroup.add(railR);
+  // Table legs
+  [-7.5,7.5].forEach(function(lx){
+    var leg=new THREE.Mesh(new THREE.BoxGeometry(0.4,3.0,0.4),new THREE.MeshStandardMaterial({color:new THREE.Color(bc.railColor),roughness:0.6,metalness:0.2}));
+    leg.position.set(lx,-3.1,2.0);barSceneGroup.add(leg);
   });
 
   scene.add(barSceneGroup);
 
+  // --- THEME-SPECIFIC UNIQUE PROPS ---
+  addThemeProps(bgId,bc);
+
   // Update lamp
   if(pointLamp){pointLamp.color.setHex(bc.lampHex);pointLamp.intensity=bc.lampI;}
+}
+
+function addThemeProps(bgId,bc){
+  var g=barSceneGroup;
+  function box(W,H,D,col,x,y,z,rx,ry){
+    var m=new THREE.Mesh(new THREE.BoxGeometry(W,H,D),new THREE.MeshStandardMaterial({color:new THREE.Color(col),roughness:0.7,metalness:0.1}));
+    m.position.set(x,y,z);if(rx)m.rotation.x=rx;if(ry)m.rotation.y=ry;g.add(m);return m;
+  }
+  function cyl(rt,rb,H,segs,col,x,y,z){
+    var m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,H,segs),new THREE.MeshStandardMaterial({color:new THREE.Color(col),roughness:0.5,metalness:0.15}));
+    m.position.set(x,y,z);g.add(m);return m;
+  }
+
+  if(bgId==='warm-bar'||bgId==='dive-bar'){
+    // Dartboard on wall
+    var dbBase=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.55,0.08,20),new THREE.MeshStandardMaterial({color:new THREE.Color('#1a0a00'),roughness:0.8}));
+    dbBase.rotation.z=Math.PI/2;dbBase.position.set(6,3.8,-3.7);g.add(dbBase);
+    var dbRing=new THREE.Mesh(new THREE.CylinderGeometry(0.58,0.58,0.06,20),new THREE.MeshStandardMaterial({color:new THREE.Color('#ccaa00'),roughness:0.4,metalness:0.5}));
+    dbRing.rotation.z=Math.PI/2;dbRing.position.set(6.02,3.8,-3.7);g.add(dbRing);
+    var dbBull=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.1,12),new THREE.MeshStandardMaterial({color:new THREE.Color('#cc2200'),roughness:0.5}));
+    dbBull.rotation.z=Math.PI/2;dbBull.position.set(6.04,3.8,-3.7);g.add(dbBull);
+    // Neon bar sign
+    var signMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#ff6600'),roughness:0.2,metalness:0,emissive:new THREE.Color('#ff3300'),emissiveIntensity:0.5});
+    box(1.8,0.45,0.05,'#1a0800',-6,4.5,-3.75);
+    // TV screen on wall (dark)
+    box(1.6,0.9,0.08,'#080808',0,5.2,-3.78);
+    box(1.58,0.88,0.06,'#111122',0,5.2,-3.72);
+    // Pool cue leaning on bar
+    var cue=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.03,3.5,6),new THREE.MeshStandardMaterial({color:new THREE.Color('#8a5a20'),roughness:0.5}));
+    cue.rotation.z=0.18;cue.position.set(7,0.8,-3.0);g.add(cue);
+  }
+
+  if(bgId==='casino'){
+    // Poker chips stacks on bar counter
+    var chipColors=['#cc0000','#222288','#228822','#ccaa00'];
+    [-2,0,2].forEach(function(cx,ci){
+      for(var ch=0;ch<4;ch++){
+        var chip=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,0.04,14),new THREE.MeshStandardMaterial({color:new THREE.Color(chipColors[ch%4]),roughness:0.5,metalness:0.2}));
+        chip.position.set(cx,2.12+ch*0.045,-3.15);g.add(chip);
+      }
+    });
+    // Card fan on counter
+    [-0.8,-0.4,0,0.4,0.8].forEach(function(cx,ci){
+      var card=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.3,0.008),new THREE.MeshStandardMaterial({color:new THREE.Color('#f5f0e0'),roughness:0.8}));
+      card.rotation.y=cx*0.3;card.position.set(cx+4.5,2.12+ci*0.002,-3.1);g.add(card);
+    });
+    // Roulette wheel suggestion on wall
+    var rwBase=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.7,0.1,20),new THREE.MeshStandardMaterial({color:new THREE.Color('#2a1800'),roughness:0.7}));
+    rwBase.rotation.z=Math.PI/2;rwBase.position.set(-6.5,4.2,-3.7);g.add(rwBase);
+    var rwCenter=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.12,14),new THREE.MeshStandardMaterial({color:new THREE.Color('#228822'),roughness:0.5}));
+    rwCenter.rotation.z=Math.PI/2;rwCenter.position.set(-6.48,4.2,-3.7);g.add(rwCenter);
+    var rwGold=new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.72,0.06,20),new THREE.MeshStandardMaterial({color:new THREE.Color('#cc9900'),roughness:0.3,metalness:0.6}));
+    rwGold.rotation.z=Math.PI/2;rwGold.position.set(-6.52,4.2,-3.7);g.add(rwGold);
+  }
+
+  if(bgId==='speakeasy'){
+    // Vintage gramophone on bar
+    cyl(0.08,0.12,0.4,8,'#885522',-5.5,2.35,-3.15);
+    var horn=new THREE.Mesh(new THREE.ConeGeometry(0.35,0.5,14),new THREE.MeshStandardMaterial({color:new THREE.Color('#886633'),roughness:0.4,metalness:0.3}));
+    horn.rotation.z=-Math.PI/2;horn.position.set(-5.5,2.78,-3.0);g.add(horn);
+    // Candlestick holders on bar
+    [-3.5,3.5].forEach(function(cx){
+      cyl(0.04,0.04,0.35,8,'#ccaa44',cx,2.35,-3.1);
+      cyl(0.1,0.08,0.06,10,'#ccaa44',cx,2.53,-3.1);
+      // Candle flame (emissive cone)
+      var flame=new THREE.Mesh(new THREE.ConeGeometry(0.04,0.15,8),new THREE.MeshStandardMaterial({color:new THREE.Color('#ffcc00'),emissive:new THREE.Color('#ff8800'),emissiveIntensity:1.5,roughness:0.2}));
+      flame.position.set(cx,2.7,-3.1);g.add(flame);
+    });
+    // Framed vintage poster
+    box(1.0,1.4,0.05,'#2a1a00',6,4.0,-3.76);
+    box(0.9,1.3,0.04,'#c8a060',6,4.0,-3.71);
+    // Prohibition-era bottle collection (darker, unlabeled)
+    [1.5,2.0,2.5].forEach(function(bx){
+      cyl(0.06,0.08,0.7,8,'#2a1a00',bx,2.55,-3.15);
+    });
+  }
+
+  if(bgId==='rooftop'){
+    // City skyline silhouettes in background
+    [[0.3,3.5,0.5],[0.5,5,0.5],[0.15,2.5,0.4],[0.35,4,0.4],[0.2,3,0.35]].forEach(function(b,i){
+      var bx=(i-2)*3.5;
+      box(b[0]*2,b[1],0.3,'#0a0f20',bx,b[1]/2-0.5,-3.9);
+      // Building windows (emissive dots)
+      for(var wy=0;wy<Math.floor(b[1]/0.5);wy++){
+        for(var wx=0;wx<3;wx++){
+          if(Math.random()>0.4){
+            var winMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#ffeecc'),emissive:new THREE.Color('#ffcc66'),emissiveIntensity:0.8});
+            var win=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.1,0.05),winMat);
+            win.position.set(bx+(wx-1)*b[0]*0.5,b[1]*0.35-wy*0.45,-3.85);g.add(win);
+          }
+        }
+      }
+    });
+    // Star lights strung across bar
+    for(var s=0;s<12;s++){
+      var bulbMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#ffeecc'),emissive:new THREE.Color('#ffcc44'),emissiveIntensity:1.2});
+      var bulb=new THREE.Mesh(new THREE.SphereGeometry(0.06,6,6),bulbMat);
+      bulb.position.set(-5.5+s,5.8+Math.sin(s)*0.3,0);g.add(bulb);
+    }
+    // Potted plant on bar corner
+    cyl(0.15,0.2,0.3,10,'#3a2a15',6,2.27,-3.1);
+    var plant=new THREE.Mesh(new THREE.SphereGeometry(0.3,8,8),new THREE.MeshStandardMaterial({color:new THREE.Color('#1a4a10'),roughness:0.9}));
+    plant.position.set(6,2.72,-3.1);g.add(plant);
+  }
+
+  if(bgId==='snow-bar'){
+    // Frosted window panes on wall
+    [-5,5].forEach(function(wx){
+      box(1.4,2.0,0.06,'#080e22',wx,4,-3.75);
+      var glass=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.8,0.04),new THREE.MeshStandardMaterial({color:new THREE.Color('#aaccff'),roughness:0.1,metalness:0,transparent:true,opacity:0.18}));
+      glass.position.set(wx,4,-3.71);g.add(glass);
+      // Snow frost on window bottom
+      box(1.2,0.35,0.05,'#ddeeff',wx,3.15,-3.7);
+    });
+    // Snow pile on bar counter
+    var snowMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#ddeeff'),roughness:0.95,metalness:0});
+    var snow=new THREE.Mesh(new THREE.SphereGeometry(0.4,10,6),snowMat);
+    snow.scale.y=0.35;snow.position.set(4.5,2.08,-3.1);g.add(snow);
+    // Hot cocoa mugs
+    [-4,4].forEach(function(mx){
+      cyl(0.12,0.1,0.22,10,'#5a3010',mx,2.22,-3.1);
+      var steam=new THREE.Mesh(new THREE.CylinderGeometry(0.01,0.04,0.3,6),new THREE.MeshStandardMaterial({color:new THREE.Color('#ffffff'),transparent:true,opacity:0.35}));
+      steam.position.set(mx,2.45,-3.1);g.add(steam);
+    });
+    // Icicles hanging from bar counter edge
+    for(var ic=0;ic<10;ic++){
+      var iceH=0.15+Math.random()*0.25;
+      var icicle=new THREE.Mesh(new THREE.ConeGeometry(0.03,iceH,6),new THREE.MeshStandardMaterial({color:new THREE.Color('#aaccff'),roughness:0.05,metalness:0,transparent:true,opacity:0.7}));
+      icicle.rotation.x=Math.PI;icicle.position.set(-4.5+ic,1.83,-2.94);g.add(icicle);
+    }
+    // Fireplace on wall
+    box(1.8,1.4,0.15,'#2a1a0a',0,3.2,-3.75);
+    box(1.4,0.9,0.1,'#0a0804',0,3.05,-3.68);
+    var fireMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#ff5500'),emissive:new THREE.Color('#ff2200'),emissiveIntensity:1.0});
+    var fire=new THREE.Mesh(new THREE.ConeGeometry(0.35,0.6,8),fireMat);
+    fire.position.set(0,2.85,-3.65);g.add(fire);
+    var fire2=new THREE.Mesh(new THREE.ConeGeometry(0.22,0.4,8),new THREE.MeshStandardMaterial({color:new THREE.Color('#ffaa00'),emissive:new THREE.Color('#ffcc00'),emissiveIntensity:1.2}));
+    fire2.position.set(0.15,2.88,-3.63);g.add(fire2);
+  }
+
+  if(bgId==='red-room'){
+    // Velvet curtains framing wall
+    [-7.5,7.5].forEach(function(cx){
+      box(1.2,6,0.15,'#550008',cx,3.5,-3.75);
+      // Curtain folds suggestion
+      box(0.15,5.5,0.08,'#330005',cx+(cx>0?-0.3:0.3),3.5,-3.68);
+    });
+    // Chandelier
+    cyl(0.04,0.04,0.8,6,'#886633',0,7.5,0);
+    var chanBase=new THREE.Mesh(new THREE.TorusGeometry(0.6,0.05,8,16),new THREE.MeshStandardMaterial({color:new THREE.Color('#886633'),metalness:0.6,roughness:0.3}));
+    chanBase.position.set(0,7.0,0);g.add(chanBase);
+    for(var cd=0;cd<8;cd++){
+      var ang=cd/8*Math.PI*2;
+      var crystal=new THREE.Mesh(new THREE.ConeGeometry(0.04,0.2,6),new THREE.MeshStandardMaterial({color:new THREE.Color('#ffddcc'),emissive:new THREE.Color('#ff4400'),emissiveIntensity:0.3,transparent:true,opacity:0.8}));
+      crystal.rotation.x=Math.PI;crystal.position.set(Math.cos(ang)*0.6,6.85,Math.sin(ang)*0.6);g.add(crystal);
+    }
+    // Fancy framed mirror on wall
+    box(2.0,2.8,0.06,'#886633',0,4.2,-3.76);
+    var mirror=new THREE.Mesh(new THREE.BoxGeometry(1.7,2.5,0.04),new THREE.MeshStandardMaterial({color:new THREE.Color('#1a0a0a'),roughness:0.05,metalness:0.9,transparent:true,opacity:0.6}));
+    mirror.position.set(0,4.2,-3.7);g.add(mirror);
+  }
+
+  if(bgId==='whiskey'){
+    // Whiskey barrel on side of bar
+    cyl(0.5,0.5,0.9,16,'#4a2a08',-7,1.95,-3.0);
+    cyl(0.52,0.52,0.08,16,'#664422',-7,2.41,-3.0);
+    cyl(0.52,0.52,0.08,16,'#664422',-7,1.49,-3.0);
+    // Vintage framed whiskey labels/art
+    box(1.4,1.0,0.05,'#2a1a00',5.5,4.8,-3.76);
+    box(1.2,0.8,0.04,'#aa8844',5.5,4.8,-3.71);
+    // Fancy glass display on bar (crystal decanters)
+    [3.5,4.5].forEach(function(dx){
+      cyl(0.12,0.12,0.5,10,'#ccbbaa',dx,2.4,-3.1);
+      cyl(0.05,0.1,0.15,10,'#ccbbaa',dx,2.68,-3.1);
+      var stopper=new THREE.Mesh(new THREE.SphereGeometry(0.08,8,8),new THREE.MeshStandardMaterial({color:new THREE.Color('#ccbbaa'),roughness:0.05,metalness:0,transparent:true,opacity:0.55}));
+      stopper.position.set(dx,2.8,-3.1);g.add(stopper);
+    });
+    // Fireplace on far wall
+    box(2.2,1.8,0.15,'#3a2010',-5.5,3.3,-3.76);
+    box(1.8,1.3,0.1,'#0e0808',-5.5,3.15,-3.69);
+    var wFire=new THREE.Mesh(new THREE.ConeGeometry(0.4,0.65,8),new THREE.MeshStandardMaterial({color:new THREE.Color('#ff6600'),emissive:new THREE.Color('#ff3300'),emissiveIntensity:0.9}));
+    wFire.position.set(-5.5,2.95,-3.65);g.add(wFire);
+  }
+
+  if(bgId==='tiki'){
+    // Tiki torches
+    [-6,6].forEach(function(tx){
+      cyl(0.04,0.06,2.5,8,'#8a5a20',tx,1.25,-2.5);
+      var torcTop=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.08,0.3,10),new THREE.MeshStandardMaterial({color:new THREE.Color('#5a3a10'),roughness:0.8}));
+      torcTop.position.set(tx,2.65,-2.5);g.add(torcTop);
+      var tFlame=new THREE.Mesh(new THREE.ConeGeometry(0.1,0.35,8),new THREE.MeshStandardMaterial({color:new THREE.Color('#ff8800'),emissive:new THREE.Color('#ff4400'),emissiveIntensity:1.5}));
+      tFlame.position.set(tx,2.93,-2.5);g.add(tFlame);
+    });
+    // Tiki mask/statue on bar
+    box(0.25,0.6,0.2,'#5a3a10',5.5,2.6,-3.0);
+    box(0.35,0.2,0.22,'#5a3a10',5.5,2.35,-3.0);
+    // Coconut cups on bar
+    [-1.5,1.5].forEach(function(cx){
+      cyl(0.15,0.1,0.25,10,'#5a3a10',cx,2.22,-3.1);
+      cyl(0.04,0.04,0.3,6,'#ffffff',cx+0.1,2.42,-3.1); // straw
+      var umbrella=new THREE.Mesh(new THREE.ConeGeometry(0.2,0.1,10,1,true),new THREE.MeshStandardMaterial({color:new THREE.Color('#ff4488'),side:THREE.DoubleSide}));
+      umbrella.position.set(cx+0.1,2.52,-3.1);g.add(umbrella);
+    });
+    // Palm leaves hanging from ceiling
+    [-3,3].forEach(function(px){
+      for(var pl=0;pl<3;pl++){
+        var leaf=new THREE.Mesh(new THREE.BoxGeometry(0.08,1.2,0.04),new THREE.MeshStandardMaterial({color:new THREE.Color('#2a5a10'),roughness:0.9}));
+        leaf.rotation.z=(pl-1)*0.5;leaf.rotation.x=0.3;
+        leaf.position.set(px+(pl-1)*0.4,5.0,0.5);g.add(leaf);
+      }
+    });
+  }
+
+  if(bgId==='neon-bar'){
+    // Neon sign tubes (glowing geometry)
+    var neonColors=[0xff00ff,0x00ffff,0xff6600,0x00ff44];
+    [[-4,5.5,'#ff00ff'],[0,5.8,'#00ffff'],[4,5.5,'#ff6600']].forEach(function(ns){
+      var nMat=new THREE.MeshStandardMaterial({color:new THREE.Color(ns[2]),emissive:new THREE.Color(ns[2]),emissiveIntensity:2.0,roughness:0.2});
+      var nSign=new THREE.Mesh(new THREE.TorusGeometry(0.5,0.04,8,20),nMat);
+      nSign.rotation.x=Math.PI/2;nSign.position.set(ns[0],ns[1],-3.72);g.add(nSign);
+    });
+    // Disco ball
+    var dballMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#aaaaaa'),metalness:0.9,roughness:0.1});
+    var dball=new THREE.Mesh(new THREE.SphereGeometry(0.4,16,16),dballMat);
+    dball.position.set(0,7.2,1.5);g.add(dball);
+    cyl(0.02,0.02,0.6,6,'#888888',0,7.5,1.5);
+    // Glowing bar edge strip
+    var stripMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#ff00ff'),emissive:new THREE.Color('#cc00cc'),emissiveIntensity:1.0});
+    var strip=new THREE.Mesh(new THREE.BoxGeometry(18,0.05,0.05),stripMat);
+    strip.position.set(0,1.96,-2.92);g.add(strip);
+    var strip2=new THREE.Mesh(new THREE.BoxGeometry(18,0.05,0.05),new THREE.MeshStandardMaterial({color:new THREE.Color('#00ffff'),emissive:new THREE.Color('#00cccc'),emissiveIntensity:1.0}));
+    strip2.position.set(0,1.88,-2.92);g.add(strip2);
+  }
 }
 
 function initThree(){
@@ -702,10 +955,10 @@ function initThree(){
   renderer.shadowMap.enabled=true;
 
   scene=new THREE.Scene();
-  // Camera angled slightly down, looking at table surface
-  camera=new THREE.PerspectiveCamera(46,W/H,0.1,100);
-  camera.position.set(0,3.5,9.5);
-  camera.lookAt(0,-0.5,0);
+  // Wider FOV and camera pulled back to see full throw arc from bottom to landing
+  camera=new THREE.PerspectiveCamera(52,W/H,0.1,100);
+  camera.position.set(0,2.8,10.5);
+  camera.lookAt(0,-0.8,1.5);
 
   scene.add(new THREE.AmbientLight(0xffffff,0.22));
   var key=new THREE.DirectionalLight(0xffffff,1.1);key.position.set(2,8,4);scene.add(key);
@@ -718,7 +971,7 @@ function initThree(){
   buildBarScene(selectedBg);
   mesh1=buildMesh(selectedDice);mesh2=buildMesh(selectedDice);
   setFaceUp(mesh1,1);setFaceUp(mesh2,1);
-  mesh1.position.set(-1.15,0.05,2.5);mesh2.position.set(1.15,0.05,2.5);
+  mesh1.position.set(-1.15,-0.15,3.5);mesh2.position.set(1.15,-0.15,3.5);
   scene.add(mesh1);scene.add(mesh2);
   threeReady=true;
   resizeThree();
@@ -739,7 +992,7 @@ function rebuildDice(){
   scene.remove(mesh1);scene.remove(mesh2);
   mesh1=buildMesh(selectedDice);mesh2=buildMesh(selectedDice);
   setFaceUp(mesh1,d1Val);setFaceUp(mesh2,d2Val);
-  mesh1.position.set(-1.15,0.05,2.5);mesh2.position.set(1.15,0.05,2.5);
+  mesh1.position.set(-1.15,-0.15,3.5);mesh2.position.set(1.15,-0.15,3.5);
   scene.add(mesh1);scene.add(mesh2);
 }
 
@@ -752,28 +1005,28 @@ function loopThree(){
     if(t<1){
       mesh1.rotation.x+=rollAnim.r1[0];mesh1.rotation.y+=rollAnim.r1[1];mesh1.rotation.z+=rollAnim.r1[2];
       mesh2.rotation.x+=rollAnim.r2[0];mesh2.rotation.y+=rollAnim.r2[1];mesh2.rotation.z+=rollAnim.r2[2];
-      // Throw FROM BOTTOM upward then forward onto table
-      // t=0: dice start below camera (bottom of screen), throw UP and FORWARD
-      var ease=t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
-      // Start position: bottom of screen, close to camera
-      var startZ=7.5,endZ=2.5;
-      var startY=-2.5,endY=0.05;
-      // Arc: rise up briefly then settle onto table
-      var arcH=t<0.6?Math.sin(t/0.6*Math.PI)*2.2:0;
+      // Smooth ease-out cubic
+      var ease=1-Math.pow(1-t,3);
+      // Start very close to camera at bottom (visible), land on table surface
+      var startZ=9.2, endZ=3.5;
+      var startY=-1.8, endY=-0.15;
       var curZ=startZ+(endZ-startZ)*ease;
-      var curY=startY+(endY-startY)*ease+arcH*(1-ease);
-      // Bounce near landing
-      if(t>0.72&&t<1){
-        var bt=(t-0.72)/0.28;
-        curY=endY+Math.abs(Math.sin(bt*Math.PI*3))*(1-bt)*0.65;
+      var curY=startY+(endY-startY)*ease;
+      // Add upward arc in the middle of the throw - like a loft
+      var arc=Math.sin(t*Math.PI)*1.8;
+      curY+=arc*(1-t*0.5);
+      // Small table bounce near landing
+      if(t>0.78){
+        var bt=(t-0.78)/0.22;
+        curY=endY+Math.abs(Math.sin(bt*Math.PI*2.8))*(1-bt)*0.55;
       }
-      var spreadEase=Math.min(t*2,1);
-      mesh1.position.set(-1.15*spreadEase,curY,curZ+rollAnim.d1z*(1-ease));
-      mesh2.position.set(1.15*spreadEase,curY*0.95,curZ+rollAnim.d2z*(1-ease));
+      var spreadEase=Math.min(t*1.8,1);
+      mesh1.position.set(-1.15*spreadEase,curY,curZ+rollAnim.d1z*(1-ease)*0.6);
+      mesh2.position.set(1.15*spreadEase,curY*0.96,curZ+rollAnim.d2z*(1-ease)*0.6);
     } else {
       d1Val=rollAnim.v1;d2Val=rollAnim.v2;
       setFaceUp(mesh1,d1Val);setFaceUp(mesh2,d2Val);
-      mesh1.position.set(-1.15,0.05,2.5);mesh2.position.set(1.15,0.05,2.5);
+      mesh1.position.set(-1.15,-0.15,3.5);mesh2.position.set(1.15,-0.15,3.5);
       var total=d1Val+d2Val;
       rollAnim=null;
       var tf=document.getElementById('total-flash');
@@ -782,8 +1035,8 @@ function loopThree(){
     }
   } else {
     var now=Date.now()*0.001;
-    mesh1.position.y=0.05+Math.sin(now)*0.06;
-    mesh2.position.y=0.05+Math.sin(now+1.2)*0.06;
+    mesh1.position.y=-0.15+Math.sin(now)*0.05;
+    mesh2.position.y=-0.15+Math.sin(now+1.2)*0.05;
   }
   renderer.render(scene,camera);
 }
@@ -986,6 +1239,41 @@ function showDoublesRollScreen(val){
   var isSame=dblPlayers[0]===dblPlayers[1];
   var area=document.getElementById('dr-dice-area');
 
+  if(ruleSettings.sips){
+    // SIPS MODE: no rolling - each die = 1 sip, both to same = 2 sips
+    var sipCount1=isSame?2:1;
+    var p1=gamePlayers[dblPlayers[0]];
+    var html='';
+    if(isSame){
+      html='<div class="dr-die-slot">'
+        +'<div class="dr-die-owner">'+p1+'</div>'
+        +'<div class="dr-die-box rolled" style="font-size:36px;line-height:1.1;text-align:center;padding:8px">2<br>SIPS</div>'
+        +'<div class="dr-die-hint">Got both dice</div>'
+        +'</div>';
+    } else {
+      html='<div class="dr-die-slot">'
+        +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[0]]+'</div>'
+        +'<div class="dr-die-box rolled" style="font-size:28px">1 SIP</div>'
+        +'<div class="dr-die-hint">Die 1</div>'
+        +'</div>'
+        +'<div class="dr-die-slot">'
+        +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[1]]+'</div>'
+        +'<div class="dr-die-box rolled" style="font-size:28px">1 SIP</div>'
+        +'<div class="dr-die-hint">Die 2</div>'
+        +'</div>';
+    }
+    area.innerHTML=html;
+    var dismissBtn=document.getElementById('dr-dismiss');
+    dismissBtn.classList.add('show');
+    dismissBtn.textContent='CHEERS - NEXT TURN';
+    dismissBtn.onclick=function(){
+      document.getElementById('doubles-roll-screen').classList.remove('show');
+      var cb=dblNextCallback;dblNextCallback=null;if(cb)cb();
+    };
+    document.getElementById('doubles-roll-screen').classList.add('show');
+    return;
+  }
+
   if(ruleSettings.doublesSub==='count'){
     // Count it yourself mode
     area.innerHTML='<div class="dr-die-slot">'
@@ -998,9 +1286,9 @@ function showDoublesRollScreen(val){
       +'<div class="dr-die-box rolled" id="dr-box-1">'+val+'</div>'
       +'<div class="dr-die-hint">Count the seconds</div>'
       +'</div>');
-    document.getElementById('dr-dismiss').classList.add('show');
-    document.getElementById('dr-dismiss').textContent='DONE - NEXT TURN';
-    document.getElementById('dr-dismiss').onclick=function(){
+    var d2=document.getElementById('dr-dismiss');
+    d2.classList.add('show');d2.textContent='DONE - NEXT TURN';
+    d2.onclick=function(){
       document.getElementById('doubles-roll-screen').classList.remove('show');
       var cb=dblNextCallback;dblNextCallback=null;if(cb)cb();
     };
@@ -1012,12 +1300,14 @@ function showDoublesRollScreen(val){
       +'<div class="dr-die-hint">Tap to roll</div>'
       +'<div class="dr-result-secs" id="dr-secs-0"></div>'
       +'</div>'
-      +(isSame?'<div class="dr-die-slot">'
+      +(isSame
+      ?'<div class="dr-die-slot">'
       +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[1]]+'</div>'
       +'<div class="dr-die-box waiting" id="dr-box-1" onclick="rollDblDie(1)">'+val+'</div>'
       +'<div class="dr-die-hint">Tap to roll</div>'
       +'<div class="dr-result-secs" id="dr-secs-1"></div>'
-      +'</div>':'<div class="dr-die-slot">'
+      +'</div>'
+      :'<div class="dr-die-slot">'
       +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[1]]+'</div>'
       +'<div class="dr-die-box waiting" id="dr-box-1" onclick="rollDblDie(1)">'+val+'</div>'
       +'<div class="dr-die-hint">Tap to roll</div>'
@@ -1205,10 +1495,20 @@ function pickBg(id){tempBg=id;renderBgPicker();}
 
 // Rules toggles
 function toggleRule(key){
-  if(key==='doubles'){ruleSettings.doubles=!ruleSettings.doubles;document.getElementById('tog-doubles').classList.toggle('on',ruleSettings.doubles);document.getElementById('sub-doubles').style.opacity=ruleSettings.doubles?'1':'0.4';}
+  if(key==='doubles'){ruleSettings.doubles=!ruleSettings.doubles;document.getElementById('tog-doubles').classList.toggle('on',ruleSettings.doubles);syncSubDoublesVisibility();}
   else if(key==='711'){ruleSettings.r711=!ruleSettings.r711;document.getElementById('tog-711').classList.toggle('on',ruleSettings.r711);}
-  else if(key==='sips'){ruleSettings.sips=!ruleSettings.sips;document.getElementById('tog-sips').classList.toggle('on',ruleSettings.sips);}
+  else if(key==='sips'){ruleSettings.sips=!ruleSettings.sips;document.getElementById('tog-sips').classList.toggle('on',ruleSettings.sips);syncSubDoublesVisibility();}
   else if(key==='roll3'){ruleSettings.roll3man=!ruleSettings.roll3man;document.getElementById('tog-roll3').classList.toggle('on',ruleSettings.roll3man);}
+}
+function syncSubDoublesVisibility(){
+  var sub=document.getElementById('sub-doubles');
+  // Gray out waterfall/count sub-options when sips mode is on
+  if(ruleSettings.sips){
+    sub.style.opacity='0.35';sub.style.pointerEvents='none';
+  } else {
+    sub.style.opacity=ruleSettings.doubles?'1':'0.4';
+    sub.style.pointerEvents=ruleSettings.doubles?'auto':'none';
+  }
 }
 function setDoublesSub(val){
   ruleSettings.doublesSub=val;
@@ -1361,7 +1661,7 @@ function spawnConfetti(){
 }
 function setupGameUI(){
   updateGameUI();d1Val=1;d2Val=1;
-  if(mesh1&&mesh2){setFaceUp(mesh1,1);setFaceUp(mesh2,1);mesh1.position.set(-1.15,0.05,2.5);mesh2.position.set(1.15,0.05,2.5);}
+  if(mesh1&&mesh2){setFaceUp(mesh1,1);setFaceUp(mesh2,1);mesh1.position.set(-1.15,-0.15,3.5);mesh2.position.set(1.15,-0.15,3.5);}
   isRolling=false;rollAnim=null;waitingForRule=false;
 }
 function updateGameUI(){
