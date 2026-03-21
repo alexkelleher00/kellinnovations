@@ -187,6 +187,10 @@ input[type=text]::placeholder{color:#282855}
 @keyframes dieSettle{from{transform:scale(1.14)}to{transform:scale(1)}}
 .dr-die-box.waiting{animation:diePulse 1s ease-in-out infinite}
 @keyframes diePulse{0%,100%{border-color:#28285a}50%{border-color:var(--gold);box-shadow:0 0 10px rgba(255,215,0,.28)}}
+.dr-multiplier{font-family:'Bebas Neue',sans-serif;font-size:clamp(18px,5vw,26px);letter-spacing:3px;color:var(--np);text-shadow:0 0 14px rgba(255,45,120,.6);text-align:center;min-height:30px;transition:all .3s}
+.dr-multiplier.bump{animation:multiBump .4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes multiBump{0%{transform:scale(1)}50%{transform:scale(1.4)}100%{transform:scale(1)}}
+.dr-doubles-back{font-size:13px;letter-spacing:2px;color:var(--gold);text-align:center;padding:8px 16px;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.25);border-radius:10px;animation:fadeUp .3s ease}
 .dr-die-hint{font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.25);text-transform:uppercase}
 .dr-result-secs{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;color:var(--nb);min-height:18px}
 .dr-dismiss{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;padding:13px 32px;border-radius:12px;background:linear-gradient(135deg,var(--ng),#00c06a);color:#061408;border:none;cursor:pointer;margin-top:4px;opacity:0;transition:opacity .4s}
@@ -427,10 +431,11 @@ input[type=text]::placeholder{color:#282855}
 
 <!-- DOUBLES ROLL -->
 <div class="doubles-roll-screen" id="doubles-roll-screen">
-  <div class="dr-title">WATERFALL ROLL</div>
-  <div class="dr-sub">Each player taps their die</div>
+  <div class="dr-title" id="dr-title">DOUBLES ROLL</div>
+  <div class="dr-sub" id="dr-sub">Each player taps their die</div>
+  <div class="dr-multiplier" id="dr-multiplier"></div>
   <div class="dr-dice-area" id="dr-dice-area"></div>
-  <button class="dr-dismiss" id="dr-dismiss" onclick="startWaterfall()">START WATERFALL</button>
+  <button class="dr-dismiss" id="dr-dismiss">GO</button>
 </div>
 
 <!-- WATERFALL -->
@@ -487,7 +492,14 @@ var pickerReturnScreen='home';
 var ruleSettings={doubles:true,doublesSub:'waterfall',r711:true,sips:false,roll3man:false,diceOffTable:true,rollAgain:true};
 
 // Doubles state
-var dblPlayers=[-1,-1],dblRolled=[0,0],dblRollDone=[false,false],dblNextCallback=null;
+var dblPlayers=[-1,-1];     // current die recipients [die1PlayerIdx, die2PlayerIdx]
+var dblRolled=[0,0];        // values rolled by each recipient
+var dblRollDone=[false,false];
+var dblNextCallback=null;
+var dblMultiplier=1;        // drink time multiplier, doubles each time it bounces
+var dblOriginalRoller=-1;   // the player who originally rolled doubles
+var dblFixedPlayers=[-1,-1];// locked in after first pick - never changes
+var dblPhase='pick';        // 'pick' | 'recipients-roll' | 'roller-rolls-back' | 'done'
 
 // Roll-for-3man state
 var r3PlayerIdx=0,r3Active=false;
@@ -1446,10 +1458,20 @@ function selectPlayer(idx){
   if(cb)setTimeout(function(){cb(idx);},200);
 }
 
-// --- DOUBLES ---
+// ======= DOUBLES FLOW =======
 function showDoublesPicker(val,nextCb){
-  dblPlayers=[-1,-1];dblRolled=[0,0];dblRollDone=[false,false];dblNextCallback=nextCb;
-  // Pick die 1 owner
+  dblPlayers=[-1,-1];dblRolled=[0,0];dblRollDone=[false,false];
+  dblNextCallback=nextCb;dblMultiplier=1;
+  dblOriginalRoller=currentPlayerIndex;
+  dblFixedPlayers=[-1,-1];dblPhase='pick';
+
+  // SIPS MODE: just pick who gets each die, no rolling needed
+  if(ruleSettings.sips){
+    pickDblSipsRecipients(val);
+    return;
+  }
+
+  // Pick die 1 recipient
   psCallback=function(idx1){
     dblPlayers[0]=idx1;
     document.getElementById('ps-title').textContent='DIE 2 GOES TO...';
@@ -1459,8 +1481,9 @@ function showDoublesPicker(val,nextCb){
     }).join('');
     psCallback=function(idx2){
       dblPlayers[1]=idx2;
+      dblFixedPlayers=[idx1,idx2]; // lock in for ping-pong
       document.getElementById('player-select').classList.remove('show');
-      showDoublesRollScreen(val);
+      showDblRollScreen_recipients(val);
     };
     document.getElementById('player-select').classList.add('show');
   };
@@ -1472,97 +1495,117 @@ function showDoublesPicker(val,nextCb){
   document.getElementById('player-select').classList.add('show');
 }
 
-function showDoublesRollScreen(val){
+// SIPS: just show who got what, no rolling, no timer
+function pickDblSipsRecipients(val){
+  psCallback=function(idx1){
+    dblPlayers[0]=idx1;
+    document.getElementById('ps-title').textContent='DIE 2 GOES TO...';
+    document.getElementById('ps-sub').textContent='Can be same player';
+    document.getElementById('ps-list').innerHTML=gamePlayers.map(function(n,i){
+      return '<button class="ps-btn" onclick="selectPlayer('+i+')">'+n+'</button>';
+    }).join('');
+    psCallback=function(idx2){
+      dblPlayers[1]=idx2;
+      document.getElementById('player-select').classList.remove('show');
+      var isSame=idx1===idx2;
+      var area=document.getElementById('dr-dice-area');
+      document.getElementById('dr-title').textContent='SIPS!';
+      document.getElementById('dr-sub').textContent='Each die = 1 sip';
+      document.getElementById('dr-multiplier').textContent='';
+      if(isSame){
+        area.innerHTML='<div class="dr-die-slot">'
+          +'<div class="dr-die-owner">'+gamePlayers[idx2]+'</div>'
+          +'<div class="dr-die-box rolled" style="font-size:32px;line-height:1.1;text-align:center">2<br>SIPS</div>'
+          +'<div class="dr-die-hint">Got both dice</div></div>';
+      } else {
+        area.innerHTML='<div class="dr-die-slot"><div class="dr-die-owner">'+gamePlayers[idx1]+'</div>'
+          +'<div class="dr-die-box rolled" style="font-size:28px">1 SIP</div>'
+          +'<div class="dr-die-hint">Die 1</div></div>'
+          +'<div class="dr-die-slot"><div class="dr-die-owner">'+gamePlayers[idx2]+'</div>'
+          +'<div class="dr-die-box rolled" style="font-size:28px">1 SIP</div>'
+          +'<div class="dr-die-hint">Die 2</div></div>';
+      }
+      var db=document.getElementById('dr-dismiss');
+      db.classList.add('show');db.textContent='CHEERS!';
+      db.onclick=function(){
+        document.getElementById('doubles-roll-screen').classList.remove('show');
+        var cb=dblNextCallback;dblNextCallback=null;if(cb)cb();
+      };
+      document.getElementById('doubles-roll-screen').classList.add('show');
+    };
+    document.getElementById('player-select').classList.add('show');
+  };
+  document.getElementById('ps-title').textContent='DIE 1 GOES TO...';
+  document.getElementById('ps-sub').textContent='Who gets Die 1?';
+  document.getElementById('ps-list').innerHTML=gamePlayers.map(function(n,i){
+    return '<button class="ps-btn" onclick="selectPlayer('+i+')">'+n+'</button>';
+  }).join('');
+  document.getElementById('player-select').classList.add('show');
+}
+
+// Show roll screen for the RECIPIENTS (after initial dice assignment)
+function showDblRollScreen_recipients(originalVal){
   dblRolled=[0,0];dblRollDone=[false,false];
-  document.getElementById('dr-dismiss').classList.remove('show');
+  dblPhase='recipients-roll';
   var isSame=dblPlayers[0]===dblPlayers[1];
+  var multText=dblMultiplier>1?('x'+dblMultiplier+' MULTIPLIER'):'';
+  document.getElementById('dr-title').textContent='DOUBLES ROLL';
+  document.getElementById('dr-sub').textContent=isSame?'Same player rolls both':'Each player taps their die';
+  var multEl=document.getElementById('dr-multiplier');
+  multEl.textContent=multText;
+  if(dblMultiplier>1){multEl.classList.remove('bump');void multEl.offsetWidth;multEl.classList.add('bump');}
+
   var area=document.getElementById('dr-dice-area');
+  // Both modes (waterfall AND count) now show the roll screen so we can detect doubles-back
+  area.innerHTML=buildDieSlot(0,gamePlayers[dblPlayers[0]],'Die 1 — Tap to Roll')
+    +(isSame
+      ? buildDieSlot(1,gamePlayers[dblPlayers[1]],'Die 2 — Tap to Roll')
+      : buildDieSlot(1,gamePlayers[dblPlayers[1]],'Die 2 — Tap to Roll'));
 
-  if(ruleSettings.sips){
-    // SIPS MODE: no rolling - each die = 1 sip, both to same = 2 sips
-    var sipCount1=isSame?2:1;
-    var p1=gamePlayers[dblPlayers[0]];
-    var html='';
-    if(isSame){
-      html='<div class="dr-die-slot">'
-        +'<div class="dr-die-owner">'+p1+'</div>'
-        +'<div class="dr-die-box rolled" style="font-size:36px;line-height:1.1;text-align:center;padding:8px">2<br>SIPS</div>'
-        +'<div class="dr-die-hint">Got both dice</div>'
-        +'</div>';
-    } else {
-      html='<div class="dr-die-slot">'
-        +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[0]]+'</div>'
-        +'<div class="dr-die-box rolled" style="font-size:28px">1 SIP</div>'
-        +'<div class="dr-die-hint">Die 1</div>'
-        +'</div>'
-        +'<div class="dr-die-slot">'
-        +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[1]]+'</div>'
-        +'<div class="dr-die-box rolled" style="font-size:28px">1 SIP</div>'
-        +'<div class="dr-die-hint">Die 2</div>'
-        +'</div>';
-    }
-    area.innerHTML=html;
-    var dismissBtn=document.getElementById('dr-dismiss');
-    dismissBtn.classList.add('show');
-    dismissBtn.textContent='CHEERS - NEXT TURN';
-    dismissBtn.onclick=function(){
-      document.getElementById('doubles-roll-screen').classList.remove('show');
-      var cb=dblNextCallback;dblNextCallback=null;if(cb)cb();
-    };
-    document.getElementById('doubles-roll-screen').classList.add('show');
-    return;
-  }
-
-  if(ruleSettings.doublesSub==='count'){
-    // Count it yourself mode
-    area.innerHTML='<div class="dr-die-slot">'
-      +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[0]]+'</div>'
-      +'<div class="dr-die-box rolled" id="dr-box-0">'+val+'</div>'
-      +'<div class="dr-die-hint">Count the seconds</div>'
-      +'</div>'
-      +(isSame?'':'<div class="dr-die-slot">'
-      +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[1]]+'</div>'
-      +'<div class="dr-die-box rolled" id="dr-box-1">'+val+'</div>'
-      +'<div class="dr-die-hint">Count the seconds</div>'
-      +'</div>');
-    var d2=document.getElementById('dr-dismiss');
-    d2.classList.add('show');d2.textContent='DONE - NEXT TURN';
-    d2.onclick=function(){
-      document.getElementById('doubles-roll-screen').classList.remove('show');
-      var cb=dblNextCallback;dblNextCallback=null;if(cb)cb();
-    };
-  } else {
-    // Waterfall timer mode - players tap to roll
-    area.innerHTML='<div class="dr-die-slot">'
-      +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[0]]+'</div>'
-      +'<div class="dr-die-box waiting" id="dr-box-0" onclick="rollDblDie(0)">'+val+'</div>'
-      +'<div class="dr-die-hint">Tap to roll</div>'
-      +'<div class="dr-result-secs" id="dr-secs-0"></div>'
-      +'</div>'
-      +(isSame
-      ?'<div class="dr-die-slot">'
-      +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[1]]+'</div>'
-      +'<div class="dr-die-box waiting" id="dr-box-1" onclick="rollDblDie(1)">'+val+'</div>'
-      +'<div class="dr-die-hint">Tap to roll</div>'
-      +'<div class="dr-result-secs" id="dr-secs-1"></div>'
-      +'</div>'
-      :'<div class="dr-die-slot">'
-      +'<div class="dr-die-owner">'+gamePlayers[dblPlayers[1]]+'</div>'
-      +'<div class="dr-die-box waiting" id="dr-box-1" onclick="rollDblDie(1)">'+val+'</div>'
-      +'<div class="dr-die-hint">Tap to roll</div>'
-      +'<div class="dr-result-secs" id="dr-secs-1"></div>'
-      +'</div>');
-    document.getElementById('dr-dismiss').onclick=function(){startWaterfall();};
-  }
+  var db=document.getElementById('dr-dismiss');
+  db.classList.remove('show');
+  db.textContent=ruleSettings.doublesSub==='waterfall'?'START WATERFALL':'DONE — NEXT TURN';
+  db.onclick=function(){resolveDoublesResult();};
   document.getElementById('doubles-roll-screen').classList.add('show');
+}
+
+// Show roll screen for the ORIGINAL ROLLER (bounce-back)
+function showDblRollScreen_roller(){
+  dblRolled=[0,0];dblRollDone=[false,false];
+  dblPhase='roller-rolls-back';
+  var rollerName=gamePlayers[dblOriginalRoller];
+  document.getElementById('dr-title').textContent='DOUBLES AGAIN!';
+  document.getElementById('dr-sub').textContent='Bounces back to '+rollerName;
+  var multEl=document.getElementById('dr-multiplier');
+  multEl.textContent='x'+dblMultiplier+' — ROLL BOTH DICE';
+  multEl.classList.remove('bump');void multEl.offsetWidth;multEl.classList.add('bump');
+
+  if(navigator.vibrate)navigator.vibrate([40,20,40,20,80]);
+
+  var area=document.getElementById('dr-dice-area');
+  area.innerHTML=buildDieSlot(0,rollerName,'Die 1 — Tap to Roll')
+    +buildDieSlot(1,rollerName,'Die 2 — Tap to Roll');
+
+  var db=document.getElementById('dr-dismiss');
+  db.classList.remove('show');
+  db.textContent='RESOLVE';
+  db.onclick=function(){resolveRollerRoll();};
+  document.getElementById('doubles-roll-screen').classList.add('show');
+}
+
+function buildDieSlot(idx,ownerName,hint){
+  return '<div class="dr-die-slot">'
+    +'<div class="dr-die-owner">'+ownerName+'</div>'
+    +'<div class="dr-die-box waiting" id="dr-box-'+idx+'" onclick="rollDblDie('+idx+')">?</div>'
+    +'<div class="dr-die-hint">'+hint+'</div>'
+    +'<div class="dr-result-secs" id="dr-secs-'+idx+'"></div>'
+    +'</div>';
 }
 
 function rollDblDie(dieIdx){
   var box=document.getElementById('dr-box-'+dieIdx);
   if(!box||dblRollDone[dieIdx])return;
-  // Spin animation first
-  box.classList.remove('waiting');
-  box.classList.add('rolling');
+  box.classList.remove('waiting');box.classList.add('rolling');
   box.textContent='?';
   if(navigator.vibrate)navigator.vibrate(30);
   setTimeout(function(){
@@ -1571,19 +1614,119 @@ function rollDblDie(dieIdx){
     box.classList.remove('rolling');box.classList.add('rolled');
     box.textContent=val;
     var secs=document.getElementById('dr-secs-'+dieIdx);
-    if(secs)secs.textContent=val+' SEC'+(val!==1?'S':'');
+    if(secs){
+      if(ruleSettings.sips){secs.textContent='';}
+      else if(dblPhase==='roller-rolls-back'){secs.textContent='';}
+      else{
+        var display=val*dblMultiplier;
+        secs.textContent=display+' SEC'+(display!==1?'S':'')+(dblMultiplier>1?' (x'+dblMultiplier+')':'');
+      }
+    }
     if(navigator.vibrate)navigator.vibrate(50);
-    if(dblRollDone[0]&&dblRollDone[1])setTimeout(function(){document.getElementById('dr-dismiss').classList.add('show');},400);
+    if(dblRollDone[0]&&dblRollDone[1]){
+      setTimeout(function(){
+        document.getElementById('dr-dismiss').classList.add('show');
+      },450);
+    }
   },520);
 }
 
-function startWaterfall(){
-  document.getElementById('doubles-roll-screen').classList.remove('show');
+// Called after recipients roll — check for doubles-back
+function resolveDoublesResult(){
   var isSame=dblPlayers[0]===dblPlayers[1];
-  var entries=[];
-  if(isSame){entries.push({name:gamePlayers[dblPlayers[0]],secs:dblRolled[0]+dblRolled[1]});}
-  else{entries.push({name:gamePlayers[dblPlayers[0]],secs:dblRolled[0]});entries.push({name:gamePlayers[dblPlayers[1]],secs:dblRolled[1]});}
-  showWaterfallTimer(entries);
+  var r0=dblRolled[0],r1=dblRolled[1];
+  var isDoublesBack=(!isSame && r0===r1) || (isSame && r0===r1 && r0>0);
+
+  if(isDoublesBack && ruleSettings.doubles){
+    // DOUBLES AGAIN — multiply and send back to roller
+    dblMultiplier*=2;
+    // Don't hide screen, animate and transition
+    var area=document.getElementById('dr-dice-area');
+    area.innerHTML='<div class="dr-doubles-back">DOUBLES AGAIN!<br>'+gamePlayers[dblOriginalRoller]+' rolls back at x'+dblMultiplier+'!</div>';
+    document.getElementById('dr-dismiss').classList.remove('show');
+    document.getElementById('dr-sub').textContent='';
+    setTimeout(function(){showDblRollScreen_roller();},1400);
+  } else {
+    // Settle — deliver the drink
+    document.getElementById('doubles-roll-screen').classList.remove('show');
+    deliverDblDrinks();
+  }
+}
+
+// Called after roller rolls back — check for another doubles
+function resolveRollerRoll(){
+  var r0=dblRolled[0],r1=dblRolled[1];
+  var isDoublesAgain=r0===r1 && r0>0;
+
+  if(isDoublesAgain && ruleSettings.doubles){
+    // ANOTHER DOUBLES — send back to original recipients at even higher multiplier
+    dblMultiplier*=2;
+    dblPlayers=[dblFixedPlayers[0],dblFixedPlayers[1]]; // force back to fixed recipients
+    var area=document.getElementById('dr-dice-area');
+    area.innerHTML='<div class="dr-doubles-back">DOUBLES AGAIN!<br>Goes back x'+dblMultiplier+'!</div>';
+    document.getElementById('dr-dismiss').classList.remove('show');
+    setTimeout(function(){showDblRollScreen_recipients(null);},1400);
+  } else {
+    // Roller didn't roll doubles — roller delivers the drink at current multiplier
+    // The rolled values from the roller become the drink time
+    document.getElementById('doubles-roll-screen').classList.remove('show');
+    deliverDblDrinksFromRoller();
+  }
+}
+
+// Deliver drink to the fixed recipients based on their rolled values × multiplier
+function deliverDblDrinks(){
+  var isSame=dblFixedPlayers[0]===dblFixedPlayers[1]||dblPlayers[0]===dblPlayers[1];
+  var p0=dblPlayers[0],p1=dblPlayers[1];
+  var v0=dblRolled[0]*dblMultiplier,v1=dblRolled[1]*dblMultiplier;
+
+  if(ruleSettings.doublesSub==='waterfall'){
+    var entries=[];
+    if(isSame){entries.push({name:gamePlayers[p0],secs:v0+v1});}
+    else{entries.push({name:gamePlayers[p0],secs:v0});entries.push({name:gamePlayers[p1],secs:v1});}
+    showWaterfallTimer(entries);
+  } else {
+    // Count yourself — show their rolled numbers and multiplier, no timer
+    showCountYourselfScreen(p0,p1,v0,v1,isSame,false);
+  }
+}
+
+// Roller's dice values become the drink time sent to the fixed recipients
+function deliverDblDrinksFromRoller(){
+  var p0=dblFixedPlayers[0],p1=dblFixedPlayers[1];
+  var isSame=p0===p1;
+  // Roller's combined roll = total seconds, split between recipients
+  var total=(dblRolled[0]+dblRolled[1])*dblMultiplier;
+  var v0=dblRolled[0]*dblMultiplier,v1=dblRolled[1]*dblMultiplier;
+
+  if(ruleSettings.doublesSub==='waterfall'){
+    var entries=[];
+    if(isSame){entries.push({name:gamePlayers[p0],secs:total});}
+    else{entries.push({name:gamePlayers[p0],secs:v0});entries.push({name:gamePlayers[p1],secs:v1});}
+    showWaterfallTimer(entries);
+  } else {
+    showCountYourselfScreen(p0,p1,v0,v1,isSame,true);
+  }
+}
+
+// Count-yourself mode: show rolled numbers, they count it themselves
+function showCountYourselfScreen(p0,p1,v0,v1,isSame,fromRoller){
+  var ws=document.getElementById('waterfall-screen');
+  document.getElementById('wf-count-msg').style.display='block';
+  document.getElementById('wf-count-msg').textContent=fromRoller
+    ?'Count it out — '+gamePlayers[dblOriginalRoller]+' chose your fate!'
+    :'Count it out — no timer!';
+  var container=document.getElementById('wf-players');
+  if(isSame){
+    container.innerHTML='<div class="wf-row drinking"><div class="wf-name">'+gamePlayers[p0]+'</div>'
+      +'<div class="wf-timer" style="color:var(--gold)">'+(v0+v1)+'s</div></div>';
+  } else {
+    container.innerHTML='<div class="wf-row drinking"><div class="wf-name">'+gamePlayers[p0]+'</div>'
+      +'<div class="wf-timer" style="color:var(--gold)">'+v0+'s</div></div>'
+      +'<div class="wf-row drinking"><div class="wf-name">'+gamePlayers[p1]+'</div>'
+      +'<div class="wf-timer" style="color:var(--gold)">'+v1+'s</div></div>';
+  }
+  ws.classList.add('show');
 }
 
 var wfTimers=[];
