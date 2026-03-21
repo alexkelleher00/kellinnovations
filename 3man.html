@@ -9,11 +9,12 @@
 <style>
 :root{--ng:#00ff87;--np:#ff2d78;--nb:#00cfff;--gold:#ffd700;--bg:#080810;--card:#10101c;--border:#1c1c30;--muted:#5050a0;--text:#f0f0ff}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{width:100%;height:100%;overflow:hidden;position:fixed}
-body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif}
+html{width:100%;height:100%;overflow:hidden}
+body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;display:flex;align-items:stretch;justify-content:center}
+#app-root{position:relative;width:100%;max-width:500px;height:100%;overflow:hidden;flex-shrink:0;background:var(--bg)}
 
 /* SCREENS */
-.screen{display:none;position:absolute;inset:0;z-index:1;flex-direction:column;align-items:center;overflow-y:auto;overflow-x:hidden;padding:20px 16px 50px;-webkit-overflow-scrolling:touch;animation:fadeUp .35s ease}
+.screen{display:none;position:absolute;inset:0;z-index:1;flex-direction:column;align-items:center;overflow-y:auto;overflow-x:hidden;padding:16px 16px 40px;-webkit-overflow-scrolling:touch;animation:fadeUp .35s ease}
 .screen.active{display:flex}
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 
@@ -131,17 +132,17 @@ input[type=text]::placeholder{color:#282855}
 @keyframes blink{0%,100%{opacity:.6}50%{opacity:.15}}
 
 /* TOTAL FLASH */
-.total-flash{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);font-family:'Bebas Neue',sans-serif;font-size:clamp(80px,24vw,140px);color:#fff;text-shadow:0 0 50px rgba(255,255,255,.75);pointer-events:none;z-index:50;opacity:0}
+.total-flash{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);font-family:'Bebas Neue',sans-serif;font-size:clamp(80px,24vw,140px);color:#fff;text-shadow:0 0 50px rgba(255,255,255,.75);pointer-events:none;z-index:50;opacity:0}
 .total-flash.pop{animation:tpop .9s ease forwards}
 @keyframes tpop{0%{transform:translate(-50%,-50%) scale(0);opacity:0}25%{transform:translate(-50%,-50%) scale(1.2);opacity:.9}65%{transform:translate(-50%,-50%) scale(.95);opacity:.65}100%{transform:translate(-50%,-50%) scale(.5);opacity:0}}
 
 /* 3-MAN FLASH */
-.flash-overlay{position:fixed;inset:0;z-index:70;pointer-events:none;opacity:0}
+.flash-overlay{position:absolute;inset:0;z-index:70;pointer-events:none;opacity:0}
 .flash-overlay.flash3{animation:flash3 1.5s ease forwards}
 @keyframes flash3{0%{opacity:0}8%{opacity:1;background:rgba(255,45,120,.45)}18%{opacity:.15}30%{opacity:1;background:rgba(255,180,0,.35)}42%{opacity:.15}55%{opacity:1;background:rgba(255,45,120,.5)}70%{opacity:.35;background:rgba(255,45,120,.2)}100%{opacity:0}}
 
 /* 3-MAN POPUP */
-.threeman-popup{position:fixed;inset:0;z-index:82;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .3s;background:rgba(0,0,0,.6)}
+.threeman-popup{position:absolute;inset:0;z-index:82;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .3s;background:rgba(0,0,0,.6)}
 .threeman-popup.show{opacity:1;pointer-events:all}
 .threeman-card{background:linear-gradient(145deg,#1a0010,#200018);border:2px solid rgba(255,45,120,.6);border-radius:24px;padding:30px 24px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 0 60px rgba(255,45,120,.4),0 20px 60px rgba(0,0,0,.8);transform:scale(.85) translateY(20px);transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
 .threeman-popup.show .threeman-card{transform:scale(1) translateY(0)}
@@ -153,7 +154,7 @@ input[type=text]::placeholder{color:#282855}
 .tm-dismiss:active{transform:scale(.96)}
 
 /* GENERIC RULE POPUP */
-.rule-popup{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .3s;background:rgba(0,0,0,.55)}
+.rule-popup{position:absolute;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .3s;background:rgba(0,0,0,.55)}
 .rule-popup.show{opacity:1;pointer-events:all}
 .rule-card{background:linear-gradient(145deg,#0e0e1e,#16101e);border-radius:22px;padding:26px 22px 20px;max-width:340px;width:100%;text-align:center;transform:scale(.85) translateY(20px);transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
 .rule-popup.show .rule-card{transform:scale(1) translateY(0)}
@@ -163,7 +164,7 @@ input[type=text]::placeholder{color:#282855}
 .rule-dismiss:active{transform:scale(.96)}
 
 /* PLAYER SELECT */
-.player-select{position:fixed;inset:0;z-index:90;background:rgba(6,6,14,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .3s}
+.player-select{position:absolute;inset:0;z-index:90;background:rgba(6,6,14,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .3s}
 .player-select.show{opacity:1;pointer-events:all}
 .ps-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(22px,6vw,34px);letter-spacing:4px;color:var(--gold);text-shadow:0 0 16px rgba(255,215,0,.4);margin-bottom:5px;text-align:center}
 .ps-sub{font-size:12px;letter-spacing:2px;color:rgba(255,255,255,.35);margin-bottom:16px;text-align:center}
@@ -172,7 +173,7 @@ input[type=text]::placeholder{color:#282855}
 .ps-btn:active{transform:scale(.97);border-color:var(--gold)}
 
 /* DOUBLES ROLL */
-.doubles-roll-screen{position:fixed;inset:0;z-index:90;background:rgba(6,6,14,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .3s;gap:10px}
+.doubles-roll-screen{position:absolute;inset:0;z-index:90;background:rgba(6,6,14,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .3s;gap:10px}
 .doubles-roll-screen.show{opacity:1;pointer-events:all}
 .dr-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(26px,7vw,36px);letter-spacing:4px;color:var(--gold);text-shadow:0 0 18px rgba(255,215,0,.45);text-align:center}
 .dr-sub{font-size:12px;letter-spacing:2px;color:rgba(255,255,255,.35);text-align:center;margin-top:-4px}
@@ -180,6 +181,8 @@ input[type=text]::placeholder{color:#282855}
 .dr-die-slot{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:110px}
 .dr-die-owner{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--muted);text-align:center;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dr-die-box{width:88px;height:88px;background:#141428;border:2px solid #28285a;border-radius:16px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:50px;color:var(--gold);cursor:pointer;transition:all .25s;position:relative}
+.dr-die-box.rolling{animation:dieRollSpin 0.5s cubic-bezier(.4,0,.2,1)}
+@keyframes dieRollSpin{0%{transform:rotate(0) scale(1)}25%{transform:rotate(180deg) scale(1.1)}75%{transform:rotate(540deg) scale(0.95)}100%{transform:rotate(720deg) scale(1)}}
 .dr-die-box.rolled{border-color:var(--ng);background:rgba(0,255,135,.08);animation:dieSettle .3s cubic-bezier(.34,1.56,.64,1)}
 @keyframes dieSettle{from{transform:scale(1.14)}to{transform:scale(1)}}
 .dr-die-box.waiting{animation:diePulse 1s ease-in-out infinite}
@@ -190,7 +193,7 @@ input[type=text]::placeholder{color:#282855}
 .dr-dismiss.show{opacity:1}
 
 /* WATERFALL */
-.waterfall-screen{position:fixed;inset:0;z-index:95;background:rgba(6,6,14,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .3s}
+.waterfall-screen{position:absolute;inset:0;z-index:95;background:rgba(6,6,14,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .3s}
 .waterfall-screen.show{opacity:1;pointer-events:all}
 .wf-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,8vw,44px);letter-spacing:5px;color:var(--nb);text-shadow:0 0 18px rgba(0,207,255,.5);margin-bottom:14px}
 .wf-players{display:flex;flex-direction:column;gap:10px;width:100%;max-width:360px;margin-bottom:18px}
@@ -205,7 +208,7 @@ input[type=text]::placeholder{color:#282855}
 .wf-count-msg{font-size:15px;letter-spacing:2px;color:rgba(255,255,255,.5);margin-bottom:16px;text-align:center;line-height:1.5}
 
 /* TURN TRANSITION */
-.turn-trans{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;opacity:0;pointer-events:none;transition:opacity .25s}
+.turn-trans{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;opacity:0;pointer-events:none;transition:opacity .25s}
 .turn-trans.show{opacity:1;pointer-events:all}
 #tt-bg{position:absolute;inset:0;z-index:0}
 .tt-inner{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:8px}
@@ -214,7 +217,7 @@ input[type=text]::placeholder{color:#282855}
 .tt-sub{font-size:13px;letter-spacing:3px;color:rgba(255,255,255,.3);text-transform:uppercase}
 
 /* ROLL FOR 3-MAN SCREEN */
-.roll3-screen{position:fixed;inset:0;z-index:150;background:rgba(8,8,16,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .3s;gap:10px;overflow:hidden}
+.roll3-screen{position:absolute;inset:0;z-index:150;background:rgba(8,8,16,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .3s;gap:10px;overflow:hidden}
 .roll3-screen.show{opacity:1;pointer-events:all}
 .r3-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(26px,7vw,38px);letter-spacing:5px;color:var(--np);text-shadow:0 0 20px rgba(255,45,120,.5);text-align:center}
 .r3-sub{font-size:12px;letter-spacing:3px;color:rgba(255,255,255,.3);text-align:center;margin-top:-4px}
@@ -230,7 +233,7 @@ input[type=text]::placeholder{color:#282855}
 .r3-tap-btn:active{transform:scale(.96);background:rgba(255,45,120,.15)}
 
 /* CEREMONY */
-.ceremony{position:fixed;inset:0;background:rgba(8,8,16,.97);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s;overflow:hidden}
+.ceremony{position:absolute;inset:0;background:rgba(8,8,16,.97);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s;overflow:hidden}
 .ceremony.show{opacity:1;pointer-events:all}
 .cer-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(16px,4.5vw,22px);letter-spacing:6px;color:var(--muted);text-transform:uppercase;margin-bottom:18px}
 .cer-slot{font-family:'Bebas Neue',sans-serif;font-size:clamp(48px,14vw,84px);letter-spacing:4px;color:var(--np);text-shadow:0 0 26px rgba(255,45,120,.5);height:1.15em;display:flex;align-items:center;justify-content:center;min-width:80vw;text-align:center;overflow:hidden;transition:color .3s,text-shadow .3s}
@@ -244,6 +247,7 @@ input[type=text]::placeholder{color:#282855}
 </style>
 </head>
 <body>
+<div id="app-root">
 
 <!-- HOME -->
 <div class="screen active" id="screen-home">
@@ -321,6 +325,24 @@ input[type=text]::placeholder{color:#282855}
           <div class="rtl-desc">Total of 7 = player to the RIGHT drinks. Total of 11 = player to the LEFT drinks. Stacks with other rules.</div>
         </div>
         <div class="rtl-toggle on" id="tog-711" onclick="toggleRule('711')"></div>
+      </div>
+
+      <!-- ROLL AGAIN ON RULE -->
+      <div class="rule-toggle-row">
+        <div class="rtl-left">
+          <div class="rtl-title">ROLL AGAIN ON HIT</div>
+          <div class="rtl-desc">When a player triggers any rule (3-Man, 7, 11, doubles), they roll again instead of passing. Turn only ends on a clean roll.</div>
+        </div>
+        <div class="rtl-toggle on" id="tog-rollAgain" onclick="toggleRule('rollAgain')"></div>
+      </div>
+
+      <!-- DICE OFF TABLE -->
+      <div class="rule-toggle-row">
+        <div class="rtl-left">
+          <div class="rtl-title">DICE OFF THE TABLE</div>
+          <div class="rtl-desc">1-in-100 chance: if dice "fall off" the table the roller instantly becomes the new Three Man. Pure chaos mode.</div>
+        </div>
+        <div class="rtl-toggle on" id="tog-diceOff" onclick="toggleRule('diceOff')"></div>
       </div>
 
     </div>
@@ -449,6 +471,7 @@ input[type=text]::placeholder{color:#282855}
   <div class="cer-tap" id="cer-tap" style="opacity:0">TAP TO START GAME</div>
 </div>
 
+</div><!-- end app-root -->
 <script>
 // ======= STATE =======
 var players=['',''];
@@ -461,7 +484,7 @@ var threeManIndex=-1,gamePlayers=[];
 var pickerReturnScreen='home';
 
 // Rules settings
-var ruleSettings={doubles:true,doublesSub:'waterfall',r711:true,sips:false,roll3man:false};
+var ruleSettings={doubles:true,doublesSub:'waterfall',r711:true,sips:false,roll3man:false,diceOffTable:true,rollAgain:true};
 
 // Doubles state
 var dblPlayers=[-1,-1],dblRolled=[0,0],dblRollDone=[false,false],dblNextCallback=null;
@@ -501,6 +524,22 @@ var BG_THEMES=[
   {id:'neon-bar',name:'Neon Club',
    barColors:{sky1:'#0a0020',sky2:'#050010',wallTop:'#0a0022',wallBot:'#060014',barColor:'#0c0028',shelfColor:'#0a0020',feltColor:'#0c0028',railColor:'#3a0060',lampHex:0xff00ff,lampI:1.1,bottleColors:['#1a0040','#001a40','#200020','#002020']},
    css:'radial-gradient(ellipse at 50% 0%,#100028 0%,#060012 50%,#020008 100%)',ttbg:'#0a0020'},
+  // NON-BAR THEMES
+  {id:'beach',name:'Beach Party',
+   barColors:{sky1:'#0a3060',sky2:'#0a4080',wallTop:'#1a6a8a',wallBot:'#0a5070',barColor:'#c89040',shelfColor:'#b07830',feltColor:'#c8a855',railColor:'#8a6020',lampHex:0xffcc44,lampI:0.5,bottleColors:['#2a8a2a','#8a4a10','#cc8820','#3a6a8a']},
+   css:'linear-gradient(180deg,#0a3870 0%,#1a6a9a 35%,#0a8090 60%,#b08830 100%)',ttbg:'#0a4070'},
+  {id:'basement',name:'Game Room',
+   barColors:{sky1:'#0a0a14',sky2:'#080810',wallTop:'#101018',wallBot:'#0a0a12',barColor:'#1a1a28',shelfColor:'#141422',feltColor:'#0e1a0e',railColor:'#2a3a2a',lampHex:0x88ff44,lampI:0.8,bottleColors:['#1a3a1a','#2a1a3a','#3a2a10','#1a1a3a']},
+   css:'radial-gradient(ellipse at 50% 0%,#141420 0%,#0a0a12 60%,#060608 100%)',ttbg:'#0a0a14'},
+  {id:'rooftop-city',name:'City Rooftop',
+   barColors:{sky1:'#050818',sky2:'#030510',wallTop:'#060a20',wallBot:'#040816',barColor:'#0a1030',shelfColor:'#080c28',feltColor:'#080e22',railColor:'#1a2248',lampHex:0xffaa44,lampI:0.7,bottleColors:['#0a1a3a','#1a0a2a','#2a1508','#0a2a1a']},
+   css:'linear-gradient(180deg,#050818 0%,#0a1030 50%,#050818 100%)',ttbg:'#060a20'},
+  {id:'mountain-lodge',name:'Mountain Lodge',
+   barColors:{sky1:'#060c18',sky2:'#040a12',wallTop:'#2a1e12',wallBot:'#1a1208',barColor:'#3a2a18',shelfColor:'#2e2210',feltColor:'#1a2e14',railColor:'#5a4020',lampHex:0xffaa55,lampI:1.0,bottleColors:['#3a2010','#1a3010','#4a3808','#1a1a2a']},
+   css:'radial-gradient(ellipse at 50% 0%,#2a1e12 0%,#140e08 50%,#080804 100%)',ttbg:'#1e1408'},
+  {id:'space-bar',name:'Space Bar',
+   barColors:{sky1:'#000008',sky2:'#000005',wallTop:'#050010',wallBot:'#020008',barColor:'#0a0818',shelfColor:'#080614',feltColor:'#04040c',railColor:'#1a0840',lampHex:0x4400ff,lampI:1.2,bottleColors:['#100030','#003010','#200020','#003030']},
+   css:'radial-gradient(ellipse at 50% 0%,#080020 0%,#030010 50%,#000008 100%)',ttbg:'#050015'},
 ];
 function getBg(id){for(var i=0;i<BG_THEMES.length;i++)if(BG_THEMES[i].id===id)return BG_THEMES[i];return BG_THEMES[0];}
 
@@ -922,22 +961,216 @@ function addThemeProps(bgId,bc){
     });
   }
 
+  if(bgId==='beach'){
+    // Ocean horizon in background - gradient plane
+    var oceanMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#0a6090'),roughness:0.05,metalness:0.1});
+    var ocean=new THREE.Mesh(new THREE.PlaneGeometry(20,6),oceanMat);ocean.position.set(0,1.5,-4);g.add(ocean);
+    // Sun disc
+    var sunMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#ffdd44'),emissive:new THREE.Color('#ffaa00'),emissiveIntensity:1.5});
+    var sun=new THREE.Mesh(new THREE.CircleGeometry(0.7,16),sunMat);sun.position.set(3,5.5,-3.9);g.add(sun);
+    // Palm trees
+    [-6.5,6.5].forEach(function(px){
+      cyl(0.12,0.18,3.5,8,'#8a6020',px,-0.1,-2.5);
+      for(var li=0;li<5;li++){
+        var lf=new THREE.Mesh(new THREE.BoxGeometry(0.08,1.8,0.04),new THREE.MeshStandardMaterial({color:new THREE.Color('#2a7a10'),roughness:0.9}));
+        lf.rotation.z=(li/5)*Math.PI*2;lf.rotation.x=0.5;
+        lf.position.set(px,3.4,-2.5);g.add(lf);
+      }
+    });
+    // Tiki bar / wooden counter (replaces regular bar counter style)
+    var sandMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#c8a855'),roughness:1.0,metalness:0});
+    var sand=new THREE.Mesh(new THREE.PlaneGeometry(20,8),sandMat);sand.rotation.x=-Math.PI/2;sand.position.set(0,-1.62,2);g.add(sand);
+    // Beach umbrella
+    var umbTop=new THREE.Mesh(new THREE.ConeGeometry(1.2,0.5,12,1,true),new THREE.MeshStandardMaterial({color:new THREE.Color('#ee4422'),side:THREE.DoubleSide,roughness:0.9}));
+    umbTop.position.set(-3.5,3.2,-1.5);g.add(umbTop);
+    cyl(0.05,0.05,3.8,6,'#dddddd',-3.5,1.2,-1.5);
+    // Beach chair
+    box(0.7,0.08,1.2,'#cc9930',-4.5,0.5,1.0);
+    box(0.7,0.8,0.08,'#cc9930',-4.5,0.9,0.42);
+    // Volleyball net
+    box(0.04,1.5,0.04,'#cccccc',3,1.1,1.0);
+    box(0.04,1.5,0.04,'#cccccc',5,1.1,1.0);
+    box(4,0.04,0.04,'#cccccc',4,1.85,1.0);
+    // Beer cooler
+    box(0.6,0.45,0.5,'#2244cc',5.5,0.1,2.5);
+    box(0.58,0.1,0.48,'#1133aa',5.5,0.32,2.5);
+    // Wave foam lines
+    [2.5,3.5,4.5].forEach(function(wz){
+      box(8,0.04,0.08,'#aaddff',0,0.3,wz-10);
+    });
+  }
+
+  if(bgId==='basement'){
+    // Felt pool table
+    box(3.5,0.12,2.0,'#1a4a1a',-4,1.85,-3.0);
+    box(3.7,0.2,0.14,'#5a3010',-4,1.78,-2.02);
+    box(3.7,0.2,0.14,'#5a3010',-4,1.78,-3.98);
+    box(0.14,0.2,2.2,'#5a3010',-5.72,1.78,-3.0);
+    box(0.14,0.2,2.2,'#5a3010',-2.28,1.78,-3.0);
+    // Pool balls
+    var ballColors=['#ffffff','#ffaa00','#0000cc','#cc0000','#660066','#ff6600','#006600','#880000','#222222'];
+    ballColors.forEach(function(bc2,bi){
+      var ball=new THREE.Mesh(new THREE.SphereGeometry(0.1,10,10),new THREE.MeshStandardMaterial({color:new THREE.Color(bc2),roughness:0.2,metalness:0}));
+      ball.position.set(-4.3+Math.cos(bi*1.1)*0.5,-4+1.97,-3+Math.sin(bi*0.9)*0.4);g.add(ball);
+    });
+    // Foosball table
+    box(2.0,0.1,1.2,'#8a5a20',4,1.9,-2.8);
+    [0.4,0.8,1.2,1.6].forEach(function(rx){
+      box(0.04,0.04,1.5,'#888888',3.5+rx,2.1,-2.8);
+      for(var fi=0;fi<3;fi++){
+        var foos=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.35,0.06),new THREE.MeshStandardMaterial({color:new THREE.Color(fi%2===0?'#cc2200':'#0022cc')}));
+        foos.position.set(3.5+rx,1.97,-2.4+fi*0.4);g.add(foos);
+      }
+    });
+    // TV on wall with glow
+    box(2.2,1.3,0.1,'#111111',0,5.0,-3.78);
+    var tvGlow=new THREE.Mesh(new THREE.BoxGeometry(2.0,1.1,0.04),new THREE.MeshStandardMaterial({color:new THREE.Color('#3344ff'),emissive:new THREE.Color('#2233dd'),emissiveIntensity:0.6,transparent:true,opacity:0.9}));
+    tvGlow.position.set(0,5.0,-3.72);g.add(tvGlow);
+    // Mini fridge
+    box(0.6,1.0,0.5,'#2a2a3a',6.5,0.5,-3.3);
+    box(0.58,0.06,0.48,'#3a3a4a',6.5,1.03,-3.3);
+    // Posters on wall
+    box(1.0,1.4,0.04,'#1a0820',-6,4.0,-3.76);
+    box(0.9,1.3,0.03,'#cc44ff',-6,4.0,-3.73);
+  }
+
+  if(bgId==='rooftop-city'){
+    // Detailed city skyline
+    var bldgData=[[1.2,8,0.6,-7],[0.9,6,0.5,-5],[1.4,10,0.7,-3],[1.0,7,0.5,0],[1.5,12,0.8,3],[0.8,5,0.5,5],[1.2,9,0.6,7]];
+    bldgData.forEach(function(bd){
+      box(bd[0],bd[1],bd[2],'#080c18',bd[3],bd[1]/2-4,-3.8);
+      // Windows grid
+      var rows=Math.floor(bd[1]/0.8),cols=3;
+      for(var wr=0;wr<rows;wr++){
+        for(var wc=0;wc<cols;wc++){
+          if(Math.random()>0.3){
+            var wMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#ffeecc'),emissive:new THREE.Color('#ffcc66'),emissiveIntensity:Math.random()*0.8+0.3});
+            var win=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.15,0.05),wMat);
+            win.position.set(bd[3]+(wc-1)*bd[0]*0.28,bd[1]/2-4+0.5+wr*0.75,-3.74);g.add(win);
+          }
+        }
+      }
+      // Rooftop details
+      cyl(0.04,0.04,0.4,6,'#aaaaaa',bd[3],bd[1]-3.6,-3.75);
+      var antLight=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),new THREE.MeshStandardMaterial({color:new THREE.Color('#ff2200'),emissive:new THREE.Color('#ff0000'),emissiveIntensity:2.0}));
+      antLight.position.set(bd[3],bd[1]-3.38,-3.75);g.add(antLight);
+    });
+    // String lights across rooftop
+    for(var sl=0;sl<16;sl++){
+      var slMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#ffeeaa'),emissive:new THREE.Color('#ffcc44'),emissiveIntensity:1.0});
+      var slb=new THREE.Mesh(new THREE.SphereGeometry(0.06,6,6),slMat);
+      slb.position.set(-7.5+sl,5.5+Math.sin(sl*0.7)*0.4,0);g.add(slb);
+    }
+    // Outdoor heater
+    cyl(0.08,0.25,0.1,10,'#888888',5.5,0.0,1.5);
+    cyl(0.05,0.05,2.2,8,'#999999',5.5,1.15,1.5);
+    cyl(0.3,0.05,0.4,10,'#888888',5.5,2.45,1.5);
+    var heatGlow=new THREE.Mesh(new THREE.ConeGeometry(0.28,0.3,10),new THREE.MeshStandardMaterial({color:new THREE.Color('#ff4400'),emissive:new THREE.Color('#ff2200'),emissiveIntensity:1.2}));
+    heatGlow.rotation.x=Math.PI;heatGlow.position.set(5.5,2.7,1.5);g.add(heatGlow);
+    // Potted plants along edge
+    [-5.5,5.5].forEach(function(px){
+      cyl(0.2,0.25,0.35,10,'#4a3020',px,0.0,0.5);
+      var pl2=new THREE.Mesh(new THREE.SphereGeometry(0.4,8,8),new THREE.MeshStandardMaterial({color:new THREE.Color('#1a5a10'),roughness:0.9}));
+      pl2.position.set(px,0.55,0.5);g.add(pl2);
+    });
+    // Moon
+    var moon=new THREE.Mesh(new THREE.CircleGeometry(0.5,16),new THREE.MeshStandardMaterial({color:new THREE.Color('#fffacc'),emissive:new THREE.Color('#eeee88'),emissiveIntensity:0.6}));
+    moon.position.set(-4,6.5,-3.85);g.add(moon);
+  }
+
+  if(bgId==='mountain-lodge'){
+    // Stone fireplace - large, dominant
+    box(3.5,4.0,0.3,'#4a3828',-0.5,3.5,-3.75);
+    box(2.8,3.2,0.25,'#5a4838',-0.5,3.4,-3.65);
+    box(2.2,1.6,0.22,'#1a1008',-0.5,2.5,-3.58);
+    // Fire in fireplace
+    var fMat1=new THREE.MeshStandardMaterial({color:new THREE.Color('#ff6600'),emissive:new THREE.Color('#ff3300'),emissiveIntensity:2.0});
+    var fMat2=new THREE.MeshStandardMaterial({color:new THREE.Color('#ffcc00'),emissive:new THREE.Color('#ffaa00'),emissiveIntensity:2.5});
+    var fl1=new THREE.Mesh(new THREE.ConeGeometry(0.5,0.9,8),fMat1);fl1.position.set(-0.5,1.85,-3.5);g.add(fl1);
+    var fl2=new THREE.Mesh(new THREE.ConeGeometry(0.3,0.65,8),fMat2);fl2.position.set(-0.2,1.95,-3.48);g.add(fl2);
+    // Mantle shelf
+    box(3.6,0.18,0.5,'#6a4828',-0.5,5.5,-3.6);
+    // Antler mount above fireplace
+    cyl(0.06,0.06,0.5,8,'#8a6a40',-0.5,6.1,-3.65);
+    // Antler branches (simple boxes at angles)
+    [[-0.5,0.3],[-0.3,0.5],[0.5,0.3],[0.3,0.5]].forEach(function(ab){
+      var ant=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.5,0.04),new THREE.MeshStandardMaterial({color:new THREE.Color('#8a6a40'),roughness:0.8}));
+      ant.rotation.z=ab[0];ant.position.set(-0.5+ab[1]*0.5,6.4,-3.65);g.add(ant);
+    });
+    // Log wall texture on sides
+    [-7,7].forEach(function(wx){
+      for(var lr=0;lr<5;lr++){
+        box(1.8,0.3,0.2,'#5a3a18',wx,2+lr*0.9,-3.72);
+      }
+    });
+    // Mounted animal silhouette (bear head shape - basic)
+    var bearBase=new THREE.Mesh(new THREE.SphereGeometry(0.55,12,10),new THREE.MeshStandardMaterial({color:new THREE.Color('#3a2a1a'),roughness:0.9}));
+    bearBase.position.set(5.5,5.0,-3.72);g.add(bearBase);
+    // Wooden floor boards
+    for(var fb=0;fb<8;fb++){
+      box(20,0.02,0.55,'#6a4020',0,-1.59,-0.5+fb*0.85);
+    }
+    // Cozy table lamp on bar
+    cyl(0.06,0.06,0.4,8,'#8a6a30',4.5,2.35,-3.1);
+    var lampShade=new THREE.Mesh(new THREE.ConeGeometry(0.28,0.3,10),new THREE.MeshStandardMaterial({color:new THREE.Color('#cc9944'),side:THREE.DoubleSide}));
+    lampShade.rotation.x=Math.PI;lampShade.position.set(4.5,2.8,-3.1);g.add(lampShade);
+    var lampGlow2=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,8),new THREE.MeshStandardMaterial({color:new THREE.Color('#ffeeaa'),emissive:new THREE.Color('#ffcc44'),emissiveIntensity:2.0}));
+    lampGlow2.position.set(4.5,2.6,-3.1);g.add(lampGlow2);
+  }
+
+  if(bgId==='space-bar'){
+    // Starfield - many glowing dots
+    for(var st=0;st<80;st++){
+      var sMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#ffffff'),emissive:new THREE.Color('#ffffff'),emissiveIntensity:Math.random()*1.5+0.5});
+      var star=new THREE.Mesh(new THREE.SphereGeometry(0.03+Math.random()*0.04,4,4),sMat);
+      star.position.set((Math.random()-0.5)*18,(Math.random()*5+1.5),-3.6-Math.random()*0.2);g.add(star);
+    }
+    // Planet with rings (Saturn-like)
+    var planetMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#aa8844'),roughness:0.3});
+    var planet=new THREE.Mesh(new THREE.SphereGeometry(0.8,14,14),planetMat);
+    planet.position.set(-5.5,5.5,-3.8);g.add(planet);
+    var ringMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#cc9944'),roughness:0.4,transparent:true,opacity:0.6,side:THREE.DoubleSide});
+    var ring=new THREE.Mesh(new THREE.RingGeometry(1.1,1.7,20),ringMat);
+    ring.rotation.x=Math.PI*0.38;ring.position.set(-5.5,5.5,-3.8);g.add(ring);
+    // Nebula glow cloud (large transparent sphere)
+    var nebMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#4400aa'),transparent:true,opacity:0.08,roughness:1});
+    var neb=new THREE.Mesh(new THREE.SphereGeometry(4,12,12),nebMat);neb.position.set(4,4,-3.5);g.add(neb);
+    var neb2=new THREE.Mesh(new THREE.SphereGeometry(3,12,12),new THREE.MeshStandardMaterial({color:new THREE.Color('#004488'),transparent:true,opacity:0.07}));
+    neb2.position.set(-3,3.5,-3.6);g.add(neb2);
+    // Space station window frame
+    box(2.2,2.2,0.08,'#223344',4.5,4.5,-3.76);
+    var spaceWindow=new THREE.Mesh(new THREE.CircleGeometry(0.9,16),new THREE.MeshStandardMaterial({color:new THREE.Color('#001133'),transparent:true,opacity:0.7}));
+    spaceWindow.position.set(4.5,4.5,-3.7);g.add(spaceWindow);
+    // Alien hologram-style display above bar
+    var holMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#00ffcc'),emissive:new THREE.Color('#00ddaa'),emissiveIntensity:0.8,transparent:true,opacity:0.4,side:THREE.DoubleSide,wireframe:true});
+    var holo=new THREE.Mesh(new THREE.IcosahedronGeometry(0.5,1),holMat);
+    holo.position.set(0,3.8,-3.0);g.add(holo);
+    // Glowing bar counter edge - multicolor
+    var barEdge1=new THREE.Mesh(new THREE.BoxGeometry(9,0.04,0.04),new THREE.MeshStandardMaterial({color:new THREE.Color('#00ffff'),emissive:new THREE.Color('#00cccc'),emissiveIntensity:1.5}));
+    barEdge1.position.set(-4.5,1.96,-2.92);g.add(barEdge1);
+    var barEdge2=new THREE.Mesh(new THREE.BoxGeometry(9,0.04,0.04),new THREE.MeshStandardMaterial({color:new THREE.Color('#ff00ff'),emissive:new THREE.Color('#cc00cc'),emissiveIntensity:1.5}));
+    barEdge2.position.set(4.5,1.96,-2.92);g.add(barEdge2);
+    // Rocket model on bar
+    cyl(0.1,0.15,0.7,10,'#cccccc',5.5,2.55,-3.05);
+    cyl(0.05,0.1,0.25,8,'#cccccc',5.5,2.97,-3.05);
+    var rocketTop=new THREE.Mesh(new THREE.ConeGeometry(0.05,0.22,8),new THREE.MeshStandardMaterial({color:new THREE.Color('#cc2200')}));
+    rocketTop.position.set(5.5,3.15,-3.05);g.add(rocketTop);
+    // Fin
+    box(0.04,0.2,0.2,'#aaaaaa',5.5,2.25,-3.05);
+  }
+
   if(bgId==='neon-bar'){
     // Neon sign tubes (glowing geometry)
-    var neonColors=[0xff00ff,0x00ffff,0xff6600,0x00ff44];
     [[-4,5.5,'#ff00ff'],[0,5.8,'#00ffff'],[4,5.5,'#ff6600']].forEach(function(ns){
       var nMat=new THREE.MeshStandardMaterial({color:new THREE.Color(ns[2]),emissive:new THREE.Color(ns[2]),emissiveIntensity:2.0,roughness:0.2});
       var nSign=new THREE.Mesh(new THREE.TorusGeometry(0.5,0.04,8,20),nMat);
       nSign.rotation.x=Math.PI/2;nSign.position.set(ns[0],ns[1],-3.72);g.add(nSign);
     });
     // Disco ball
-    var dballMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#aaaaaa'),metalness:0.9,roughness:0.1});
-    var dball=new THREE.Mesh(new THREE.SphereGeometry(0.4,16,16),dballMat);
+    var dball=new THREE.Mesh(new THREE.SphereGeometry(0.4,16,16),new THREE.MeshStandardMaterial({color:new THREE.Color('#aaaaaa'),metalness:0.9,roughness:0.1}));
     dball.position.set(0,7.2,1.5);g.add(dball);
     cyl(0.02,0.02,0.6,6,'#888888',0,7.5,1.5);
-    // Glowing bar edge strip
-    var stripMat=new THREE.MeshStandardMaterial({color:new THREE.Color('#ff00ff'),emissive:new THREE.Color('#cc00cc'),emissiveIntensity:1.0});
-    var strip=new THREE.Mesh(new THREE.BoxGeometry(18,0.05,0.05),stripMat);
+    var strip=new THREE.Mesh(new THREE.BoxGeometry(18,0.05,0.05),new THREE.MeshStandardMaterial({color:new THREE.Color('#ff00ff'),emissive:new THREE.Color('#cc00cc'),emissiveIntensity:1.0}));
     strip.position.set(0,1.96,-2.92);g.add(strip);
     var strip2=new THREE.Mesh(new THREE.BoxGeometry(18,0.05,0.05),new THREE.MeshStandardMaterial({color:new THREE.Color('#00ffff'),emissive:new THREE.Color('#00cccc'),emissiveIntensity:1.0}));
     strip2.position.set(0,1.88,-2.92);g.add(strip2);
@@ -1054,67 +1287,73 @@ function roll3D(){
 }
 
 // ======= RULE ENGINE =======
+// If a player triggers any rule (drink, doubles, 3-man), they roll again after resolving it.
+// Only a "clean" roll (no rules triggered) passes the turn.
 function evaluateRoll(d1,d2){
   isRolling=false;
   var total=d1+d2;
   var isDoubles=d1===d2;
-  // Has a physical 3 on either die
   var has3die=d1===3||d2===3;
-  // Total of 3 (1+2 or 2+1)
   var totalIs3=total===3;
-  // Combined: any 3 on dice OR total=3 means 3-man triggered
   var triggers3=has3die||totalIs3;
   var is3man=currentPlayerIndex===threeManIndex;
-  var drink=ruleSettings.sips?'SIP':'DRINK';
+
+  // 1-in-100 dice-off-table easter egg
+  if(ruleSettings.diceOffTable&&Math.random()<0.01){
+    waitingForRule=true;
+    triggerFlashLights();
+    showRulePopup('DICE OFF THE TABLE!',gamePlayers[currentPlayerIndex]+' loses the dice - they are now the THREE MAN!','#ff2d78','rgba(255,45,120,.12)',function(){
+      threeManIndex=currentPlayerIndex;
+      updateGameUI();
+      waitingForRule=false;
+      advanceTurn();
+    });
+    return;
+  }
 
   var rules=[];
 
-  // --- 3 MAN RULE ---
   if(triggers3){
-    if(is3man){
-      // 3-man rolled a 3 -> picks new 3 man
-      rules.push({type:'3man-escape'});
-    } else {
-      // Count how many times: double 3s = 2x, one 3 = 1x, total 3 = 1x
+    if(is3man){rules.push({type:'3man-escape'});}
+    else{
       var drinkCount=0;
       if(d1===3)drinkCount++;
       if(d2===3)drinkCount++;
-      if(totalIs3&&!has3die)drinkCount=1; // 1+2 case
-      // Double 3s: each 3 on a die counts
+      if(totalIs3&&!has3die)drinkCount=1;
       rules.push({type:'3-drink',count:drinkCount});
     }
   }
 
-  // --- 7 and 11 RULE ---
   if(ruleSettings.r711){
-    if(total===7){
-      var rightIdx=(currentPlayerIndex+1)%gamePlayers.length;
-      rules.push({type:'7',name:gamePlayers[rightIdx]});
-    }
-    if(total===11){
-      var leftIdx=(currentPlayerIndex-1+gamePlayers.length)%gamePlayers.length;
-      rules.push({type:'11',name:gamePlayers[leftIdx]});
-    }
+    if(total===7){var ri=(currentPlayerIndex+1)%gamePlayers.length;rules.push({type:'7',name:gamePlayers[ri]});}
+    if(total===11){var li=(currentPlayerIndex-1+gamePlayers.length)%gamePlayers.length;rules.push({type:'11',name:gamePlayers[li]});}
   }
 
-  // --- DOUBLES RULE ---
-  if(isDoubles&&ruleSettings.doubles){
-    rules.push({type:'doubles',val:d1});
-  }
+  if(isDoubles&&ruleSettings.doubles){rules.push({type:'doubles',val:d1});}
 
   if(rules.length===0){advanceTurnDelayed();return;}
 
-  // Flash for 3 man
   if(rules.some(function(r){return r.type==='3-drink'||r.type==='3man-escape';})){triggerFlashLights();}
 
-  processRules(rules,0);
+  // Player triggered a rule = they roll again after resolving (if setting enabled)
+  processRules(rules,0,ruleSettings.rollAgain);
 }
 
-function processRules(rules,idx){
-  if(idx>=rules.length){waitingForRule=false;advanceTurn();return;}
+function processRules(rules,idx,rollAgain){
+  if(idx>=rules.length){
+    waitingForRule=false;
+    if(rollAgain){
+      // Same player rolls again - show brief prompt
+      showRulePopup('ROLL AGAIN!',gamePlayers[currentPlayerIndex]+' rolls again!','#00ff87','rgba(0,255,135,.1)',function(){
+        waitingForRule=false;
+      });
+    } else {
+      advanceTurn();
+    }
+    return;
+  }
   var rule=rules[idx];
-  var next=function(){processRules(rules,idx+1);};
-  var drink=ruleSettings.sips?'sip':'drink';
+  var next=function(){processRules(rules,idx+1,rollAgain);};
   var Drink=ruleSettings.sips?'SIP':'DRINK';
 
   if(rule.type==='3-drink'){
@@ -1321,13 +1560,21 @@ function showDoublesRollScreen(val){
 function rollDblDie(dieIdx){
   var box=document.getElementById('dr-box-'+dieIdx);
   if(!box||dblRollDone[dieIdx])return;
-  var val=1+Math.floor(Math.random()*6);
-  dblRolled[dieIdx]=val;dblRollDone[dieIdx]=true;
-  box.textContent=val;box.classList.remove('waiting');box.classList.add('rolled');
-  var secs=document.getElementById('dr-secs-'+dieIdx);
-  if(secs)secs.textContent=val+' SEC'+(val!==1?'S':'');
-  if(navigator.vibrate)navigator.vibrate(50);
-  if(dblRollDone[0]&&dblRollDone[1])setTimeout(function(){document.getElementById('dr-dismiss').classList.add('show');},400);
+  // Spin animation first
+  box.classList.remove('waiting');
+  box.classList.add('rolling');
+  box.textContent='?';
+  if(navigator.vibrate)navigator.vibrate(30);
+  setTimeout(function(){
+    var val=1+Math.floor(Math.random()*6);
+    dblRolled[dieIdx]=val;dblRollDone[dieIdx]=true;
+    box.classList.remove('rolling');box.classList.add('rolled');
+    box.textContent=val;
+    var secs=document.getElementById('dr-secs-'+dieIdx);
+    if(secs)secs.textContent=val+' SEC'+(val!==1?'S':'');
+    if(navigator.vibrate)navigator.vibrate(50);
+    if(dblRollDone[0]&&dblRollDone[1])setTimeout(function(){document.getElementById('dr-dismiss').classList.add('show');},400);
+  },520);
 }
 
 function startWaterfall(){
@@ -1447,45 +1694,110 @@ function renderBgPicker(){
 function drawBgPreview(b){
   var cv=document.getElementById('bgc-'+b.id);if(!cv)return;
   var ctx=cv.getContext('2d'),W=cv.width,H=cv.height,bc=b.barColors;
-  // Sky
-  var skyGr=ctx.createLinearGradient(0,0,0,H*0.55);
+
+  // Sky gradient
+  var skyGr=ctx.createLinearGradient(0,0,0,H*0.6);
   skyGr.addColorStop(0,bc.sky1);skyGr.addColorStop(1,bc.sky2);
-  ctx.fillStyle=skyGr;ctx.fillRect(0,0,W,H*0.55);
-  // Wall
-  ctx.fillStyle=bc.wallTop;ctx.fillRect(0,H*0.15,W,H*0.55);
-  // Bar counter
-  ctx.fillStyle=bc.barColor;ctx.fillRect(0,H*0.38,W,H*0.12);
-  ctx.fillStyle=bc.shelfColor;ctx.fillRect(0,H*0.3,W,H*0.06);
-  // Mini bottles
-  var bXs=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9];
-  bXs.forEach(function(bx,bi){
-    ctx.fillStyle=bc.bottleColors[bi%bc.bottleColors.length];
-    var bH=H*0.12+Math.random()*H*0.05;
-    ctx.fillRect(W*bx-4,H*0.185,8,bH);
-  });
-  // Beer taps
-  ctx.fillStyle='#aaaaaa';
-  [0.35,0.5,0.65].forEach(function(tx){
-    ctx.fillRect(W*tx-2,H*0.3,4,H*0.09);
-    ctx.fillRect(W*tx-2,H*0.265,10,4);
-  });
-  // Felt table
+  ctx.fillStyle=skyGr;ctx.fillRect(0,0,W,H);
+
+  // Theme-specific backgrounds
+  if(b.id==='beach'){
+    // Ocean
+    var oceanGr=ctx.createLinearGradient(0,H*0.1,0,H*0.62);
+    oceanGr.addColorStop(0,'#1a7aaa');oceanGr.addColorStop(1,'#0a5a80');
+    ctx.fillStyle=oceanGr;ctx.fillRect(0,H*0.1,W,H*0.52);
+    // Sun
+    ctx.beginPath();ctx.arc(W*0.75,H*0.18,18,0,Math.PI*2);
+    var sunGr=ctx.createRadialGradient(W*0.75,H*0.18,0,W*0.75,H*0.18,30);
+    sunGr.addColorStop(0,'#ffee44');sunGr.addColorStop(0.5,'#ffaa00');sunGr.addColorStop(1,'transparent');
+    ctx.fillStyle=sunGr;ctx.fill();
+    // Palm tree silhouette
+    ctx.fillStyle='#5a3a10';ctx.fillRect(W*0.15,H*0.1,8,H*0.52);
+    ctx.fillStyle='#1a5a08';
+    [[0,-15,60,20],[20,-10,50,18],[-25,-12,55,16]].forEach(function(lf){ctx.fillRect(W*0.15+lf[0],H*0.1+lf[1],lf[2],lf[3]);});
+  } else if(b.id==='rooftop-city'||b.id==='rooftop'){
+    // City skyline silhouettes
+    var bldgs=[[W*0.05,H*0.15,30,H*0.5],[W*0.18,H*0.22,25,H*0.43],[W*0.35,H*0.08,35,H*0.57],[W*0.55,H*0.18,28,H*0.47],[W*0.72,H*0.12,32,H*0.53],[W*0.88,H*0.2,24,H*0.45]];
+    ctx.fillStyle='#0a0e20';
+    bldgs.forEach(function(bd){ctx.fillRect(bd[0],bd[1],bd[2],bd[3]);});
+    // Window dots
+    ctx.fillStyle='#ffeeaa';
+    for(var wi=0;wi<20;wi++){ctx.fillRect(Math.random()*W,H*0.15+Math.random()*H*0.4,3,4);}
+    // Moon
+    ctx.beginPath();ctx.arc(W*0.2,H*0.12,12,0,Math.PI*2);ctx.fillStyle='#fffacc';ctx.fill();
+  } else if(b.id==='mountain-lodge'){
+    // Mountain silhouettes
+    ctx.fillStyle='#2a1e12';
+    ctx.beginPath();ctx.moveTo(0,H*0.5);ctx.lineTo(W*0.3,H*0.1);ctx.lineTo(W*0.6,H*0.45);ctx.lineTo(W,H*0.2);ctx.lineTo(W,H*0.6);ctx.lineTo(0,H*0.6);ctx.closePath();ctx.fill();
+    // Snow caps
+    ctx.fillStyle='#e8f0ff';
+    ctx.beginPath();ctx.moveTo(W*0.3,H*0.1);ctx.lineTo(W*0.18,H*0.28);ctx.lineTo(W*0.42,H*0.28);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(W,H*0.2);ctx.lineTo(W*0.86,H*0.36);ctx.lineTo(W,H*0.36);ctx.closePath();ctx.fill();
+    // Fire glow from fireplace in wall
+    var fireGr=ctx.createRadialGradient(W*0.5,H*0.55,0,W*0.5,H*0.55,40);
+    fireGr.addColorStop(0,'rgba(255,120,20,0.5)');fireGr.addColorStop(1,'transparent');
+    ctx.fillStyle=fireGr;ctx.fillRect(0,H*0.2,W,H*0.4);
+  } else if(b.id==='space-bar'){
+    // Star field
+    ctx.fillStyle='rgba(255,255,255,0.9)';
+    for(var si=0;si<60;si++){ctx.fillRect(Math.random()*W,Math.random()*H*0.65,Math.random()<0.3?2:1,Math.random()<0.3?2:1);}
+    // Planet with ring
+    ctx.beginPath();ctx.arc(W*0.78,H*0.22,16,0,Math.PI*2);ctx.fillStyle='#aa8844';ctx.fill();
+    ctx.strokeStyle='rgba(200,160,60,0.5)';ctx.lineWidth=6;
+    ctx.beginPath();ctx.ellipse(W*0.78,H*0.22,28,6,0.4,0,Math.PI*2);ctx.stroke();
+    // Nebula
+    var nebGr=ctx.createRadialGradient(W*0.3,H*0.3,0,W*0.3,H*0.3,60);
+    nebGr.addColorStop(0,'rgba(80,0,180,0.25)');nebGr.addColorStop(1,'transparent');
+    ctx.fillStyle=nebGr;ctx.fillRect(0,0,W,H);
+  } else if(b.id==='basement'){
+    ctx.fillStyle='#101018';ctx.fillRect(0,0,W,H*0.62);
+    // TV glow
+    var tvGr=ctx.createRadialGradient(W*0.5,H*0.25,0,W*0.5,H*0.25,60);
+    tvGr.addColorStop(0,'rgba(50,80,255,0.4)');tvGr.addColorStop(1,'transparent');
+    ctx.fillStyle=tvGr;ctx.fillRect(0,0,W,H*0.6);
+    ctx.fillStyle='#2233dd';ctx.fillRect(W*0.3,H*0.1,W*0.4,H*0.25);
+    // Pool table green
+    ctx.fillStyle='#1a4a1a';ctx.fillRect(W*0.05,H*0.42,W*0.5,H*0.15);
+    ctx.strokeStyle='#5a3010';ctx.lineWidth=3;ctx.strokeRect(W*0.05,H*0.42,W*0.5,H*0.15);
+  } else {
+    // Generic bar wall
+    ctx.fillStyle=bc.wallTop;ctx.fillRect(0,H*0.1,W,H*0.55);
+    // Bar counter
+    ctx.fillStyle=bc.barColor;ctx.fillRect(0,H*0.38,W,H*0.14);
+    ctx.fillStyle=bc.shelfColor;ctx.fillRect(0,H*0.28,W,H*0.08);
+    // Mini bottles
+    var bXs=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9];
+    bXs.forEach(function(bx,bi){
+      ctx.fillStyle=bc.bottleColors[bi%bc.bottleColors.length];
+      var bH=H*0.11+((bi*17)%10)/100*H*0.06;
+      ctx.fillRect(W*bx-4,H*0.18,7,bH);
+    });
+    // Beer taps
+    ctx.fillStyle='#aaaaaa';
+    [0.35,0.5,0.65].forEach(function(tx){
+      ctx.fillRect(W*tx-2,H*0.28,4,H*0.11);
+      ctx.fillRect(W*tx-2,H*0.25,10,4);
+    });
+  }
+
+  // Felt table - bottom section
   var tableY=H*0.62;
   var feltGr=ctx.createLinearGradient(0,tableY,0,H);
   feltGr.addColorStop(0,bc.feltColor+'ff');feltGr.addColorStop(1,bc.feltColor+'aa');
   ctx.fillStyle=feltGr;ctx.fillRect(0,tableY,W,H-tableY);
   // Rail
   ctx.fillStyle=bc.railColor;ctx.fillRect(0,tableY,W,6);
+
   // Lamp glow
-  var lampR=parseInt('0x'+bc.lampHex.toString(16).padStart(6,'0').substr(0,2),16);
-  var lampG=parseInt('0x'+bc.lampHex.toString(16).padStart(6,'0').substr(2,2),16);
-  var lampB=parseInt('0x'+bc.lampHex.toString(16).padStart(6,'0').substr(4,2),16);
-  var lampGlow=ctx.createRadialGradient(W*0.5,H*0.5,0,W*0.5,H*0.5,W*0.6);
-  lampGlow.addColorStop(0,'rgba('+lampR+','+lampG+','+lampB+',0.25)');lampGlow.addColorStop(1,'transparent');
+  var lhex=bc.lampHex.toString(16).padStart(6,'0');
+  var lr=parseInt(lhex.substr(0,2),16),lg=parseInt(lhex.substr(2,2),16),lb=parseInt(lhex.substr(4,2),16);
+  var lampGlow=ctx.createRadialGradient(W*0.5,tableY,0,W*0.5,tableY-10,W*0.55);
+  lampGlow.addColorStop(0,'rgba('+lr+','+lg+','+lb+',0.28)');lampGlow.addColorStop(1,'transparent');
   ctx.fillStyle=lampGlow;ctx.fillRect(0,0,W,H);
-  // Mini dice
-  ctx.fillStyle='rgba(255,255,255,0.18)';
-  [[W*0.42,tableY+12],[W*0.55,tableY+10]].forEach(function(pos){
+
+  // Mini dice silhouettes
+  ctx.fillStyle='rgba(255,255,255,0.2)';
+  [[W*0.42,tableY+10],[W*0.55,tableY+8]].forEach(function(pos){
     ctx.beginPath();
     if(ctx.roundRect){ctx.roundRect(pos[0]-9,pos[1]-9,18,18,3);}else{ctx.rect(pos[0]-9,pos[1]-9,18,18);}
     ctx.fill();
@@ -1499,6 +1811,8 @@ function toggleRule(key){
   else if(key==='711'){ruleSettings.r711=!ruleSettings.r711;document.getElementById('tog-711').classList.toggle('on',ruleSettings.r711);}
   else if(key==='sips'){ruleSettings.sips=!ruleSettings.sips;document.getElementById('tog-sips').classList.toggle('on',ruleSettings.sips);syncSubDoublesVisibility();}
   else if(key==='roll3'){ruleSettings.roll3man=!ruleSettings.roll3man;document.getElementById('tog-roll3').classList.toggle('on',ruleSettings.roll3man);}
+  else if(key==='rollAgain'){ruleSettings.rollAgain=!ruleSettings.rollAgain;document.getElementById('tog-rollAgain').classList.toggle('on',ruleSettings.rollAgain);}
+  else if(key==='diceOff'){ruleSettings.diceOffTable=!ruleSettings.diceOffTable;document.getElementById('tog-diceOff').classList.toggle('on',ruleSettings.diceOffTable);}
 }
 function syncSubDoublesVisibility(){
   var sub=document.getElementById('sub-doubles');
