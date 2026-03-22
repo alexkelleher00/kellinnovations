@@ -48,9 +48,13 @@ input[type=text]::placeholder{color:#282855}
 .btn-play{background:linear-gradient(135deg,var(--np),#cc0055);color:#fff;font-size:24px;padding:16px;box-shadow:0 4px 28px rgba(255,45,120,.4)}
 .btn-play:disabled{background:#12122a;color:#282855;box-shadow:none;cursor:not-allowed}
 .btn-play:disabled:active{transform:none}
-.home-btns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:420px}
+.btn-plain-dice{background:transparent;border:1.5px solid #20204a;color:var(--muted);font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;padding:12px;margin-top:2px}
+.btn-plain-dice:active{border-color:var(--nb);color:var(--nb)}
 .btn-back{background:transparent;border:none;color:var(--muted);font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;padding:8px 0;display:flex;align-items:center;gap:5px;align-self:flex-start}
 .btn-back:active{color:var(--nb)}
+.home-btns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:420px}
+.home-btn-row{display:flex;gap:10px;width:100%}
+.btn-half{flex:1;max-width:none}
 .btn-confirm{background:linear-gradient(135deg,var(--ng),#00c06a);color:#061408;box-shadow:0 4px 20px rgba(0,255,135,.3)}
 .page-header{width:100%;max-width:420px;margin-bottom:4px}
 .page-title{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:5px;background:linear-gradient(135deg,var(--nb),var(--ng));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -267,94 +271,102 @@ input[type=text]::placeholder{color:#282855}
     <button class="btn btn-add" id="btn-add-player">+ ADD PLAYER</button>
   </div>
   <div class="home-btns">
-    <button class="btn btn-settings" onclick="openPicker('home')">SETTINGS &amp; CUSTOMIZE</button>
+    <div class="home-btn-row">
+      <button class="btn btn-settings btn-half" onclick="openRules('home')">⚙ RULES</button>
+      <button class="btn btn-settings btn-half" onclick="openCustomize('home')">🎨 CUSTOMIZE</button>
+    </div>
     <button class="btn btn-play" id="btn-play" disabled>PLAY 3 MAN</button>
+    <button class="btn btn-plain-dice" onclick="openPlainDice()">🎲 ROLL PLAIN DICE</button>
   </div>
 </div>
 
-<!-- SETTINGS / PICKER -->
-<div class="screen" id="screen-dice">
+<!-- RULES SCREEN -->
+<div class="screen" id="screen-rules">
   <div class="page-header">
-    <button class="btn-back" id="picker-back-btn">BACK</button>
-    <div class="page-title">Settings</div>
-    <div class="page-desc">Customize your game</div>
+    <button class="btn-back" id="rules-back-btn">BACK</button>
+    <div class="page-title">Rules</div>
+    <div class="page-desc">Toggle game rules on or off</div>
+  </div>
+  <div class="rules-section">
+
+    <!-- ROLL FOR 3 MAN -->
+    <div class="rule-toggle-row">
+      <div class="rtl-left">
+        <div class="rtl-title">ROLL FOR 3 MAN</div>
+        <div class="rtl-desc">Players take turns rolling until someone rolls a 3 - that player becomes the Three Man to start the game.</div>
+      </div>
+      <div class="rtl-toggle" id="tog-roll3" onclick="toggleRule('roll3')"></div>
+    </div>
+
+    <!-- SIPS MODE -->
+    <div class="rule-toggle-row">
+      <div class="rtl-left">
+        <div class="rtl-title">SIPS MODE</div>
+        <div class="rtl-desc">ON = light mode. When doubles are rolled, you hand the dice - each die given = 1 sip. No rolling or timers needed. OFF = full drink mode with waterfall timers.</div>
+      </div>
+      <div class="rtl-toggle" id="tog-sips" onclick="toggleRule('sips')"></div>
+    </div>
+
+    <!-- DOUBLES RULE -->
+    <div class="rule-toggle-row">
+      <div class="rtl-left">
+        <div class="rtl-title">DOUBLES RULE</div>
+        <div class="rtl-desc">When doubles are rolled, the roller picks who gets each die. Those players drink based on what they roll (or sip if Sips Mode is on).</div>
+      </div>
+      <div class="rtl-toggle on" id="tog-doubles" onclick="toggleRule('doubles')"></div>
+    </div>
+    <div class="sub-options" id="sub-doubles">
+      <div class="sub-opt-label">WHEN NOT IN SIPS MODE: HOW DO THEY DRINK?</div>
+      <div class="sub-opt-row">
+        <div class="sub-opt-btn active" id="sopt-waterfall" onclick="setDoublesSub('waterfall')">WATERFALL TIMER</div>
+        <div class="sub-opt-btn" id="sopt-count" onclick="setDoublesSub('count')">COUNT YOURSELF</div>
+      </div>
+    </div>
+
+    <!-- 7 AND 11 -->
+    <div class="rule-toggle-row">
+      <div class="rtl-left">
+        <div class="rtl-title">7 &amp; 11 RULE</div>
+        <div class="rtl-desc">Total of 7 = player to the RIGHT drinks. Total of 11 = player to the LEFT drinks. Stacks with other rules.</div>
+      </div>
+      <div class="rtl-toggle on" id="tog-711" onclick="toggleRule('711')"></div>
+    </div>
+
+    <!-- ROLL AGAIN ON RULE -->
+    <div class="rule-toggle-row">
+      <div class="rtl-left">
+        <div class="rtl-title">ROLL AGAIN ON HIT</div>
+        <div class="rtl-desc">When a player triggers any rule (3-Man, 7, 11, doubles), they roll again instead of passing. Turn only ends on a clean roll.</div>
+      </div>
+      <div class="rtl-toggle on" id="tog-rollAgain" onclick="toggleRule('rollAgain')"></div>
+    </div>
+
+    <!-- DICE OFF TABLE -->
+    <div class="rule-toggle-row">
+      <div class="rtl-left">
+        <div class="rtl-title">DICE OFF THE TABLE</div>
+        <div class="rtl-desc">1-in-100 chance: if dice "fall off" the table the roller instantly becomes the new Three Man. Pure chaos mode.</div>
+      </div>
+      <div class="rtl-toggle on" id="tog-diceOff" onclick="toggleRule('diceOff')"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- CUSTOMIZE SCREEN -->
+<div class="screen" id="screen-customize">
+  <div class="page-header">
+    <button class="btn-back" id="customize-back-btn">BACK</button>
+    <div class="page-title">Customize</div>
+    <div class="page-desc">Dice style and bar theme</div>
   </div>
   <div class="picker-tabs">
-    <div class="picker-tab active" id="tab-rules" onclick="switchPickerTab('rules')">RULES</div>
-    <div class="picker-tab" id="tab-dice" onclick="switchPickerTab('dice')">DICE</div>
-    <div class="picker-tab" id="tab-bg" onclick="switchPickerTab('bg')">BAR</div>
-  </div>
-
-  <!-- RULES PANEL -->
-  <div class="picker-panel active" id="panel-rules">
-    <div class="rules-section">
-
-      <!-- ROLL FOR 3 MAN -->
-      <div class="rule-toggle-row">
-        <div class="rtl-left">
-          <div class="rtl-title">ROLL FOR 3 MAN</div>
-          <div class="rtl-desc">Players take turns rolling until someone rolls a 3 - that player becomes the Three Man to start the game.</div>
-        </div>
-        <div class="rtl-toggle" id="tog-roll3" onclick="toggleRule('roll3')"></div>
-      </div>
-
-      <!-- SIPS MODE -->
-      <div class="rule-toggle-row">
-        <div class="rtl-left">
-          <div class="rtl-title">SIPS MODE</div>
-          <div class="rtl-desc">ON = light mode. When doubles are rolled, you hand the dice - each die given = 1 sip. No rolling or timers needed. OFF = full drink mode with waterfall timers.</div>
-        </div>
-        <div class="rtl-toggle" id="tog-sips" onclick="toggleRule('sips')"></div>
-      </div>
-
-      <!-- DOUBLES RULE -->
-      <div class="rule-toggle-row">
-        <div class="rtl-left">
-          <div class="rtl-title">DOUBLES RULE</div>
-          <div class="rtl-desc">When doubles are rolled, the roller picks who gets each die. Those players drink based on what they roll (or sip if Sips Mode is on).</div>
-        </div>
-        <div class="rtl-toggle on" id="tog-doubles" onclick="toggleRule('doubles')"></div>
-      </div>
-      <div class="sub-options" id="sub-doubles">
-        <div class="sub-opt-label">WHEN NOT IN SIPS MODE: HOW DO THEY DRINK?</div>
-        <div class="sub-opt-row">
-          <div class="sub-opt-btn active" id="sopt-waterfall" onclick="setDoublesSub('waterfall')">WATERFALL TIMER</div>
-          <div class="sub-opt-btn" id="sopt-count" onclick="setDoublesSub('count')">COUNT YOURSELF</div>
-        </div>
-      </div>
-
-      <!-- 7 AND 11 -->
-      <div class="rule-toggle-row">
-        <div class="rtl-left">
-          <div class="rtl-title">7 &amp; 11 RULE</div>
-          <div class="rtl-desc">Total of 7 = player to the RIGHT drinks. Total of 11 = player to the LEFT drinks. Stacks with other rules.</div>
-        </div>
-        <div class="rtl-toggle on" id="tog-711" onclick="toggleRule('711')"></div>
-      </div>
-
-      <!-- ROLL AGAIN ON RULE -->
-      <div class="rule-toggle-row">
-        <div class="rtl-left">
-          <div class="rtl-title">ROLL AGAIN ON HIT</div>
-          <div class="rtl-desc">When a player triggers any rule (3-Man, 7, 11, doubles), they roll again instead of passing. Turn only ends on a clean roll.</div>
-        </div>
-        <div class="rtl-toggle on" id="tog-rollAgain" onclick="toggleRule('rollAgain')"></div>
-      </div>
-
-      <!-- DICE OFF TABLE -->
-      <div class="rule-toggle-row">
-        <div class="rtl-left">
-          <div class="rtl-title">DICE OFF THE TABLE</div>
-          <div class="rtl-desc">1-in-100 chance: if dice "fall off" the table the roller instantly becomes the new Three Man. Pure chaos mode.</div>
-        </div>
-        <div class="rtl-toggle on" id="tog-diceOff" onclick="toggleRule('diceOff')"></div>
-      </div>
-
-    </div>
+    <div class="picker-tab active" id="tab-dice" onclick="switchCustomizeTab('dice')">DICE</div>
+    <div class="picker-tab" id="tab-bg" onclick="switchCustomizeTab('bg')">BAR THEME</div>
   </div>
 
   <!-- DICE PANEL -->
-  <div class="picker-panel" id="panel-dice">
+  <div class="picker-panel active" id="panel-dice">
     <div style="width:100%">
       <div class="sec-label" style="margin:12px 0 8px">Face Style</div>
       <div class="face-toggle">
@@ -370,7 +382,79 @@ input[type=text]::placeholder{color:#282855}
     <div class="bg-picker-grid" id="bg-picker-grid"></div>
   </div>
 
-  <button class="btn btn-confirm" style="max-width:420px;margin-top:8px" onclick="confirmPicker()">CONFIRM</button>
+  <button class="btn btn-confirm" style="max-width:420px;margin-top:8px;margin-bottom:16px" onclick="confirmCustomize()">CONFIRM</button>
+</div>
+
+<!-- LEGACY PICKER (used from in-game settings button) -->
+<div class="screen" id="screen-dice">
+  <div class="page-header">
+    <button class="btn-back" id="picker-back-btn">BACK</button>
+    <div class="page-title">Settings</div>
+    <div class="page-desc">Rules &amp; Customize</div>
+  </div>
+  <div class="picker-tabs">
+    <div class="picker-tab active" id="tab-rules-ig" onclick="switchPickerTab('rules-ig')">RULES</div>
+    <div class="picker-tab" id="tab-customize-ig" onclick="switchPickerTab('customize-ig')">CUSTOMIZE</div>
+  </div>
+
+  <!-- RULES PANEL (in-game copy) -->
+  <div class="picker-panel active" id="panel-rules-ig">
+    <div class="rules-section">
+      <div class="rule-toggle-row">
+        <div class="rtl-left"><div class="rtl-title">ROLL FOR 3 MAN</div><div class="rtl-desc">Players take turns rolling until someone rolls a 3.</div></div>
+        <div class="rtl-toggle" id="tog-roll3-ig" onclick="toggleRuleIG('roll3')"></div>
+      </div>
+      <div class="rule-toggle-row">
+        <div class="rtl-left"><div class="rtl-title">SIPS MODE</div><div class="rtl-desc">Each die given = 1 sip. No timers.</div></div>
+        <div class="rtl-toggle" id="tog-sips-ig" onclick="toggleRuleIG('sips')"></div>
+      </div>
+      <div class="rule-toggle-row">
+        <div class="rtl-left"><div class="rtl-title">DOUBLES RULE</div><div class="rtl-desc">Roller picks who drinks based on each die.</div></div>
+        <div class="rtl-toggle on" id="tog-doubles-ig" onclick="toggleRuleIG('doubles')"></div>
+      </div>
+      <div class="sub-options" id="sub-doubles-ig">
+        <div class="sub-opt-label">HOW DO THEY DRINK?</div>
+        <div class="sub-opt-row">
+          <div class="sub-opt-btn active" id="sopt-waterfall-ig" onclick="setDoublesSubIG('waterfall')">WATERFALL TIMER</div>
+          <div class="sub-opt-btn" id="sopt-count-ig" onclick="setDoublesSubIG('count')">COUNT YOURSELF</div>
+        </div>
+      </div>
+      <div class="rule-toggle-row">
+        <div class="rtl-left"><div class="rtl-title">7 &amp; 11 RULE</div><div class="rtl-desc">7 = right drinks. 11 = left drinks.</div></div>
+        <div class="rtl-toggle on" id="tog-711-ig" onclick="toggleRuleIG('711')"></div>
+      </div>
+      <div class="rule-toggle-row">
+        <div class="rtl-left"><div class="rtl-title">ROLL AGAIN ON HIT</div><div class="rtl-desc">Triggering a rule = roll again.</div></div>
+        <div class="rtl-toggle on" id="tog-rollAgain-ig" onclick="toggleRuleIG('rollAgain')"></div>
+      </div>
+      <div class="rule-toggle-row">
+        <div class="rtl-left"><div class="rtl-title">DICE OFF THE TABLE</div><div class="rtl-desc">1-in-100: roller becomes the new Three Man.</div></div>
+        <div class="rtl-toggle on" id="tog-diceOff-ig" onclick="toggleRuleIG('diceOff')"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOMIZE PANEL (in-game) -->
+  <div class="picker-panel" id="panel-customize-ig">
+    <div style="width:100%">
+      <div class="picker-tabs" style="margin-top:8px">
+        <div class="picker-tab active" id="tab-dice-ig" onclick="switchIGCustomizeTab('dice-ig')">DICE</div>
+        <div class="picker-tab" id="tab-bg-ig" onclick="switchIGCustomizeTab('bg-ig')">BAR THEME</div>
+      </div>
+      <div class="picker-panel active" id="panel-dice-ig" style="padding-top:8px">
+        <div class="face-toggle">
+          <div class="tog-btn active" id="tog-num-ig" onclick="setFaceStyleIG('numbers')">1 2 3 NUMBERS</div>
+          <div class="tog-btn" id="tog-dot-ig" onclick="setFaceStyleIG('dots')">DOTS</div>
+        </div>
+        <div class="dice-picker-grid" id="dice-picker-grid-ig"></div>
+      </div>
+      <div class="picker-panel" id="panel-bg-ig">
+        <div class="bg-picker-grid" id="bg-picker-grid-ig"></div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn btn-confirm" style="max-width:420px;margin-top:8px;margin-bottom:16px" onclick="confirmPicker()">CONFIRM</button>
 </div>
 
 <!-- GAME -->
@@ -477,7 +561,23 @@ input[type=text]::placeholder{color:#282855}
   <div class="cer-tap" id="cer-tap" style="opacity:0">TAP TO START GAME</div>
 </div>
 
-</div><!-- end app-root -->
+<!-- PLAIN DICE SCREEN -->
+<div class="screen" id="screen-plaindice" style="justify-content:flex-start;padding:0;overflow:hidden;position:absolute;inset:0">
+  <div id="plain-game-bg" style="position:absolute;inset:0;z-index:0;pointer-events:none"></div>
+  <div style="position:relative;z-index:10;width:100%;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div class="game-logo" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:5px;background:linear-gradient(135deg,var(--np),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">DICE</div>
+    </div>
+    <button class="hdr-btn hdr-btn-end" onclick="showScreen('home')">BACK</button>
+  </div>
+  <div style="position:relative;z-index:10;text-align:center;padding:6px 0 0">
+    <div class="plain-total" id="plain-total" style="font-family:'Bebas Neue',sans-serif;font-size:clamp(54px,16vw,80px);letter-spacing:3px;color:var(--gold);text-shadow:0 0 24px rgba(255,215,0,.5);line-height:1;min-height:1.2em"></div>
+    <div style="font-size:10px;letter-spacing:4px;color:rgba(255,255,255,.25);animation:blink 2.2s ease-in-out infinite">TAP TO ROLL</div>
+  </div>
+  <div class="canvas-wrap" style="position:relative;z-index:2">
+    <canvas id="plain-dice-canvas" style="flex:1;width:100%;display:block;min-height:0;touch-action:none"></canvas>
+  </div>
+</div>
 <script>
 // ======= MOBILE HEIGHT FIX =======
 (function(){
@@ -1367,10 +1467,8 @@ function processRules(rules,idx,rollAgain){
   if(idx>=rules.length){
     waitingForRule=false;
     if(rollAgain){
-      // Same player rolls again - show brief prompt
-      showRulePopup('ROLL AGAIN!',gamePlayers[currentPlayerIndex]+' rolls again!','#00ff87','rgba(0,255,135,.1)',function(){
-        waitingForRule=false;
-      });
+      // Same player rolls again silently - no popup
+      waitingForRule=false;
     } else {
       advanceTurn();
     }
@@ -1808,24 +1906,78 @@ document.getElementById('btn-add-player').addEventListener('click',function(){
 });
 function removePlayer(i){players.splice(i,1);renderPlayersList();updatePlayBtn();}
 
-// PICKER
-function openPicker(returnScreen){
+// ======= RULES SCREEN =======
+function openRules(returnScreen){
+  pickerReturnScreen=returnScreen||'home';
+  document.getElementById('rules-back-btn').onclick=function(){
+    if(pickerReturnScreen==='game')showScreen('game');else showScreen('home');
+  };
+  syncRuleToggles('');
+  showScreen('rules');
+}
+
+function syncRuleToggles(suffix){
+  var s=suffix;
+  document.getElementById('tog-roll3'+s).classList.toggle('on',ruleSettings.roll3man);
+  document.getElementById('tog-sips'+s).classList.toggle('on',ruleSettings.sips);
+  document.getElementById('tog-doubles'+s).classList.toggle('on',ruleSettings.doubles);
+  document.getElementById('tog-711'+s).classList.toggle('on',ruleSettings.r711);
+  document.getElementById('tog-rollAgain'+s).classList.toggle('on',ruleSettings.rollAgain);
+  document.getElementById('tog-diceOff'+s).classList.toggle('on',ruleSettings.diceOffTable);
+  var wfEl=document.getElementById('sopt-waterfall'+s);
+  var ctEl=document.getElementById('sopt-count'+s);
+  if(wfEl)wfEl.classList.toggle('active',ruleSettings.doublesSub==='waterfall');
+  if(ctEl)ctEl.classList.toggle('active',ruleSettings.doublesSub==='count');
+  if(s==='')syncSubDoublesVisibility();
+  else syncSubDoublesVisibilityIG();
+}
+
+// Rules toggles (home rules screen — no suffix)
+function toggleRule(key){
+  if(key==='doubles'){ruleSettings.doubles=!ruleSettings.doubles;}
+  else if(key==='711'){ruleSettings.r711=!ruleSettings.r711;}
+  else if(key==='sips'){ruleSettings.sips=!ruleSettings.sips;}
+  else if(key==='roll3'){ruleSettings.roll3man=!ruleSettings.roll3man;}
+  else if(key==='rollAgain'){ruleSettings.rollAgain=!ruleSettings.rollAgain;}
+  else if(key==='diceOff'){ruleSettings.diceOffTable=!ruleSettings.diceOffTable;}
+  syncRuleToggles('');
+}
+
+function syncSubDoublesVisibility(){
+  var sub=document.getElementById('sub-doubles');if(!sub)return;
+  if(ruleSettings.sips){sub.style.opacity='0.35';sub.style.pointerEvents='none';}
+  else{sub.style.opacity=ruleSettings.doubles?'1':'0.4';sub.style.pointerEvents=ruleSettings.doubles?'auto':'none';}
+}
+
+function setDoublesSub(val){
+  ruleSettings.doublesSub=val;
+  var wf=document.getElementById('sopt-waterfall'),ct=document.getElementById('sopt-count');
+  if(wf)wf.classList.toggle('active',val==='waterfall');
+  if(ct)ct.classList.toggle('active',val==='count');
+}
+
+// ======= CUSTOMIZE SCREEN (from home) =======
+function openCustomize(returnScreen){
   pickerReturnScreen=returnScreen||'home';
   tempDice=selectedDice;tempFaceStyle=faceStyle;tempBg=selectedBg;
   renderDicePicker();renderBgPicker();
-  document.getElementById('picker-back-btn').onclick=function(){
+  document.getElementById('customize-back-btn').onclick=function(){
     if(pickerReturnScreen==='game')showScreen('game');else showScreen('home');
   };
-  switchPickerTab('rules');showScreen('dice');
+  switchCustomizeTab('dice');
+  showScreen('customize');
 }
-function switchPickerTab(tab){
-  ['rules','dice','bg'].forEach(function(t){
+
+function switchCustomizeTab(tab){
+  ['dice','bg'].forEach(function(t){
     document.getElementById('tab-'+t).classList.toggle('active',t===tab);
     document.getElementById('panel-'+t).classList.toggle('active',t===tab);
   });
 }
+
 function renderDicePicker(){
-  document.getElementById('dice-picker-grid').innerHTML=DICE_STYLES.map(function(s){
+  var grid=document.getElementById('dice-picker-grid');if(!grid)return;
+  grid.innerHTML=DICE_STYLES.map(function(s){
     return '<div class="dice-option'+(tempDice===s.id?' selected':'')+'" onclick="pickDice(\''+s.id+'\')">'
       +svgDie(6,s.id,58,tempFaceStyle)+'<div class="dice-option-name">'+s.name+'</div></div>';
   }).join('');
@@ -1836,7 +1988,7 @@ function pickDice(id){tempDice=id;renderDicePicker();}
 function setFaceStyle(fs){tempFaceStyle=fs;renderDicePicker();}
 
 function renderBgPicker(){
-  var grid=document.getElementById('bg-picker-grid');
+  var grid=document.getElementById('bg-picker-grid');if(!grid)return;
   grid.innerHTML=BG_THEMES.map(function(b){
     return '<div class="bg-option'+(tempBg===b.id?' selected':'')+'" onclick="pickBg(\''+b.id+'\')">'
       +'<canvas class="bg-canvas-el" id="bgc-'+b.id+'" width="300" height="200"></canvas>'
@@ -1846,8 +1998,99 @@ function renderBgPicker(){
   }).join('');
   BG_THEMES.forEach(function(b){drawBgPreview(b);});
 }
+function pickBg(id){tempBg=id;renderBgPicker();}
+
+function confirmCustomize(){
+  selectedDice=tempDice;faceStyle=tempFaceStyle;selectedBg=tempBg;
+  renderHomePreview();
+  if(threeReady){rebuildDice();buildBarScene(selectedBg);}
+  applyGameBg(selectedBg);
+  if(pickerReturnScreen==='game')showScreen('game');else showScreen('home');
+}
+
+// ======= IN-GAME PICKER (rules + customize, opened from game header) =======
+function openPicker(returnScreen){
+  pickerReturnScreen=returnScreen||'home';
+  tempDice=selectedDice;tempFaceStyle=faceStyle;tempBg=selectedBg;
+  renderDicePickerIG();renderBgPickerIG();
+  document.getElementById('picker-back-btn').onclick=function(){
+    if(pickerReturnScreen==='game')showScreen('game');else showScreen('home');
+  };
+  syncRuleToggles('-ig');
+  switchPickerTab('rules-ig');
+  showScreen('dice');
+}
+
+function switchPickerTab(tab){
+  ['rules-ig','customize-ig'].forEach(function(t){
+    document.getElementById('tab-'+t).classList.toggle('active',t===tab);
+    document.getElementById('panel-'+t).classList.toggle('active',t===tab);
+  });
+}
+
+function switchIGCustomizeTab(tab){
+  ['dice-ig','bg-ig'].forEach(function(t){
+    document.getElementById('tab-'+t).classList.toggle('active',t===tab);
+    document.getElementById('panel-'+t).classList.toggle('active',t===tab);
+  });
+}
+
+function toggleRuleIG(key){toggleRule(key);syncRuleToggles('-ig');}
+
+function setDoublesSubIG(val){
+  setDoublesSub(val);
+  var wf=document.getElementById('sopt-waterfall-ig'),ct=document.getElementById('sopt-count-ig');
+  if(wf)wf.classList.toggle('active',val==='waterfall');
+  if(ct)ct.classList.toggle('active',val==='count');
+}
+
+function syncSubDoublesVisibilityIG(){
+  var sub=document.getElementById('sub-doubles-ig');if(!sub)return;
+  if(ruleSettings.sips){sub.style.opacity='0.35';sub.style.pointerEvents='none';}
+  else{sub.style.opacity=ruleSettings.doubles?'1':'0.4';sub.style.pointerEvents=ruleSettings.doubles?'auto':'none';}
+}
+
+function setFaceStyleIG(fs){tempFaceStyle=fs;renderDicePickerIG();}
+
+function renderDicePickerIG(){
+  var grid=document.getElementById('dice-picker-grid-ig');if(!grid)return;
+  grid.innerHTML=DICE_STYLES.map(function(s){
+    return '<div class="dice-option'+(tempDice===s.id?' selected':'')+'" onclick="pickDiceIG(\''+s.id+'\')">'
+      +svgDie(6,s.id,58,tempFaceStyle)+'<div class="dice-option-name">'+s.name+'</div></div>';
+  }).join('');
+  var num=document.getElementById('tog-num-ig'),dot=document.getElementById('tog-dot-ig');
+  if(num)num.classList.toggle('active',tempFaceStyle==='numbers');
+  if(dot)dot.classList.toggle('active',tempFaceStyle==='dots');
+}
+function pickDiceIG(id){tempDice=id;renderDicePickerIG();}
+
+function renderBgPickerIG(){
+  var grid=document.getElementById('bg-picker-grid-ig');if(!grid)return;
+  grid.innerHTML=BG_THEMES.map(function(b){
+    return '<div class="bg-option'+(tempBg===b.id?' selected':'')+'" onclick="pickBgIG(\''+b.id+'\')">'
+      +'<canvas class="bg-canvas-el" id="bgc-ig-'+b.id+'" width="300" height="200"></canvas>'
+      +'<div class="bg-swatch-label">'+b.name+'</div>'
+      +'<div class="bg-sel-badge">SELECTED</div>'
+      +'</div>';
+  }).join('');
+  BG_THEMES.forEach(function(b){drawBgPreviewOnCanvas(b,document.getElementById('bgc-ig-'+b.id));});
+}
+function pickBgIG(id){tempBg=id;renderBgPickerIG();}
+
+function confirmPicker(){
+  selectedDice=tempDice;faceStyle=tempFaceStyle;selectedBg=tempBg;
+  renderHomePreview();
+  if(threeReady){rebuildDice();buildBarScene(selectedBg);}
+  applyGameBg(selectedBg);
+  if(pickerReturnScreen==='game')showScreen('game');else showScreen('home');
+}
+
 function drawBgPreview(b){
   var cv=document.getElementById('bgc-'+b.id);if(!cv)return;
+  drawBgPreviewOnCanvas(b,cv);
+}
+function drawBgPreviewOnCanvas(b,cv){
+  if(!cv)return;
   var ctx=cv.getContext('2d'),W=cv.width,H=cv.height,bc=b.barColors;
 
   // Sky gradient
@@ -1957,40 +2200,6 @@ function drawBgPreview(b){
     if(ctx.roundRect){ctx.roundRect(pos[0]-9,pos[1]-9,18,18,3);}else{ctx.rect(pos[0]-9,pos[1]-9,18,18);}
     ctx.fill();
   });
-}
-function pickBg(id){tempBg=id;renderBgPicker();}
-
-// Rules toggles
-function toggleRule(key){
-  if(key==='doubles'){ruleSettings.doubles=!ruleSettings.doubles;document.getElementById('tog-doubles').classList.toggle('on',ruleSettings.doubles);syncSubDoublesVisibility();}
-  else if(key==='711'){ruleSettings.r711=!ruleSettings.r711;document.getElementById('tog-711').classList.toggle('on',ruleSettings.r711);}
-  else if(key==='sips'){ruleSettings.sips=!ruleSettings.sips;document.getElementById('tog-sips').classList.toggle('on',ruleSettings.sips);syncSubDoublesVisibility();}
-  else if(key==='roll3'){ruleSettings.roll3man=!ruleSettings.roll3man;document.getElementById('tog-roll3').classList.toggle('on',ruleSettings.roll3man);}
-  else if(key==='rollAgain'){ruleSettings.rollAgain=!ruleSettings.rollAgain;document.getElementById('tog-rollAgain').classList.toggle('on',ruleSettings.rollAgain);}
-  else if(key==='diceOff'){ruleSettings.diceOffTable=!ruleSettings.diceOffTable;document.getElementById('tog-diceOff').classList.toggle('on',ruleSettings.diceOffTable);}
-}
-function syncSubDoublesVisibility(){
-  var sub=document.getElementById('sub-doubles');
-  // Gray out waterfall/count sub-options when sips mode is on
-  if(ruleSettings.sips){
-    sub.style.opacity='0.35';sub.style.pointerEvents='none';
-  } else {
-    sub.style.opacity=ruleSettings.doubles?'1':'0.4';
-    sub.style.pointerEvents=ruleSettings.doubles?'auto':'none';
-  }
-}
-function setDoublesSub(val){
-  ruleSettings.doublesSub=val;
-  document.getElementById('sopt-waterfall').classList.toggle('active',val==='waterfall');
-  document.getElementById('sopt-count').classList.toggle('active',val==='count');
-}
-
-function confirmPicker(){
-  selectedDice=tempDice;faceStyle=tempFaceStyle;selectedBg=tempBg;
-  renderHomePreview();
-  if(threeReady){rebuildDice();buildBarScene(selectedBg);}
-  applyGameBg(selectedBg);
-  if(pickerReturnScreen==='game')showScreen('game');else showScreen('home');
 }
 
 // ======= GAME START =======
@@ -2170,6 +2379,136 @@ function endGame(){
   wfTimers.forEach(function(t){clearInterval(t);});wfTimers=[];
   rollAnim=null;isRolling=false;waitingForRule=false;
   showScreen('home');renderHome();
+}
+
+// ======= PLAIN DICE =======
+var plainRenderer,plainScene,plainCamera,plainMesh1,plainMesh2,plainRollAnim=null,plainReady=false;
+var plainD1=1,plainD2=1,plainAnimId=null;
+
+function openPlainDice(){
+  var bg=getBg(selectedBg);
+  document.getElementById('plain-game-bg').style.background=bg.css;
+  showScreen('plaindice');
+  setTimeout(function(){initPlainDice();},80);
+}
+
+function initPlainDice(){
+  if(plainReady){resizePlain();return;}
+  var canvas=document.getElementById('plain-dice-canvas');
+  var W=canvas.clientWidth,H=canvas.clientHeight;
+  if(!W||!H){setTimeout(initPlainDice,100);return;}
+  plainRenderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:false});
+  plainRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  plainRenderer.setSize(W,H,false);
+  var bg=getBg(selectedBg);
+  plainRenderer.setClearColor(new THREE.Color(bg.barColors.sky2),1);
+
+  plainScene=new THREE.Scene();
+  plainCamera=new THREE.PerspectiveCamera(52,W/H,0.1,100);
+  plainCamera.position.set(0,2.8,10.5);
+  plainCamera.lookAt(0,-0.8,1.5);
+
+  plainScene.add(new THREE.AmbientLight(0xffffff,0.22));
+  var key=new THREE.DirectionalLight(0xffffff,1.1);key.position.set(2,8,4);plainScene.add(key);
+  var fill=new THREE.PointLight(0x3355ff,0.6,22);fill.position.set(-5,-1,3);plainScene.add(fill);
+
+  // Add the same bar scene background
+  buildPlainBarScene(selectedBg);
+
+  plainMesh1=buildMesh(selectedDice);plainMesh2=buildMesh(selectedDice);
+  setFaceUp(plainMesh1,1);setFaceUp(plainMesh2,1);
+  plainMesh1.position.set(-1.15,-0.15,3.5);plainMesh2.position.set(1.15,-0.15,3.5);
+  plainScene.add(plainMesh1);plainScene.add(plainMesh2);
+  plainReady=true;
+
+  window.addEventListener('resize',resizePlain);
+  loopPlain();
+
+  // Tap to roll
+  canvas.addEventListener('touchstart',function(e){
+    e.preventDefault();
+    if(document.getElementById('screen-plaindice').classList.contains('active')&&!plainRollAnim)rollPlain();
+  },{passive:false});
+  canvas.addEventListener('click',function(){
+    if(document.getElementById('screen-plaindice').classList.contains('active')&&!plainRollAnim)rollPlain();
+  });
+}
+
+function buildPlainBarScene(bgId){
+  // Build just the table surface for the plain dice screen
+  var bg=getBg(bgId),bc=bg.barColors;
+  // Back wall
+  var wallMat=new THREE.MeshStandardMaterial({color:new THREE.Color(bc.wallTop),roughness:0.9,metalness:0});
+  var wall=new THREE.Mesh(new THREE.PlaneGeometry(20,12),wallMat);
+  wall.position.set(0,3,-4);plainScene.add(wall);
+  // Felt table
+  var feltCv=document.createElement('canvas');feltCv.width=512;feltCv.height=256;
+  var ctx=feltCv.getContext('2d');
+  var gr=ctx.createLinearGradient(0,0,0,256);
+  gr.addColorStop(0,bc.feltColor+'ff');gr.addColorStop(1,bc.feltColor+'bb');
+  ctx.fillStyle=gr;ctx.fillRect(0,0,512,256);
+  var feltTex=new THREE.CanvasTexture(feltCv);
+  var feltMat=new THREE.MeshStandardMaterial({map:feltTex,roughness:0.9,metalness:0});
+  var table=new THREE.Mesh(new THREE.BoxGeometry(18,0.22,9),feltMat);
+  table.position.set(0,-1.72,0);plainScene.add(table);
+  var railMat=new THREE.MeshStandardMaterial({color:new THREE.Color(bc.railColor),roughness:0.5,metalness:0.2});
+  var rail=new THREE.Mesh(new THREE.BoxGeometry(18,0.28,0.22),railMat);
+  rail.position.set(0,-1.6,-4.5);plainScene.add(rail);
+}
+
+function resizePlain(){
+  var canvas=document.getElementById('plain-dice-canvas');
+  if(!canvas||!plainRenderer||!plainCamera)return;
+  var W=canvas.clientWidth,H=canvas.clientHeight;
+  if(!W||!H)return;
+  plainRenderer.setSize(W,H,false);plainCamera.aspect=W/H;plainCamera.updateProjectionMatrix();
+}
+
+function loopPlain(){
+  plainAnimId=requestAnimationFrame(loopPlain);
+  if(!plainRenderer||!plainScene||!plainCamera)return;
+  if(plainRollAnim){
+    plainRollAnim.t+=plainRollAnim.spd;
+    var t=plainRollAnim.t;
+    if(t<1){
+      plainMesh1.rotation.x+=plainRollAnim.r1[0];plainMesh1.rotation.y+=plainRollAnim.r1[1];plainMesh1.rotation.z+=plainRollAnim.r1[2];
+      plainMesh2.rotation.x+=plainRollAnim.r2[0];plainMesh2.rotation.y+=plainRollAnim.r2[1];plainMesh2.rotation.z+=plainRollAnim.r2[2];
+      var ease=1-Math.pow(1-t,3);
+      var startZ=9.2,endZ=3.5,startY=-1.8,endY=-0.15;
+      var curZ=startZ+(endZ-startZ)*ease;
+      var curY=startY+(endY-startY)*ease;
+      var arc=Math.sin(t*Math.PI)*1.8;curY+=arc*(1-t*0.5);
+      if(t>0.78){var bt=(t-0.78)/0.22;curY=endY+Math.abs(Math.sin(bt*Math.PI*2.8))*(1-bt)*0.55;}
+      var spreadEase=Math.min(t*1.8,1);
+      plainMesh1.position.set(-1.15*spreadEase,curY,curZ+plainRollAnim.d1z*(1-ease)*0.6);
+      plainMesh2.position.set(1.15*spreadEase,curY*0.96,curZ+plainRollAnim.d2z*(1-ease)*0.6);
+    } else {
+      plainD1=plainRollAnim.v1;plainD2=plainRollAnim.v2;
+      setFaceUp(plainMesh1,plainD1);setFaceUp(plainMesh2,plainD2);
+      plainMesh1.position.set(-1.15,-0.15,3.5);plainMesh2.position.set(1.15,-0.15,3.5);
+      var total=plainD1+plainD2;
+      plainRollAnim=null;
+      var el=document.getElementById('plain-total');
+      el.textContent=total;
+    }
+  } else {
+    var now=Date.now()*0.001;
+    plainMesh1.position.y=-0.15+Math.sin(now)*0.05;
+    plainMesh2.position.y=-0.15+Math.sin(now+1.2)*0.05;
+  }
+  plainRenderer.render(plainScene,plainCamera);
+}
+
+function rollPlain(){
+  if(plainRollAnim)return;
+  if(navigator.vibrate)navigator.vibrate([25,10,25]);
+  var v1=1+Math.floor(Math.random()*6),v2=1+Math.floor(Math.random()*6);
+  function rnd(a,b){return a+Math.random()*(b-a);}
+  plainRollAnim={t:0,spd:0.013,v1:v1,v2:v2,
+    r1:[rnd(0.2,0.38),rnd(0.25,0.42),rnd(-0.1,0.1)],
+    r2:[rnd(-0.38,-0.2),rnd(0.25,0.42),rnd(-0.1,0.1)],
+    d1z:rnd(-0.4,0.4),d2z:rnd(-0.4,0.4)};
+  document.getElementById('plain-total').textContent='';
 }
 
 // ======= INIT =======
