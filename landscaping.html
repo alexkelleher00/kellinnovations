@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terrain & Co. — Landscape Artisans</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Josefin+Sans:wght@200;300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --earth: #2C1A0E;
+    --soil: #4A2C17;
+    --bark: #7A4828;
+    --moss: #3D5C2E;
+    --sage: #6B8C52;
+    --fern: #8FAF6A;
+    --stone: #B8A898;
+    --cream: #F5EFE6;
+    --gold: #C8963A;
+    --sky: #7AADCB;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--earth);
+    color: var(--cream);
+    font-family: 'Josefin Sans', sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE TEXTURE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.35;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 4rem;
+    background: linear-gradient(to bottom, rgba(44,26,14,0.95), transparent);
+    backdrop-filter: blur(2px);
+  }
+
+  .nav-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    color: var(--cream);
+    text-decoration: none;
+  }
+
+  .nav-logo span { color: var(--gold); }
+
+  .nav-links {
+    display: flex;
+    gap: 2.5rem;
+    list-style: none;
+  }
+
+  .nav-links a {
+    color: var(--stone);
+    text-decoration: none;
+    font-size: 0.72rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    transition: color 0.3s;
+  }
+
+  .nav-links a:hover { color: var(--gold); }
+
+  .nav-cta {
+    background: var(--gold);
+    color: var(--earth) !important;
+    padding: 0.6rem 1.5rem !important;
+    font-weight: 600 !important;
+    transition: background 0.3s, transform 0.2s !important;
+  }
+
+  .nav-cta:hover {
+    background: var(--fern) !important;
+    color: var(--earth) !important;
+    transform: translateY(-1px);
+  }
+
+  /* ── HERO ── */
+  #hero {
+    position: relative;
+    height: 100vh;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 4rem 6rem;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 30% 60%, rgba(61,92,46,0.25) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(122,173,203,0.12) 0%, transparent 50%),
+      linear-gradient(160deg, #1A3020 0%, #2C1A0E 50%, #1C0F06 100%);
+  }
+
+  /* Decorative botanical SVG lines */
+  .hero-botanical {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 55%;
+    height: 100%;
+    opacity: 0.18;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 700px;
+    animation: fadeUp 1.2s ease both;
+  }
+
+  .hero-eyebrow {
+    font-size: 0.7rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .hero-eyebrow::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 1px;
+    background: var(--gold);
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(3.5rem, 7vw, 6.5rem);
+    line-height: 1.0;
+    font-weight: 900;
+    margin-bottom: 1.8rem;
+    color: var(--cream);
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--fern);
+  }
+
+  .hero-sub {
+    font-size: 0.88rem;
+    letter-spacing: 0.08em;
+    color: var(--stone);
+    max-width: 440px;
+    line-height: 1.9;
+    margin-bottom: 2.5rem;
+  }
+
+  .hero-btns {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary {
+    background: var(--gold);
+    color: var(--earth);
+    padding: 1rem 2.5rem;
+    font-family: 'Josefin Sans', sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s;
+  }
+
+  .btn-primary:hover {
+    background: var(--fern);
+    transform: translateY(-2px);
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--cream);
+    padding: 1rem 2.5rem;
+    font-family: 'Josefin Sans', sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 400;
+    border: 1px solid rgba(245,239,230,0.3);
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s;
+  }
+
+  .btn-outline:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+
+  .hero-scroll {
+    position: absolute;
+    bottom: 2rem;
+    right: 4rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    opacity: 0.5;
+    animation: bounce 2s infinite;
+  }
+
+  .hero-scroll span {
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    writing-mode: vertical-rl;
+  }
+
+  .hero-scroll-line {
+    width: 1px;
+    height: 50px;
+    background: linear-gradient(to bottom, var(--cream), transparent);
+  }
+
+  /* ── TICKER ── */
+  .ticker-wrap {
+    background: var(--moss);
+    padding: 0.9rem 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .ticker {
+    display: inline-block;
+    animation: ticker 25s linear infinite;
+    font-size: 0.65rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--cream);
+    opacity: 0.85;
+  }
+
+  .ticker-dot { margin: 0 2rem; color: var(--gold); }
+
+  /* ── ABOUT ── */
+  #about {
+    padding: 8rem 4rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6rem;
+    align-items: center;
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+
+  .about-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 1.5rem;
+  }
+
+  h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--cream);
+    margin-bottom: 1.8rem;
+  }
+
+  h2 em {
+    font-style: italic;
+    color: var(--fern);
+  }
+
+  .about-text {
+    color: var(--stone);
+    line-height: 2;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .about-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    margin-top: 3rem;
+    padding-top: 3rem;
+    border-top: 1px solid rgba(184,168,152,0.2);
+  }
+
+  .stat-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.8rem;
+    font-weight: 900;
+    color: var(--gold);
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--stone);
+    margin-top: 0.5rem;
+  }
+
+  .about-visual {
+    position: relative;
+  }
+
+  .about-img-wrap {
+    position: relative;
+    aspect-ratio: 3/4;
+    background: linear-gradient(135deg, var(--moss), var(--soil));
+    overflow: hidden;
+  }
+
+  .about-img-wrap::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='1' fill='%238FAF6A' opacity='0.3'/%3E%3C/svg%3E");
+  }
+
+  .about-img-scene {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .about-badge {
+    position: absolute;
+    bottom: -1.5rem;
+    left: -1.5rem;
+    width: 120px;
+    height: 120px;
+    background: var(--gold);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .badge-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--earth);
+    line-height: 1;
+  }
+
+  .badge-text {
+    font-size: 0.55rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--earth);
+    font-weight: 600;
+  }
+
+  /* ── SERVICES ── */
+  #services {
+    padding: 8rem 4rem;
+    background: linear-gradient(180deg, transparent, rgba(61,92,46,0.08), transparent);
+  }
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 5rem;
+  }
+
+  .section-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 1rem;
+    display: block;
+  }
+
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5px;
+    max-width: 1300px;
+    margin: 0 auto;
+    background: rgba(184,168,152,0.1);
+  }
+
+  .service-card {
+    background: var(--earth);
+    padding: 3rem 2.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.4s;
+    cursor: default;
+  }
+
+  .service-card::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 3px;
+    width: 0;
+    background: var(--gold);
+    transition: width 0.4s ease;
+  }
+
+  .service-card:hover { background: var(--soil); }
+  .service-card:hover::before { width: 100%; }
+
+  .service-icon {
+    font-size: 2.2rem;
+    margin-bottom: 1.5rem;
+    display: block;
+  }
+
+  .service-num {
+    position: absolute;
+    top: 1.5rem;
+    right: 2rem;
+    font-family: 'Playfair Display', serif;
+    font-size: 3.5rem;
+    font-weight: 900;
+    color: rgba(184,168,152,0.06);
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .service-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--cream);
+    margin-bottom: 1rem;
+  }
+
+  .service-desc {
+    font-size: 0.82rem;
+    line-height: 1.9;
+    color: var(--stone);
+  }
+
+  /* ── PROJECTS ── */
+  #projects {
+    padding: 8rem 4rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .projects-intro {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 4rem;
+  }
+
+  .projects-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-template-rows: auto;
+    gap: 1.5rem;
+  }
+
+  .proj {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--soil);
+  }
+
+  .proj:nth-child(1) { grid-column: 1 / 8; grid-row: 1; aspect-ratio: 16/10; }
+  .proj:nth-child(2) { grid-column: 8 / 13; grid-row: 1; aspect-ratio: 9/10; }
+  .proj:nth-child(3) { grid-column: 1 / 5; grid-row: 2; aspect-ratio: 4/3; }
+  .proj:nth-child(4) { grid-column: 5 / 9; grid-row: 2; aspect-ratio: 4/3; }
+  .proj:nth-child(5) { grid-column: 9 / 13; grid-row: 2; aspect-ratio: 4/3; }
+
+  .proj-bg {
+    position: absolute;
+    inset: 0;
+    transition: transform 0.7s ease;
+  }
+
+  .proj:hover .proj-bg { transform: scale(1.06); }
+
+  .proj-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(28,15,6,0.92) 0%, transparent 55%);
+    opacity: 0;
+    transition: opacity 0.4s;
+    display: flex;
+    align-items: flex-end;
+    padding: 2rem;
+  }
+
+  .proj:hover .proj-overlay { opacity: 1; }
+
+  .proj-info {}
+
+  .proj-tag {
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.4rem;
+  }
+
+  .proj-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--cream);
+  }
+
+  .proj-label {
+    position: absolute;
+    top: 1.2rem;
+    left: 1.2rem;
+    background: rgba(44,26,14,0.85);
+    padding: 0.4rem 0.9rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--stone);
+  }
+
+  /* Project color backgrounds (simulated photos) */
+  .proj-bg-1 { background: linear-gradient(135deg, #2D4A1E 0%, #3D6B2A 40%, #1A3015 100%); }
+  .proj-bg-2 { background: linear-gradient(160deg, #4A3520 0%, #6B4F30 50%, #2C1E10 100%); }
+  .proj-bg-3 { background: linear-gradient(120deg, #1E3A28 0%, #4A7A3A 60%, #15251A 100%); }
+  .proj-bg-4 { background: linear-gradient(140deg, #3A3020 0%, #5A4A30 50%, #252015 100%); }
+  .proj-bg-5 { background: linear-gradient(150deg, #253520 0%, #3D5A2E 55%, #1A2515 100%); }
+
+  /* Decorative plant shapes inside project cards */
+  .proj-plant {
+    position: absolute;
+    bottom: 0; right: 0;
+    opacity: 0.3;
+    font-size: 6rem;
+    line-height: 1;
+    pointer-events: none;
+    transition: transform 0.7s ease;
+  }
+
+  .proj:hover .proj-plant { transform: scale(1.1) translateY(-5px); }
+
+  /* ── PROCESS ── */
+  #process {
+    padding: 8rem 4rem;
+    background: var(--soil);
+    position: relative;
+    overflow: hidden;
+  }
+
+  #process::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -100px;
+    width: 500px; height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(200,150,58,0.06) 0%, transparent 70%);
+  }
+
+  .process-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3rem;
+    max-width: 1200px;
+    margin: 4rem auto 0;
+    position: relative;
+  }
+
+  .process-grid::before {
+    content: '';
+    position: absolute;
+    top: 2.5rem;
+    left: 12.5%;
+    right: 12.5%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--gold), var(--gold), transparent);
+    opacity: 0.3;
+  }
+
+  .process-step {
+    text-align: center;
+    position: relative;
+  }
+
+  .step-circle {
+    width: 48px;
+    height: 48px;
+    border: 1px solid var(--gold);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    color: var(--gold);
+    background: var(--soil);
+    position: relative;
+    z-index: 1;
+  }
+
+  .step-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--cream);
+    margin-bottom: 0.8rem;
+  }
+
+  .step-desc {
+    font-size: 0.8rem;
+    line-height: 1.8;
+    color: var(--stone);
+  }
+
+  /* ── TESTIMONIALS ── */
+  #testimonials {
+    padding: 8rem 4rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .testi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    margin-top: 4rem;
+  }
+
+  .testi-card {
+    background: var(--soil);
+    padding: 2.5rem;
+    position: relative;
+    border-top: 2px solid transparent;
+    transition: border-color 0.3s;
+  }
+
+  .testi-card:hover { border-color: var(--gold); }
+
+  .testi-quote {
+    font-family: 'Playfair Display', serif;
+    font-size: 4rem;
+    color: var(--gold);
+    opacity: 0.4;
+    line-height: 0.5;
+    margin-bottom: 1rem;
+  }
+
+  .testi-text {
+    font-size: 0.85rem;
+    line-height: 1.9;
+    color: var(--stone);
+    font-style: italic;
+    margin-bottom: 1.5rem;
+  }
+
+  .testi-author {
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--cream);
+  }
+
+  .testi-stars {
+    color: var(--gold);
+    font-size: 0.7rem;
+    margin-bottom: 1rem;
+  }
+
+  /* ── CONTACT ── */
+  #contact {
+    padding: 8rem 4rem;
+    background: linear-gradient(160deg, #1A3020 0%, var(--earth) 60%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  #contact::after {
+    content: '✦';
+    position: absolute;
+    right: 5%;
+    top: 10%;
+    font-size: 20rem;
+    color: rgba(61,92,46,0.07);
+    pointer-events: none;
+    font-family: serif;
+  }
+
+  .contact-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 6rem;
+    align-items: start;
+  }
+
+  .contact-left h2 {
+    margin-bottom: 1.5rem;
+  }
+
+  .contact-left p {
+    color: var(--stone);
+    line-height: 2;
+    font-size: 0.88rem;
+    margin-bottom: 3rem;
+  }
+
+  .contact-info-item {
+    display: flex;
+    gap: 1.2rem;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+  }
+
+  .contact-icon {
+    width: 42px;
+    height: 42px;
+    background: rgba(200,150,58,0.15);
+    border: 1px solid rgba(200,150,58,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  .contact-detail-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.3rem;
+  }
+
+  .contact-detail-val {
+    font-size: 0.88rem;
+    color: var(--cream);
+  }
+
+  .contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+  }
+
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .form-field label {
+    font-size: 0.62rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--stone);
+  }
+
+  .form-field input,
+  .form-field select,
+  .form-field textarea {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(184,168,152,0.2);
+    color: var(--cream);
+    padding: 0.9rem 1rem;
+    font-family: 'Josefin Sans', sans-serif;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.3s;
+    resize: none;
+  }
+
+  .form-field input:focus,
+  .form-field select:focus,
+  .form-field textarea:focus {
+    border-color: var(--gold);
+    background: rgba(200,150,58,0.05);
+  }
+
+  .form-field select option {
+    background: var(--earth);
+  }
+
+  .form-field textarea { height: 130px; }
+
+  .form-submit {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+  }
+
+  .form-note {
+    font-size: 0.72rem;
+    color: var(--stone);
+    opacity: 0.7;
+  }
+
+  .submit-btn {
+    background: var(--gold);
+    color: var(--earth);
+    border: none;
+    padding: 1rem 2.5rem;
+    font-family: 'Josefin Sans', sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .submit-btn:hover {
+    background: var(--fern);
+    transform: translateY(-2px);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    background: var(--earth);
+    border-top: 1px solid rgba(184,168,152,0.1);
+    padding: 3rem 4rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.2rem;
+    font-weight: 900;
+    color: var(--cream);
+  }
+
+  .footer-logo span { color: var(--gold); }
+
+  .footer-links {
+    display: flex;
+    gap: 2rem;
+    list-style: none;
+  }
+
+  .footer-links a {
+    color: var(--stone);
+    text-decoration: none;
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    transition: color 0.3s;
+  }
+
+  .footer-links a:hover { color: var(--gold); }
+
+  .footer-copy {
+    font-size: 0.68rem;
+    color: var(--stone);
+    opacity: 0.5;
+    letter-spacing: 0.1em;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(6px); }
+  }
+
+  /* ── SCROLL REVEAL ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+  .reveal-delay-3 { transition-delay: 0.3s; }
+  .reveal-delay-4 { transition-delay: 0.4s; }
+  .reveal-delay-5 { transition-delay: 0.5s; }
+
+  /* ── MOBILE ── */
+  @media (max-width: 900px) {
+    nav { padding: 1.2rem 1.5rem; }
+    .nav-links { display: none; }
+    #hero { padding: 0 1.5rem 4rem; }
+    #about { grid-template-columns: 1fr; padding: 5rem 1.5rem; gap: 3rem; }
+    .about-visual { display: none; }
+    #services { padding: 5rem 1.5rem; }
+    .services-grid { grid-template-columns: 1fr; }
+    #projects { padding: 5rem 1.5rem; }
+    .projects-grid { grid-template-columns: 1fr; }
+    .proj { grid-column: 1 / -1 !important; grid-row: auto !important; aspect-ratio: 4/3 !important; }
+    #process { padding: 5rem 1.5rem; }
+    .process-grid { grid-template-columns: repeat(2, 1fr); gap: 2rem; }
+    .process-grid::before { display: none; }
+    #testimonials { padding: 5rem 1.5rem; }
+    .testi-grid { grid-template-columns: 1fr; }
+    #contact { padding: 5rem 1.5rem; }
+    .contact-wrap { grid-template-columns: 1fr; gap: 3rem; }
+    .form-row { grid-template-columns: 1fr; }
+    footer { flex-direction: column; gap: 1.5rem; text-align: center; padding: 2rem 1.5rem; }
+    .projects-intro { flex-direction: column; gap: 1rem; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#hero" class="nav-logo">Terrain <span>&</span> Co.</a>
+  <ul class="nav-links">
+    <li><a href="#about">About</a></li>
+    <li><a href="#services">Services</a></li>
+    <li><a href="#projects">Projects</a></li>
+    <li><a href="#process">Process</a></li>
+    <li><a href="#contact" class="nav-cta">Get a Quote</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-bg"></div>
+
+  <!-- Botanical SVG decoration -->
+  <svg class="hero-botanical" viewBox="0 0 600 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Tree trunk -->
+    <path d="M300 800 Q295 600 310 450 Q320 350 290 200" stroke="#6B8C52" stroke-width="3" fill="none"/>
+    <!-- Branches -->
+    <path d="M310 500 Q380 470 440 430" stroke="#6B8C52" stroke-width="2" fill="none"/>
+    <path d="M305 420 Q230 380 170 340" stroke="#6B8C52" stroke-width="2" fill="none"/>
+    <path d="M308 350 Q370 300 420 260" stroke="#5A7844" stroke-width="1.5" fill="none"/>
+    <path d="M295 300 Q220 260 180 210" stroke="#5A7844" stroke-width="1.5" fill="none"/>
+    <path d="M300 250 Q340 190 350 130" stroke="#4A6A38" stroke-width="1.5" fill="none"/>
+    <!-- Leaves scatter -->
+    <ellipse cx="450" cy="420" rx="25" ry="10" fill="#4A6A38" transform="rotate(-25 450 420)"/>
+    <ellipse cx="460" cy="432" rx="20" ry="8" fill="#3D5A2E" transform="rotate(-15 460 432)"/>
+    <ellipse cx="165" cy="330" rx="22" ry="9" fill="#4A6A38" transform="rotate(20 165 330)"/>
+    <ellipse cx="175" cy="345" rx="18" ry="7" fill="#3D5A2E" transform="rotate(30 175 345)"/>
+    <ellipse cx="415" cy="255" rx="20" ry="8" fill="#5A7844" transform="rotate(-40 415 255)"/>
+    <ellipse cx="175" cy="208" rx="18" ry="7" fill="#4A6A38" transform="rotate(15 175 208)"/>
+    <ellipse cx="345" cy="122" rx="22" ry="9" fill="#5A7844" transform="rotate(-10 345 122)"/>
+    <!-- Ground foliage -->
+    <path d="M200 760 Q230 720 260 760" stroke="#3D5A2E" stroke-width="1.5" fill="none"/>
+    <path d="M350 780 Q390 730 430 770" stroke="#3D5A2E" stroke-width="1.5" fill="none"/>
+    <path d="M100 800 Q140 750 180 790" stroke="#3D5A2E" stroke-width="1" fill="none"/>
+    <path d="M450 800 Q480 760 510 795" stroke="#3D5A2E" stroke-width="1" fill="none"/>
+    <!-- Small circles as berries / details -->
+    <circle cx="445" cy="418" r="3" fill="#C8963A" opacity="0.6"/>
+    <circle cx="420" cy="252" r="2.5" fill="#C8963A" opacity="0.5"/>
+    <circle cx="350" cy="120" r="3" fill="#C8963A" opacity="0.6"/>
+  </svg>
+
+  <div class="hero-content">
+    <div class="hero-eyebrow">Full-Service Landscape Artisans</div>
+    <h1>Where the <em>land</em><br>becomes<br>living art.</h1>
+    <p class="hero-sub">From first sketch to final stone, Terrain & Co. transforms ordinary outdoor spaces into extraordinary environments — crafted with intention, built to endure.</p>
+    <div class="hero-btns">
+      <a href="#projects" class="btn-primary">View Our Work</a>
+      <a href="#contact" class="btn-outline">Get a Free Estimate</a>
+    </div>
+  </div>
+
+  <div class="hero-scroll">
+    <div class="hero-scroll-line"></div>
+    <span>Scroll</span>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker">
+    Landscape Design <span class="ticker-dot">✦</span>
+    Paver Patios & Walkways <span class="ticker-dot">✦</span>
+    Custom Decks <span class="ticker-dot">✦</span>
+    Lawn & Garden Care <span class="ticker-dot">✦</span>
+    Retaining Walls <span class="ticker-dot">✦</span>
+    Irrigation Systems <span class="ticker-dot">✦</span>
+    Outdoor Kitchens <span class="ticker-dot">✦</span>
+    Woodworking &amp; Pergolas <span class="ticker-dot">✦</span>
+    Tree Service <span class="ticker-dot">✦</span>
+    Seasonal Cleanup <span class="ticker-dot">✦</span>
+    Lighting Design <span class="ticker-dot">✦</span>
+    Drainage Solutions <span class="ticker-dot">✦</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    Landscape Design <span class="ticker-dot">✦</span>
+    Paver Patios & Walkways <span class="ticker-dot">✦</span>
+    Custom Decks <span class="ticker-dot">✦</span>
+    Lawn & Garden Care <span class="ticker-dot">✦</span>
+    Retaining Walls <span class="ticker-dot">✦</span>
+    Irrigation Systems <span class="ticker-dot">✦</span>
+    Outdoor Kitchens <span class="ticker-dot">✦</span>
+    Woodworking &amp; Pergolas <span class="ticker-dot">✦</span>
+    Tree Service <span class="ticker-dot">✦</span>
+    Seasonal Cleanup <span class="ticker-dot">✦</span>
+    Lighting Design <span class="ticker-dot">✦</span>
+    Drainage Solutions <span class="ticker-dot">✦</span>
+  </div>
+</div>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="about-text-col reveal">
+    <p class="about-label">Who We Are</p>
+    <h2>Crafting outdoor spaces that <em>breathe</em> with your lifestyle.</h2>
+    <p class="about-text">Terrain & Co. is a full-service landscape company rooted in the belief that the outdoors should be an extension of your home — not an afterthought. We combine horticultural expertise with skilled craftsmanship across every discipline: from grading and planting to pavers, decking, and fine woodworking.</p>
+    <p class="about-text">Our team handles projects of every scale, bringing the same obsessive attention to detail whether we're building a sweeping estate garden or refreshing a backyard patio. No job is too small. No vision is too ambitious.</p>
+    <div class="about-stats">
+      <div>
+        <div class="stat-num">15+</div>
+        <div class="stat-label">Years in the field</div>
+      </div>
+      <div>
+        <div class="stat-num">800+</div>
+        <div class="stat-label">Projects completed</div>
+      </div>
+      <div>
+        <div class="stat-num">100%</div>
+        <div class="stat-label">Satisfaction backed</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="about-visual reveal reveal-delay-2">
+    <div class="about-img-wrap">
+      <div class="about-img-scene">
+        <!-- Illustrated garden scene SVG -->
+        <svg viewBox="0 0 400 520" width="100%" xmlns="http://www.w3.org/2000/svg">
+          <!-- Sky gradient -->
+          <defs>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#1A2E1A"/>
+              <stop offset="100%" stop-color="#2D4A1E"/>
+            </linearGradient>
+            <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3D5A2E"/>
+              <stop offset="100%" stop-color="#2C1A0E"/>
+            </linearGradient>
+          </defs>
+          <rect width="400" height="520" fill="url(#sky)"/>
+          <!-- Ground -->
+          <rect y="360" width="400" height="160" fill="url(#ground)"/>
+          <!-- Path/pavers -->
+          <rect x="160" y="350" width="80" height="170" fill="#4A3520" opacity="0.8"/>
+          <line x1="160" y1="370" x2="240" y2="370" stroke="#3A2815" stroke-width="2"/>
+          <line x1="160" y1="390" x2="240" y2="390" stroke="#3A2815" stroke-width="2"/>
+          <line x1="160" y1="410" x2="240" y2="410" stroke="#3A2815" stroke-width="2"/>
+          <line x1="160" y1="430" x2="240" y2="430" stroke="#3A2815" stroke-width="2"/>
+          <line x1="160" y1="450" x2="240" y2="450" stroke="#3A2815" stroke-width="2"/>
+          <line x1="160" y1="470" x2="240" y2="470" stroke="#3A2815" stroke-width="2"/>
+          <line x1="200" y1="350" x2="200" y2="520" stroke="#3A2815" stroke-width="1.5"/>
+          <!-- Big tree left -->
+          <rect x="55" y="250" width="12" height="130" fill="#4A2C17"/>
+          <ellipse cx="61" cy="220" rx="55" ry="65" fill="#2D4A1E"/>
+          <ellipse cx="45" cy="200" rx="40" ry="50" fill="#3D5A2E"/>
+          <ellipse cx="78" cy="195" rx="38" ry="48" fill="#2D4A1E"/>
+          <!-- Big tree right -->
+          <rect x="315" y="260" width="10" height="120" fill="#4A2C17"/>
+          <ellipse cx="320" cy="230" rx="50" ry="58" fill="#1E3A1A"/>
+          <ellipse cx="300" cy="215" rx="38" ry="45" fill="#2D4A1E"/>
+          <ellipse cx="338" cy="210" rx="40" ry="50" fill="#3D5A2E"/>
+          <!-- Shrubs -->
+          <ellipse cx="130" cy="365" rx="32" ry="22" fill="#3D5A2E"/>
+          <ellipse cx="115" cy="358" rx="25" ry="18" fill="#4A6A38"/>
+          <ellipse cx="270" cy="362" rx="30" ry="20" fill="#3D5A2E"/>
+          <ellipse cx="285" cy="355" rx="22" ry="17" fill="#4A6A38"/>
+          <!-- Flowers -->
+          <circle cx="100" cy="355" r="4" fill="#C8963A"/>
+          <circle cx="112" cy="348" r="3" fill="#C8963A" opacity="0.7"/>
+          <circle cx="280" cy="350" r="4" fill="#C8963A"/>
+          <circle cx="268" cy="358" r="3" fill="#8FAF6A"/>
+          <!-- Stars/lights in sky -->
+          <circle cx="80" cy="60" r="1.5" fill="#F5EFE6" opacity="0.6"/>
+          <circle cx="150" cy="40" r="1" fill="#F5EFE6" opacity="0.5"/>
+          <circle cx="250" cy="70" r="1.5" fill="#F5EFE6" opacity="0.5"/>
+          <circle cx="330" cy="45" r="1" fill="#F5EFE6" opacity="0.6"/>
+          <circle cx="310" cy="90" r="2" fill="#C8963A" opacity="0.4"/>
+          <!-- Moon -->
+          <circle cx="340" cy="70" r="20" fill="#3A2E1A" opacity="0.7"/>
+          <circle cx="350" cy="65" r="18" fill="#C8963A" opacity="0.12"/>
+        </svg>
+      </div>
+    </div>
+    <div class="about-badge">
+      <div class="badge-num">A+</div>
+      <div class="badge-text">Rated & Insured</div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section id="services">
+  <div class="section-header reveal">
+    <span class="section-label">What We Do</span>
+    <h2>Every outdoor need,<br><em>one trusted team.</em></h2>
+  </div>
+
+  <div class="services-grid">
+    <div class="service-card reveal">
+      <span class="service-num">01</span>
+      <span class="service-icon">🌿</span>
+      <div class="service-title">Landscape Design & Installation</div>
+      <p class="service-desc">Complete landscape planning and planting — from full yard overhauls and garden beds to sod installation, native plantings, and perennial borders that thrive year after year.</p>
+    </div>
+    <div class="service-card reveal reveal-delay-1">
+      <span class="service-num">02</span>
+      <span class="service-icon">🪨</span>
+      <div class="service-title">Pavers, Patios & Walkways</div>
+      <p class="service-desc">Natural stone, concrete pavers, flagstone, and brick — we design and install durable, beautiful hardscape surfaces that anchor your outdoor living spaces with character.</p>
+    </div>
+    <div class="service-card reveal reveal-delay-2">
+      <span class="service-num">03</span>
+      <span class="service-icon">🪵</span>
+      <div class="service-title">Decks & Woodworking</div>
+      <p class="service-desc">Custom-built decks, pergolas, arbors, raised planters, and outdoor structures — crafted in hardwood, cedar, or composite. Where carpentry meets the great outdoors.</p>
+    </div>
+    <div class="service-card reveal reveal-delay-3">
+      <span class="service-num">04</span>
+      <span class="service-icon">🧱</span>
+      <div class="service-title">Retaining Walls & Grading</div>
+      <p class="service-desc">Functional meets beautiful. Our retaining walls and grading solutions solve drainage and erosion challenges while adding bold visual structure to sloped properties.</p>
+    </div>
+    <div class="service-card reveal reveal-delay-1">
+      <span class="service-num">05</span>
+      <span class="service-icon">💧</span>
+      <div class="service-title">Irrigation & Drainage</div>
+      <p class="service-desc">Smart irrigation system design, installation, and repair. French drains, catch basins, and grading that protects your investment from erosion and standing water.</p>
+    </div>
+    <div class="service-card reveal reveal-delay-2">
+      <span class="service-num">06</span>
+      <span class="service-icon">✂️</span>
+      <div class="service-title">Maintenance & Seasonal Care</div>
+      <p class="service-desc">Weekly lawn care, seasonal cleanups, mulching, pruning, snow removal, and everything in between. We keep your landscape looking its best 365 days a year.</p>
+    </div>
+    <div class="service-card reveal">
+      <span class="service-num">07</span>
+      <span class="service-icon">🌳</span>
+      <div class="service-title">Tree Service & Removal</div>
+      <p class="service-desc">Professional trimming, shaping, and removal with full cleanup. We handle everything from specimen trees needing light pruning to full storm-damage recovery.</p>
+    </div>
+    <div class="service-card reveal reveal-delay-1">
+      <span class="service-num">08</span>
+      <span class="service-icon">🔥</span>
+      <div class="service-title">Outdoor Living Spaces</div>
+      <p class="service-desc">Fire pits, outdoor kitchens, seating walls, water features, and landscape lighting — we build complete outdoor rooms designed for the way you actually live.</p>
+    </div>
+    <div class="service-card reveal reveal-delay-2">
+      <span class="service-num">09</span>
+      <span class="service-icon">💡</span>
+      <div class="service-title">Landscape Lighting</div>
+      <p class="service-desc">Low-voltage LED lighting systems that highlight architecture, illuminate pathways, and extend the usability of your outdoor space long after the sun goes down.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTS -->
+<section id="projects">
+  <div class="projects-intro reveal">
+    <div>
+      <span class="section-label">Past Projects</span>
+      <h2>Our work<br>speaks <em>for itself.</em></h2>
+    </div>
+    <a href="#contact" class="btn-outline">Start Your Project →</a>
+  </div>
+
+  <div class="projects-grid">
+    <div class="proj reveal">
+      <div class="proj-bg proj-bg-1">
+        <svg viewBox="0 0 700 430" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">
+          <rect width="700" height="430" fill="#2D4A1E"/>
+          <ellipse cx="150" cy="320" rx="120" ry="80" fill="#3D5A2E"/>
+          <ellipse cx="560" cy="300" rx="100" ry="90" fill="#2A4520"/>
+          <ellipse cx="350" cy="380" rx="200" ry="60" fill="#1E3015"/>
+          <rect x="280" y="300" width="140" height="130" fill="#3A2C1A"/>
+          <rect x="295" y="295" width="110" height="10" fill="#4A3820"/>
+          <ellipse cx="200" cy="250" rx="70" ry="90" fill="#1E3A15"/>
+          <ellipse cx="500" cy="260" rx="65" ry="85" fill="#253D1A"/>
+          <rect x="310" y="270" width="80" height="30" fill="#5A4030" opacity="0.6"/>
+          <path d="M280 430 Q320 380 360 430" fill="#3D5A2E"/>
+          <path d="M340 430 Q380 370 420 430" fill="#2D4A1E"/>
+          <circle cx="400" cy="80" r="40" fill="#C8963A" opacity="0.15"/>
+          <circle cx="400" cy="80" r="25" fill="#C8963A" opacity="0.1"/>
+        </svg>
+      </div>
+      <div class="proj-plant">🌿</div>
+      <span class="proj-label">Residential — Arlington, MA</span>
+      <div class="proj-overlay">
+        <div class="proj-info">
+          <p class="proj-tag">Landscape Design</p>
+          <p class="proj-name">Whitmore Estate Garden</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="proj reveal reveal-delay-1">
+      <div class="proj-bg proj-bg-2">
+        <svg viewBox="0 0 400 430" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">
+          <rect width="400" height="430" fill="#4A3520"/>
+          <rect y="280" width="400" height="150" fill="#3A2810"/>
+          <!-- Deck planks -->
+          <rect x="40" y="240" width="320" height="200" fill="#5A4025" rx="2"/>
+          <line x1="40" y1="260" x2="360" y2="260" stroke="#4A3518" stroke-width="2"/>
+          <line x1="40" y1="280" x2="360" y2="280" stroke="#4A3518" stroke-width="2"/>
+          <line x1="40" y1="300" x2="360" y2="300" stroke="#4A3518" stroke-width="2"/>
+          <line x1="40" y1="320" x2="360" y2="320" stroke="#4A3518" stroke-width="2"/>
+          <line x1="40" y1="340" x2="360" y2="340" stroke="#4A3518" stroke-width="2"/>
+          <line x1="40" y1="360" x2="360" y2="360" stroke="#4A3518" stroke-width="2"/>
+          <!-- Railings -->
+          <rect x="40" y="225" width="320" height="18" fill="#6A5030" rx="2"/>
+          <line x1="60" y1="243" x2="60" y2="280" stroke="#5A4025" stroke-width="4"/>
+          <line x1="100" y1="243" x2="100" y2="280" stroke="#5A4025" stroke-width="4"/>
+          <line x1="140" y1="243" x2="140" y2="280" stroke="#5A4025" stroke-width="4"/>
+          <line x1="180" y1="243" x2="180" y2="280" stroke="#5A4025" stroke-width="4"/>
+          <line x1="220" y1="243" x2="220" y2="280" stroke="#5A4025" stroke-width="4"/>
+          <line x1="260" y1="243" x2="260" y2="280" stroke="#5A4025" stroke-width="4"/>
+          <line x1="300" y1="243" x2="300" y2="280" stroke="#5A4025" stroke-width="4"/>
+          <line x1="340" y1="243" x2="340" y2="280" stroke="#5A4025" stroke-width="4"/>
+          <!-- Trees behind -->
+          <ellipse cx="80" cy="150" rx="60" ry="80" fill="#1E3015"/>
+          <ellipse cx="320" cy="170" rx="55" ry="70" fill="#253D1A"/>
+          <rect x="72" y="230" width="16" height="80" fill="#3A2810"/>
+          <rect x="312" y="238" width="14" height="80" fill="#3A2810"/>
+        </svg>
+      </div>
+      <div class="proj-plant">🪵</div>
+      <span class="proj-label">Residential — Lexington, MA</span>
+      <div class="proj-overlay">
+        <div class="proj-info">
+          <p class="proj-tag">Custom Deck</p>
+          <p class="proj-name">Cedar Deck & Pergola Build</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="proj reveal">
+      <div class="proj-bg proj-bg-3">
+        <svg viewBox="0 0 380 290" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">
+          <rect width="380" height="290" fill="#1E3A28"/>
+          <!-- Paver patio -->
+          <rect x="20" y="160" width="340" height="130" fill="#4A3A28"/>
+          <!-- Paver grid -->
+          <line x1="20" y1="180" x2="360" y2="180" stroke="#3A2C1C" stroke-width="2"/>
+          <line x1="20" y1="200" x2="360" y2="200" stroke="#3A2C1C" stroke-width="2"/>
+          <line x1="20" y1="220" x2="360" y2="220" stroke="#3A2C1C" stroke-width="2"/>
+          <line x1="20" y1="240" x2="360" y2="240" stroke="#3A2C1C" stroke-width="2"/>
+          <line x1="20" y1="260" x2="360" y2="260" stroke="#3A2C1C" stroke-width="2"/>
+          <line x1="70" y1="160" x2="70" y2="290" stroke="#3A2C1C" stroke-width="2"/>
+          <line x1="120" y1="160" x2="120" y2="290" stroke="#3A2C1C" stroke-width="2"/>
+          <line x1="170" y1="160" x2="170" y2="290" stroke="#3A2C1C" stroke-width="2"/>
+          <line x1="220" y1="160" x2="220" y2="290" stroke="#3A2C1C" stroke-width="2"/>
+          <line x1="270" y1="160" x2="270" y2="290" stroke="#3A2C1C" stroke-width="2"/>
+          <line x1="320" y1="160" x2="320" y2="290" stroke="#3A2C1C" stroke-width="2"/>
+          <!-- Shrubs along edge -->
+          <ellipse cx="50" cy="158" rx="35" ry="25" fill="#2D4A1E"/>
+          <ellipse cx="140" cy="155" rx="30" ry="22" fill="#3D5A2E"/>
+          <ellipse cx="230" cy="157" rx="33" ry="24" fill="#2A4520"/>
+          <ellipse cx="320" cy="156" rx="30" ry="22" fill="#3D5A2E"/>
+          <!-- Background trees -->
+          <ellipse cx="100" cy="90" rx="70" ry="85" fill="#1A3010"/>
+          <ellipse cx="280" cy="100" rx="65" ry="80" fill="#1E3815"/>
+          <rect x="93" y="170" width="14" height="60" fill="#2C1A0E"/>
+          <rect x="273" y="175" width="12" height="60" fill="#2C1A0E"/>
+        </svg>
+      </div>
+      <div class="proj-plant">🪨</div>
+      <span class="proj-label">Commercial — Waltham, MA</span>
+      <div class="proj-overlay">
+        <div class="proj-info">
+          <p class="proj-tag">Hardscape</p>
+          <p class="proj-name">Bluestone Courtyard Patio</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="proj reveal reveal-delay-1">
+      <div class="proj-bg proj-bg-4">
+        <svg viewBox="0 0 380 290" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">
+          <rect width="380" height="290" fill="#3A3020"/>
+          <!-- Retaining wall -->
+          <rect x="0" y="150" width="380" height="40" fill="#5A4A30"/>
+          <line x1="0" y1="165" x2="380" y2="165" stroke="#4A3A20" stroke-width="2"/>
+          <line x1="40" y1="150" x2="40" y2="190" stroke="#4A3A20" stroke-width="2"/>
+          <line x1="90" y1="150" x2="90" y2="190" stroke="#4A3A20" stroke-width="2"/>
+          <line x1="140" y1="150" x2="140" y2="190" stroke="#4A3A20" stroke-width="2"/>
+          <line x1="190" y1="150" x2="190" y2="190" stroke="#4A3A20" stroke-width="2"/>
+          <line x1="240" y1="150" x2="240" y2="190" stroke="#4A3A20" stroke-width="2"/>
+          <line x1="290" y1="150" x2="290" y2="190" stroke="#4A3A20" stroke-width="2"/>
+          <line x1="340" y1="150" x2="340" y2="190" stroke="#4A3A20" stroke-width="2"/>
+          <!-- Upper ground -->
+          <rect x="0" y="100" width="380" height="52" fill="#2D4A1E"/>
+          <!-- Lower ground -->
+          <rect y="190" width="380" height="100" fill="#252015"/>
+          <!-- Lawn upper -->
+          <ellipse cx="190" cy="125" rx="200" ry="30" fill="#3D5A2E"/>
+          <!-- Plants along wall top -->
+          <ellipse cx="60" cy="102" rx="28" ry="20" fill="#4A6A38"/>
+          <ellipse cx="160" cy="100" rx="32" ry="22" fill="#3D5A2E"/>
+          <ellipse cx="260" cy="103" rx="28" ry="20" fill="#4A6A38"/>
+          <ellipse cx="330" cy="100" rx="25" ry="18" fill="#3D5A2E"/>
+          <!-- Flowers -->
+          <circle cx="100" cy="98" r="5" fill="#C8963A"/>
+          <circle cx="210" cy="96" r="4" fill="#8FAF6A"/>
+          <circle cx="310" cy="99" r="5" fill="#C8963A"/>
+          <!-- Lower grass -->
+          <path d="M0 190 Q40 185 80 192 Q120 185 160 192 Q200 185 240 192 Q280 185 320 192 Q350 185 380 192" stroke="#3D5A2E" stroke-width="3" fill="none"/>
+        </svg>
+      </div>
+      <span class="proj-label">Residential — Medford, MA</span>
+      <div class="proj-overlay">
+        <div class="proj-info">
+          <p class="proj-tag">Retaining Wall</p>
+          <p class="proj-name">Tiered Retaining & Garden Wall</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="proj reveal reveal-delay-2">
+      <div class="proj-bg proj-bg-5">
+        <svg viewBox="0 0 380 290" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">
+          <rect width="380" height="290" fill="#253520"/>
+          <rect y="200" width="380" height="90" fill="#1E2A15"/>
+          <!-- Fire pit circle -->
+          <circle cx="190" cy="210" r="50" fill="#3A2810"/>
+          <circle cx="190" cy="210" r="40" fill="#2C1E0C"/>
+          <circle cx="190" cy="210" r="30" fill="#1A1008"/>
+          <!-- Flames -->
+          <ellipse cx="190" cy="195" rx="12" ry="18" fill="#C8963A" opacity="0.85"/>
+          <ellipse cx="183" cy="198" rx="8" ry="14" fill="#D4A040" opacity="0.7"/>
+          <ellipse cx="197" cy="197" rx="7" ry="12" fill="#E0B050" opacity="0.6"/>
+          <ellipse cx="190" cy="200" rx="6" ry="8" fill="#F0D080" opacity="0.5"/>
+          <!-- Seating wall around fire pit -->
+          <path d="M140 240 A65 65 0 0 1 240 240" stroke="#5A4A30" stroke-width="14" fill="none"/>
+          <!-- Garden beds -->
+          <ellipse cx="60" cy="180" rx="45" ry="30" fill="#2D4A1E"/>
+          <ellipse cx="320" cy="178" rx="42" ry="28" fill="#253D18"/>
+          <!-- Trees background -->
+          <ellipse cx="60" cy="100" rx="55" ry="70" fill="#1E3015"/>
+          <ellipse cx="320" cy="110" rx="50" ry="65" fill="#1A2D12"/>
+          <rect x="53" y="165" width="14" height="60" fill="#2C1A0E"/>
+          <rect x="313" y="170" width="12" height="58" fill="#2C1A0E"/>
+          <!-- Glow from fire -->
+          <circle cx="190" cy="210" r="70" fill="#C8963A" opacity="0.06"/>
+          <!-- Stars -->
+          <circle cx="100" cy="40" r="1.5" fill="#F5EFE6" opacity="0.5"/>
+          <circle cx="200" cy="25" r="1" fill="#F5EFE6" opacity="0.4"/>
+          <circle cx="300" cy="50" r="1.5" fill="#F5EFE6" opacity="0.5"/>
+        </svg>
+      </div>
+      <span class="proj-label">Residential — Cambridge, MA</span>
+      <div class="proj-overlay">
+        <div class="proj-info">
+          <p class="proj-tag">Outdoor Living</p>
+          <p class="proj-name">Fire Pit & Seating Wall Build</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROCESS -->
+<section id="process">
+  <div class="section-header reveal">
+    <span class="section-label">How It Works</span>
+    <h2>Simple process,<br><em>extraordinary results.</em></h2>
+  </div>
+
+  <div class="process-grid">
+    <div class="process-step reveal">
+      <div class="step-circle">1</div>
+      <div class="step-title">Consultation</div>
+      <p class="step-desc">We meet on-site, listen to your vision, assess the space, and discuss your goals, timeline, and budget — completely free of charge.</p>
+    </div>
+    <div class="process-step reveal reveal-delay-1">
+      <div class="step-circle">2</div>
+      <div class="step-title">Design & Proposal</div>
+      <p class="step-desc">Our team develops a detailed design plan and transparent quote. We walk you through every element before a single shovel hits the ground.</p>
+    </div>
+    <div class="process-step reveal reveal-delay-2">
+      <div class="step-circle">3</div>
+      <div class="step-title">Expert Build</div>
+      <p class="step-desc">Our skilled crews get to work with precision and care — maintaining a clean site, communicating updates, and delivering on schedule.</p>
+    </div>
+    <div class="process-step reveal reveal-delay-3">
+      <div class="step-circle">4</div>
+      <div class="step-title">Final Walkthrough</div>
+      <p class="step-desc">We complete a thorough walkthrough with you to ensure everything exceeds expectations — and we back our work with a full satisfaction guarantee.</p>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section id="testimonials">
+  <div class="section-header reveal">
+    <span class="section-label">Client Voices</span>
+    <h2>What our clients <em>say.</em></h2>
+  </div>
+
+  <div class="testi-grid">
+    <div class="testi-card reveal">
+      <div class="testi-quote">"</div>
+      <div class="testi-stars">★★★★★</div>
+      <p class="testi-text">Terrain & Co. completely transformed our backyard. The paver patio and deck build are absolutely stunning — they finished on time and left the site spotless. Couldn't be happier.</p>
+      <p class="testi-author">Sarah M. — Arlington, MA</p>
+    </div>
+    <div class="testi-card reveal reveal-delay-1">
+      <div class="testi-quote">"</div>
+      <div class="testi-stars">★★★★★</div>
+      <p class="testi-text">We hired them for a retaining wall and ended up having them redo our entire front yard. Their design eye is exceptional and the craftsmanship is second to none. Highly recommend.</p>
+      <p class="testi-author">James & Linda T. — Lexington, MA</p>
+    </div>
+    <div class="testi-card reveal reveal-delay-2">
+      <div class="testi-quote">"</div>
+      <div class="testi-stars">★★★★★</div>
+      <p class="testi-text">The fire pit seating area they built has become the heart of our outdoor space. Their crew was professional, efficient, and genuinely passionate about the work. Total game-changer.</p>
+      <p class="testi-author">Mike D. — Cambridge, MA</p>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="contact-wrap">
+    <div class="contact-left reveal">
+      <span class="section-label">Get In Touch</span>
+      <h2>Ready to transform<br>your <em>outdoor space?</em></h2>
+      <p>Send us a message and we'll get back to you within 24 hours to schedule your free on-site consultation. No pressure, no obligation — just a conversation about what's possible.</p>
+
+      <div class="contact-info-item">
+        <div class="contact-icon">📧</div>
+        <div>
+          <div class="contact-detail-label">Email Us</div>
+          <div class="contact-detail-val">hello@terrainandco.com</div>
+        </div>
+      </div>
+      <div class="contact-info-item">
+        <div class="contact-icon">📞</div>
+        <div>
+          <div class="contact-detail-label">Call or Text</div>
+          <div class="contact-detail-val">(617) 555-0192</div>
+        </div>
+      </div>
+      <div class="contact-info-item">
+        <div class="contact-icon">📍</div>
+        <div>
+          <div class="contact-detail-label">Service Area</div>
+          <div class="contact-detail-val">Greater Boston & Metro Area</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="contact-right reveal reveal-delay-1">
+      <div class="contact-form">
+        <div class="form-row">
+          <div class="form-field">
+            <label for="fname">First Name</label>
+            <input type="text" id="fname" placeholder="Jane">
+          </div>
+          <div class="form-field">
+            <label for="lname">Last Name</label>
+            <input type="text" id="lname" placeholder="Smith">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" placeholder="jane@example.com">
+          </div>
+          <div class="form-field">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" placeholder="(617) 555-0000">
+          </div>
+        </div>
+        <div class="form-field">
+          <label for="service">Service Interested In</label>
+          <select id="service">
+            <option value="">Select a service...</option>
+            <option>Landscape Design & Installation</option>
+            <option>Pavers, Patios & Walkways</option>
+            <option>Custom Decks & Woodworking</option>
+            <option>Retaining Walls & Grading</option>
+            <option>Irrigation & Drainage</option>
+            <option>Lawn Care & Maintenance</option>
+            <option>Outdoor Living Spaces</option>
+            <option>Tree Service</option>
+            <option>Landscape Lighting</option>
+            <option>Multiple Services / Full Project</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="message">Tell Us About Your Project</label>
+          <textarea id="message" placeholder="Describe your space, your goals, and anything else we should know..."></textarea>
+        </div>
+        <div class="form-submit">
+          <p class="form-note">We respond within 24 hours.</p>
+          <button class="submit-btn" onclick="handleSubmit()">Send Message →</button>
+        </div>
+        <div id="form-success" style="display:none; background:rgba(107,140,82,0.15); border:1px solid var(--sage); padding:1rem 1.5rem; color:var(--fern); font-size:0.82rem; letter-spacing:0.05em; margin-top:0.5rem;">
+          ✓ &nbsp;Message sent! We'll be in touch within 24 hours.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Terrain <span>&</span> Co.</div>
+  <ul class="footer-links">
+    <li><a href="#about">About</a></li>
+    <li><a href="#services">Services</a></li>
+    <li><a href="#projects">Projects</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <p class="footer-copy">© 2026 Terrain & Co. All rights reserved.</p>
+</footer>
+
+<script>
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.12 });
+  reveals.forEach(el => observer.observe(el));
+
+  // Form submit handler
+  function handleSubmit() {
+    const fname = document.getElementById('fname').value.trim();
+    const email = document.getElementById('email').value.trim();
+    if (!fname || !email) {
+      alert('Please fill in at least your name and email.');
+      return;
+    }
+    document.getElementById('form-success').style.display = 'block';
+    document.querySelector('.submit-btn').disabled = true;
+    document.querySelector('.submit-btn').style.opacity = '0.5';
+  }
+
+  // Parallax subtle effect on hero
+  window.addEventListener('scroll', () => {
+    const scrollY = window.scrollY;
+    const botanical = document.querySelector('.hero-botanical');
+    if (botanical) {
+      botanical.style.transform = `translateY(${scrollY * 0.18}px)`;
+    }
+  });
+</script>
+</body>
+</html>
