@@ -6,958 +6,747 @@
 <title>Letterfall</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap');
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0d0d0f;--surface:#18181c;--surface2:#222228;
-  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);
-  --text:#f0ede8;--muted:#6e6c67;
-  --accent:#c8f060;--accent-dim:rgba(200,240,96,0.15);--accent-dark:#8fb832;
-  --red:#ff5f5f;--blue:#60c0ff;--gold:#ffcc44;
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0b0b0d;
+  --s1: #141417;
+  --s2: #1d1d22;
+  --s3: #26262d;
+  --b1: rgba(255,255,255,0.06);
+  --b2: rgba(255,255,255,0.12);
+  --b3: rgba(255,255,255,0.22);
+  --txt: #edeae4;
+  --muted: #64625e;
+  --acc: #c9f063;
+  --acc2: rgba(201,240,99,0.12);
+  --acc3: rgba(201,240,99,0.25);
+  --accdk: #91bb38;
+  --red: #ff5a5a;
+  --blue: #5bbcff;
+  --gold: #ffc842;
+  --r: 14px;
+  --rsm: 9px;
 }
-body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;
-  min-height:100vh;display:flex;align-items:flex-start;justify-content:center;
-  padding:20px 16px 40px;overflow-x:hidden}
-#app{width:100%;max-width:400px}
+body {
+  background: var(--bg);
+  color: var(--txt);
+  font-family: 'Syne', sans-serif;
+  min-height: 100dvh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px 56px;
+}
+#app { width: 100%; max-width: 390px; }
 
-/* SCREENS */
-.screen{display:none;flex-direction:column;gap:18px}
-.screen.active{display:flex}
+/* Screens */
+.screen { display: none; flex-direction: column; gap: 16px; }
+.screen.on { display: flex; }
 
-/* TYPE */
-.eyebrow{font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
-.game-title{font-size:48px;font-weight:800;letter-spacing:-3px;line-height:1;color:var(--accent)}
-h2{font-size:22px;font-weight:700;letter-spacing:-.5px}
-h3{font-size:15px;font-weight:700}
-p{font-size:14px;color:var(--muted);line-height:1.65}
+/* Type */
+.eye  { font-size: 11px; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; }
+.logo { font-size: 52px; font-weight: 800; letter-spacing: -3.5px; line-height: 1; color: var(--acc); margin-top: 2px; }
+h2   { font-size: 22px; font-weight: 700; letter-spacing: -.4px; }
+p    { font-size: 14px; color: var(--muted); line-height: 1.7; }
 
-/* BUTTONS */
-.btn{width:100%;padding:14px 20px;border-radius:12px;border:none;cursor:pointer;
-  font-family:'Syne',sans-serif;font-size:15px;font-weight:700;letter-spacing:.02em;
-  transition:transform .1s,opacity .15s}
-.btn:active{transform:scale(.97)}
-.btn-primary{background:var(--accent);color:#0d0d0f}
-.btn-primary:hover{opacity:.9}
-.btn-secondary{background:transparent;color:var(--text);border:1px solid var(--border2)}
-.btn-secondary:hover{background:var(--surface2)}
-.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);font-size:13px;padding:10px}
+/* Buttons */
+.btn {
+  width: 100%; padding: 15px 20px; border-radius: var(--r); border: none; cursor: pointer;
+  font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: .02em;
+  transition: transform .12s, opacity .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active   { transform: scale(.96); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-acc   { background: var(--acc); color: #0b0b0d; }
+.btn-acc:hover:not(:disabled)  { opacity: .88; }
+.btn-out   { background: transparent; color: var(--txt); border: 1px solid var(--b2); }
+.btn-out:hover:not(:disabled)  { background: var(--s2); }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--b1); font-size: 13px; padding: 10px; }
+.btn-ghost:hover { color: var(--txt); border-color: var(--b2); }
 
-/* INPUTS */
-input[type=text]{width:100%;padding:13px 16px;border-radius:10px;
-  background:var(--surface2);border:1px solid var(--border2);
-  color:var(--text);font-family:'Syne',sans-serif;font-size:16px;outline:none;
-  transition:border-color .2s}
-input[type=text]:focus{border-color:var(--accent)}
-input[type=text]::placeholder{color:var(--muted)}
-label{font-size:12px;color:var(--muted);margin-bottom:5px;display:block;letter-spacing:.04em;text-transform:uppercase}
+/* Inputs */
+label { font-size: 11px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; display: block; margin-bottom: 6px; }
+input[type=text] {
+  width: 100%; padding: 14px 16px; border-radius: var(--rsm);
+  background: var(--s2); border: 1px solid var(--b2);
+  color: var(--txt); font-family: 'Syne', sans-serif; font-size: 16px;
+  outline: none; transition: border-color .2s;
+}
+input[type=text]:focus { border-color: var(--acc); }
+input[type=text]::placeholder { color: var(--muted); }
+input[type=range] { width: 100%; accent-color: var(--acc); cursor: pointer; }
+.rrow { display: flex; align-items: center; gap: 12px; }
+.rval { font-family: 'DM Mono', monospace; font-size: 14px; color: var(--acc); min-width: 44px; }
 
-/* RANGE */
-input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
-.range-row{display:flex;align-items:center;gap:12px}
-.range-val{font-family:'DM Mono',monospace;font-size:14px;color:var(--accent);min-width:44px}
+/* Cards */
+.card    { background: var(--s1); border: 1px solid var(--b1); border-radius: var(--r); padding: 18px; }
+.card-em { background: var(--s2); border: 1px solid var(--b2); border-radius: var(--r); padding: 20px; }
 
-/* CARD */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px}
+/* Code block */
+.code-block { background: var(--s2); border: 1px solid var(--b2); border-radius: var(--r); padding: 24px; text-align: center; }
+.code-big   { font-family: 'DM Mono', monospace; font-size: 46px; font-weight: 500; letter-spacing: 12px; color: var(--acc); line-height: 1; margin: 8px 0; }
+.code-hint  { font-size: 12px; color: var(--muted); }
 
-/* CODE */
-.code-display{background:var(--surface2);border:1px solid var(--border2);
-  border-radius:14px;padding:24px;text-align:center}
-.code-value{font-family:'DM Mono',monospace;font-size:40px;font-weight:500;
-  letter-spacing:10px;color:var(--accent);margin:6px 0}
-.code-hint{font-size:12px;color:var(--muted)}
+/* Status */
+.statrow { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.pulse   { width: 8px; height: 8px; border-radius: 50%; background: var(--acc); flex-shrink: 0; animation: blink 1.8s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.1} }
 
-/* DOTS */
-.round-dots{display:flex;gap:8px;justify-content:center}
-.round-dot{width:10px;height:10px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);transition:all .3s}
-.round-dot.done{background:var(--accent);border-color:var(--accent)}
-.round-dot.current{border-color:var(--accent);background:var(--accent-dim)}
+/* Dots */
+.dots { display: flex; gap: 8px; justify-content: center; }
+.dot  { width: 10px; height: 10px; border-radius: 50%; background: var(--s2); border: 1px solid var(--b2); transition: all .35s; }
+.dot.done { background: var(--acc); border-color: var(--acc); }
+.dot.cur  { border-color: var(--acc); background: var(--acc2); }
 
-/* BOARD HEADER */
-.game-header{display:flex;align-items:center;justify-content:space-between}
-.round-badge{background:var(--surface2);border:1px solid var(--border2);
-  border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;
-  letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
-.timer-ring{position:relative;width:48px;height:48px}
-.timer-ring svg{transform:rotate(-90deg)}
-.ring-bg{fill:none;stroke:var(--surface2);stroke-width:3.5}
-.ring-progress{fill:none;stroke:var(--accent);stroke-width:3.5;stroke-linecap:round;
-  transition:stroke-dashoffset 1s linear,stroke .4s}
-.ring-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-family:'DM Mono',monospace;font-size:12px;font-weight:500;color:var(--text)}
+/* Game header */
+.ghdr   { display: flex; align-items: center; justify-content: space-between; }
+.rbadge { background: var(--s2); border: 1px solid var(--b2); border-radius: 8px; padding: 6px 13px; font-size: 11px; font-weight: 700; letter-spacing: .07em; color: var(--muted); text-transform: uppercase; }
 
-/* SCORE ROW */
-.score-row{display:flex;align-items:flex-end;justify-content:space-between}
-.score-num{font-size:32px;font-weight:800;color:var(--accent);line-height:1}
-.score-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+/* Timer ring */
+.tring      { position: relative; width: 50px; height: 50px; }
+.tring svg  { transform: rotate(-90deg); }
+.tr-bg      { fill: none; stroke: var(--s2); stroke-width: 3.5; }
+.tr-prog    { fill: none; stroke: var(--acc); stroke-width: 3.5; stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke .5s; }
+.tr-txt     { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; color: var(--txt); }
 
-/* GRID */
-#grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
-  user-select:none;touch-action:none;-webkit-user-select:none}
-.cell{aspect-ratio:1;border-radius:12px;background:var(--surface2);
-  border:1px solid var(--border2);display:flex;align-items:center;
-  justify-content:center;font-size:22px;font-weight:800;text-transform:uppercase;
-  cursor:pointer;transition:background .1s,border-color .1s,transform .1s;
-  -webkit-tap-highlight-color:transparent}
-.cell.path{background:var(--accent-dim);border-color:rgba(200,240,96,.45);color:var(--accent)}
-.cell.selected{background:var(--accent);color:#0d0d0f;border-color:var(--accent);transform:scale(1.06)}
-.cell.flash{background:var(--accent-dark);color:#0d0d0f;border-color:var(--accent-dark)}
+/* Score row */
+.scorerow { display: flex; align-items: flex-end; justify-content: space-between; }
+.snum     { font-size: 34px; font-weight: 800; color: var(--acc); line-height: 1; }
+.slbl     { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 3px; }
 
-/* WORD DISPLAY */
-.word-display{background:var(--surface2);border:1px solid var(--border2);
-  border-radius:10px;padding:13px 16px;font-family:'DM Mono',monospace;
-  font-size:20px;font-weight:500;letter-spacing:3px;text-align:center;
-  min-height:52px;text-transform:uppercase;color:var(--text);transition:color .15s}
-.word-display.valid{color:var(--accent);border-color:rgba(200,240,96,.3)}
-.word-display.invalid{color:var(--red)}
+/* Grid */
+#grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px;
+  user-select: none; touch-action: none; -webkit-user-select: none;
+}
+.cell {
+  aspect-ratio: 1; border-radius: 13px; background: var(--s2); border: 1px solid var(--b2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 23px; font-weight: 800; text-transform: uppercase;
+  cursor: pointer; transition: background .1s, border-color .12s, transform .1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.cell.path  { background: var(--acc2); border-color: rgba(201,240,99,.35); color: var(--acc); }
+.cell.sel   { background: var(--acc); color: #0b0b0d; border-color: var(--acc); transform: scale(1.07); z-index: 2; }
+.cell.flash { background: var(--accdk); color: #0b0b0d; border-color: var(--accdk); }
 
-/* WORD LIST */
-.word-list-wrap{background:var(--surface);border:1px solid var(--border);
-  border-radius:12px;padding:12px;max-height:130px;overflow-y:auto}
-.word-list{display:flex;flex-wrap:wrap;gap:6px}
-.word-chip{background:var(--surface2);border:1px solid var(--border2);
-  border-radius:6px;padding:4px 10px;font-family:'DM Mono',monospace;
-  font-size:12px;text-transform:uppercase;color:var(--text)}
-.word-chip.fresh{background:var(--accent-dim);border-color:rgba(200,240,96,.4);color:var(--accent)}
-.empty-note{font-size:12px;color:var(--muted);padding:4px}
+/* Word display */
+.wdisp {
+  background: var(--s2); border: 1px solid var(--b2); border-radius: var(--rsm);
+  padding: 13px 16px; font-family: 'DM Mono', monospace; font-size: 21px; font-weight: 500;
+  letter-spacing: 4px; text-align: center; min-height: 54px; text-transform: uppercase;
+  color: var(--txt); transition: color .15s, border-color .15s;
+}
+.wdisp.ok  { color: var(--acc); border-color: rgba(201,240,99,.3); }
+.wdisp.bad { color: var(--red); border-color: rgba(255,90,90,.25); }
 
-/* RESULTS */
-.results-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.result-card{background:var(--surface);border:1px solid var(--border);
-  border-radius:12px;padding:14px;text-align:center}
-.result-card.winner{border-color:var(--accent);background:var(--accent-dim)}
-.player-name{font-size:12px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
-.player-score{font-size:34px;font-weight:800;color:var(--accent)}
-.player-score.blue{color:var(--blue)}
-.player-score.dim{font-size:18px;color:var(--muted)}
-.badge{display:inline-block;background:var(--accent);color:#0d0d0f;
-  border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;margin-top:5px;letter-spacing:.04em}
-.badge.tie{background:var(--gold);color:#0d0d0f}
+/* Word list */
+.wlwrap { background: var(--s1); border: 1px solid var(--b1); border-radius: var(--r); padding: 12px; max-height: 128px; overflow-y: auto; }
+.wlist  { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip   { background: var(--s2); border: 1px solid var(--b2); border-radius: 6px; padding: 4px 10px; font-family: 'DM Mono', monospace; font-size: 12px; text-transform: uppercase; color: var(--txt); }
+.chip.fresh { background: var(--acc2); border-color: rgba(201,240,99,.4); color: var(--acc); }
+.enote  { font-size: 12px; color: var(--muted); }
 
-/* FINAL */
-.final-row{display:flex;align-items:center;justify-content:space-between;
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:12px;padding:14px 18px}
-.final-row.you{border-color:var(--accent)}
-.final-row.opp{border-color:var(--blue)}
-.final-name{font-size:15px;font-weight:700}
-.final-pts{font-size:12px;color:var(--muted);margin-top:2px}
-.final-score{font-size:30px;font-weight:800}
-.final-row.you .final-score{color:var(--accent)}
-.final-row.opp .final-score{color:var(--blue)}
+/* Round results */
+.rgrid   { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rcard   { background: var(--s1); border: 1px solid var(--b1); border-radius: var(--r); padding: 16px; text-align: center; }
+.rcard.win { border-color: var(--acc); background: var(--acc2); }
+.pname   { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
+.pscore  { font-size: 36px; font-weight: 800; color: var(--acc); line-height: 1; }
+.pscore.bl  { color: var(--blue); }
+.pscore.dim { font-size: 20px; color: var(--muted); }
+.badge      { display: inline-block; background: var(--acc); color: #0b0b0d; border-radius: 6px; padding: 3px 9px; font-size: 10px; font-weight: 700; margin-top: 6px; letter-spacing: .04em; }
+.badge.tie  { background: var(--gold); }
+.badge.bl   { background: var(--blue); color: #0b0b0d; }
 
-/* TABS */
-.tabs{display:flex;gap:6px;margin-bottom:10px}
-.tab-btn{flex:1;padding:9px;border-radius:8px;border:1px solid var(--border2);
-  background:transparent;color:var(--muted);font-family:'Syne',sans-serif;
-  font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:.02em}
-.tab-btn.active{background:var(--surface2);color:var(--text);border-color:var(--accent)}
-.round-review{display:none}
-.round-review.active{display:block}
-.words-compare{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
-.compare-col .col-head{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
-.w-chip{display:inline-block;border-radius:5px;padding:3px 8px;font-family:'DM Mono',monospace;
-  font-size:11px;text-transform:uppercase;margin:2px 2px 0 0}
-.w-chip.mine{background:var(--accent-dim);border:1px solid rgba(200,240,96,.35);color:var(--accent)}
-.w-chip.theirs{background:rgba(96,192,255,.12);border:1px solid rgba(96,192,255,.3);color:var(--blue)}
-.w-chip.shared{background:var(--surface2);border:1px solid var(--border2);color:var(--muted)}
+/* Final board */
+.frow      { display: flex; align-items: center; justify-content: space-between; background: var(--s1); border: 1px solid var(--b1); border-radius: var(--r); padding: 16px 20px; }
+.frow.you  { border-color: var(--acc); }
+.frow.opp  { border-color: var(--blue); }
+.fname     { font-size: 15px; font-weight: 700; }
+.fbreak    { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.fscore    { font-size: 32px; font-weight: 800; }
+.frow.you .fscore { color: var(--acc); }
+.frow.opp .fscore { color: var(--blue); }
 
-/* STATUS */
-.status-row{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
-.pulse{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;
-  animation:blink 1.6s ease-in-out infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+/* Tabs */
+.tabs   { display: flex; gap: 6px; margin-bottom: 10px; }
+.tabbtn { flex: 1; padding: 9px; border-radius: 9px; border: 1px solid var(--b2); background: transparent; color: var(--muted); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .2s; }
+.tabbtn.on { background: var(--s2); color: var(--txt); border-color: var(--acc); }
+.rv     { display: none; }
+.rv.on  { display: block; }
+.wcmp   { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.chead  { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+.wc     { display: inline-block; border-radius: 5px; padding: 3px 9px; font-family: 'DM Mono', monospace; font-size: 11px; text-transform: uppercase; margin: 2px 2px 0 0; border: 1px solid transparent; }
+.wc.m   { background: var(--acc2);              border-color: rgba(201,240,99,.35); color: var(--acc);  }
+.wc.t   { background: rgba(91,188,255,.1);       border-color: rgba(91,188,255,.3);  color: var(--blue); }
+.wc.s   { background: var(--s2);                border-color: var(--b2);             color: var(--muted); }
 
-/* LOADING */
-.spinner{width:28px;height:28px;border:2.5px solid var(--border2);
-  border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto}
-@keyframes spin{to{transform:rotate(360deg)}}
+/* Divider */
+.div { height: 1px; background: var(--b1); }
 
-/* TOAST */
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
-  background:var(--text);color:var(--bg);padding:10px 22px;border-radius:24px;
-  font-size:13px;font-weight:700;z-index:999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);
-  white-space:nowrap;pointer-events:none}
-#toast.show{transform:translateX(-50%) translateY(0)}
+/* Toast */
+#toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--txt); color: var(--bg); padding: 11px 24px; border-radius: 28px; font-size: 13px; font-weight: 700; z-index: 999; transition: transform .32s cubic-bezier(.34,1.56,.64,1); white-space: nowrap; pointer-events: none; }
+#toast.show { transform: translateX(-50%) translateY(0); }
 
-/* ANIMATIONS */
-@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}
-  40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
-.shake{animation:shake .32s ease}
-@keyframes popin{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
-.popin{animation:popin .22s ease}
+/* Spinner */
+.spin { width: 22px; height: 22px; border: 2.5px solid var(--b2); border-top-color: var(--acc); border-radius: 50%; animation: rot .7s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
+@keyframes rot { to { transform: rotate(360deg); } }
 
-.divider{height:1px;background:var(--border);margin:4px 0}
+/* Animations */
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+.shake { animation: shake .3s ease; }
+@keyframes popin { 0%{transform:scale(.65);opacity:0} 60%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+.popin { animation: popin .22s ease; }
 </style>
 </head>
 <body>
 <div id="app">
 
-<!-- HOME -->
-<div class="screen active" id="s-home">
-  <div style="padding-top:8px">
-    <div class="eyebrow">multiplayer word game</div>
-    <div class="game-title">Letterfall</div>
+<!-- CONFIG (first time only) -->
+<div class="screen on" id="s-config">
+  <div style="padding-top:6px">
+    <div class="eye">setup</div>
+    <div class="logo">Letterfall</div>
   </div>
-  <p>Find words in a 4×4 grid. Play 3 rounds on the same board as your friend — each on your own phone, any time you're free.</p>
-  <button class="btn btn-primary" onclick="goCreate()">Create a game</button>
-  <button class="btn btn-secondary" onclick="goJoin()">Join with a code</button>
+  <p>Enter the URL where you mounted the Flask blueprint. This is saved to your browser — you only do this once.</p>
+  <div>
+    <label>Server URL</label>
+    <input type="text" id="cfg-url" placeholder="https://api.kellinnovations.com/letterfall"
+           autocapitalize="off" autocomplete="off" spellcheck="false">
+  </div>
+  <button class="btn btn-acc" onclick="saveConfig()">Save &amp; play</button>
+  <p style="font-size:12px;text-align:center;margin-top:-4px">
+    Match whatever <code style="color:var(--acc);font-family:'DM Mono',monospace">url_prefix</code> you used when registering the blueprint.
+  </p>
+</div>
+
+<!-- HOME -->
+<div class="screen" id="s-home">
+  <div style="padding-top:6px">
+    <div class="eye">multiplayer word game</div>
+    <div class="logo">Letterfall</div>
+  </div>
+  <p>Find as many words as you can in a 4×4 letter grid. 3 rounds — you and a friend play the same board on your own phones, any time you like.</p>
+  <button class="btn btn-acc" onclick="goCreate()">Create a game</button>
+  <button class="btn btn-out" onclick="goJoin()">Join with a code</button>
+  <button class="btn btn-ghost" onclick="show('s-config')">Change server URL</button>
 </div>
 
 <!-- CREATE -->
 <div class="screen" id="s-create">
-  <div><div class="eyebrow">new game</div><h2>Set it up</h2></div>
+  <div><div class="eye">new game</div><h2>Set it up</h2></div>
   <div>
     <label>Your name</label>
-    <input type="text" id="create-name" placeholder="e.g. Alex" maxlength="16">
+    <input type="text" id="c-name" placeholder="e.g. Alex" maxlength="20">
   </div>
   <div>
     <label>Time per round</label>
-    <div class="range-row">
-      <input type="range" id="timer-range" min="1" max="5" value="2" step="1"
-        oninput="document.getElementById('tval').textContent=this.value+' min'">
-      <span class="range-val" id="tval">2 min</span>
+    <div class="rrow">
+      <input type="range" id="c-mins" min="1" max="5" value="2" step="1"
+             oninput="document.getElementById('c-mval').textContent=this.value+' min'">
+      <span class="rval" id="c-mval">2 min</span>
     </div>
   </div>
-  <button class="btn btn-primary" onclick="createGame()">Create &amp; get code</button>
+  <button class="btn btn-acc" id="btn-create" onclick="createGame()">Create &amp; get code</button>
   <button class="btn btn-ghost" onclick="show('s-home')">Back</button>
 </div>
 
 <!-- LOBBY -->
 <div class="screen" id="s-lobby">
-  <div><div class="eyebrow" id="lobby-eye">waiting for friend</div><h2 id="lobby-title">Share the code</h2></div>
-  <div class="code-display">
+  <div><div class="eye" id="l-eye">waiting for friend</div><h2 id="l-title">Share the code</h2></div>
+  <div class="code-block">
     <div class="code-hint">game code</div>
-    <div class="code-value" id="lobby-code">—</div>
-    <div class="code-hint">share with your friend</div>
+    <div class="code-big" id="l-code">—</div>
+    <div class="code-hint">text this to your friend</div>
   </div>
-  <button class="btn btn-secondary" onclick="copyCode()">Copy code</button>
+  <button class="btn btn-out" onclick="copyCode()">Copy code</button>
   <div class="card">
-    <div id="lobby-status" class="status-row"><span class="pulse"></span><span>Waiting for your friend to join…</span></div>
+    <div class="statrow">
+      <span class="pulse"></span>
+      <span id="l-msg">Waiting for your friend to join…</span>
+    </div>
   </div>
-  <button class="btn btn-primary" id="start-btn" style="display:none" onclick="hostStart()">Start Round 1 →</button>
-  <button class="btn btn-ghost" onclick="cancelLobby()">Cancel</button>
+  <button class="btn btn-acc" id="btn-start" style="display:none" onclick="hostStart()">Start Round 1 →</button>
+  <button class="btn btn-ghost" onclick="leaveLobby()">Leave</button>
 </div>
 
 <!-- JOIN -->
 <div class="screen" id="s-join">
-  <div><div class="eyebrow">join game</div><h2>Enter the code</h2></div>
+  <div><div class="eye">join game</div><h2>Enter the code</h2></div>
   <div>
     <label>Your name</label>
-    <input type="text" id="join-name" placeholder="e.g. Jordan" maxlength="16">
+    <input type="text" id="j-name" placeholder="e.g. Jordan" maxlength="20">
   </div>
   <div>
     <label>Game code</label>
-    <input type="text" id="join-code" placeholder="XXXX" maxlength="4"
-      style="text-transform:uppercase;letter-spacing:6px;font-family:'DM Mono',monospace;font-size:26px;text-align:center">
+    <input type="text" id="j-code" placeholder="XXXXX" maxlength="5"
+           style="text-transform:uppercase;letter-spacing:8px;font-family:'DM Mono',monospace;font-size:30px;text-align:center">
   </div>
-  <button class="btn btn-primary" onclick="joinGame()">Join game</button>
+  <button class="btn btn-acc" id="btn-join" onclick="joinGame()">Join game</button>
   <button class="btn btn-ghost" onclick="show('s-home')">Back</button>
 </div>
 
 <!-- READY -->
 <div class="screen" id="s-ready">
-  <div><div class="eyebrow" id="ready-eye">Round 1 of 3</div><h2 id="ready-h">Ready?</h2></div>
-  <div class="round-dots" id="ready-dots"></div>
-  <div class="card"><p id="ready-desc"></p></div>
-  <button class="btn btn-primary" onclick="startRound()">Start round →</button>
+  <div><div class="eye" id="r-eye">Round 1 of 3</div><h2 id="r-title">Ready?</h2></div>
+  <div class="dots" id="r-dots"></div>
+  <div class="card"><p id="r-desc"></p></div>
+  <button class="btn btn-acc" onclick="startRound()">Start →</button>
 </div>
 
 <!-- BOARD -->
 <div class="screen" id="s-board">
-  <div class="game-header">
-    <div class="round-badge" id="board-badge">Round 1</div>
-    <div class="timer-ring">
-      <svg width="48" height="48" viewBox="0 0 48 48">
-        <circle class="ring-bg" cx="24" cy="24" r="19"/>
-        <circle class="ring-progress" id="ring" cx="24" cy="24" r="19"
-          stroke-dasharray="119.4" stroke-dashoffset="0"/>
+  <div class="ghdr">
+    <div class="rbadge" id="b-badge">Round 1</div>
+    <div class="tring">
+      <svg width="50" height="50" viewBox="0 0 50 50">
+        <circle class="tr-bg"   cx="25" cy="25" r="20"/>
+        <circle class="tr-prog" id="ring" cx="25" cy="25" r="20"
+                stroke-dasharray="125.6" stroke-dashoffset="0"/>
       </svg>
-      <div class="ring-text" id="timer-txt">2:00</div>
+      <div class="tr-txt" id="t-txt">2:00</div>
     </div>
   </div>
-  <div class="score-row">
-    <div><div class="score-label">score</div><div class="score-num" id="cur-score">0</div></div>
-    <div style="text-align:right"><div class="score-label">words</div><div class="score-num" id="cur-words">0</div></div>
+  <div class="scorerow">
+    <div><div class="slbl">score</div><div class="snum" id="b-score">0</div></div>
+    <div style="text-align:right"><div class="slbl">words</div><div class="snum" id="b-words">0</div></div>
   </div>
   <div id="grid"></div>
-  <div class="word-display" id="word-disp">tap letters · drag to connect</div>
-  <div class="word-list-wrap">
-    <div class="word-list" id="word-list"></div>
-  </div>
+  <div class="wdisp" id="wdisp">tap letters · drag to connect</div>
+  <div class="wlwrap"><div class="wlist" id="wlist"></div></div>
 </div>
 
 <!-- ROUND RESULT -->
-<div class="screen" id="s-rresult">
-  <div><div class="eyebrow" id="rr-eye">Round 1 complete</div><h2>Your round</h2></div>
-  <div class="round-dots" id="rr-dots"></div>
-  <div class="results-grid" id="rr-grid"></div>
+<div class="screen" id="s-rr">
+  <div><div class="eye" id="rr-eye">Round 1 complete</div><h2>Your round</h2></div>
+  <div class="dots" id="rr-dots"></div>
+  <div class="rgrid" id="rr-grid"></div>
   <div class="card"><p id="rr-desc"></p></div>
-  <button class="btn btn-primary" id="rr-btn" onclick="afterRound()">Next →</button>
+  <button class="btn btn-acc" id="rr-btn" onclick="afterRound()">Next →</button>
 </div>
 
 <!-- FINAL -->
 <div class="screen" id="s-final">
-  <div><div class="eyebrow">game over</div><h2 id="final-h">Final scores</h2></div>
-  <div style="display:flex;flex-direction:column;gap:8px" id="final-board"></div>
+  <div><div class="eye">game over</div><h2 id="f-title">Final scores</h2></div>
+  <div style="display:flex;flex-direction:column;gap:8px" id="f-board"></div>
+  <div class="div"></div>
   <div>
-    <div class="tabs" id="round-tabs"></div>
-    <div id="round-reviews"></div>
+    <div class="tabs"   id="f-tabs"></div>
+    <div id="f-reviews"></div>
   </div>
-  <button class="btn btn-secondary" onclick="show('s-home')">Play again</button>
+  <button class="btn btn-out" onclick="show('s-home')">Play again</button>
 </div>
 
 </div>
 <div id="toast"></div>
 
 <script>
-// ─── JSONBIN CONFIG ───────────────────────────────────────────────────────────
-// Free JSONBin.io API — no auth needed for public bins (basic use)
-// Each game is stored as a public bin; the bin ID IS the game code displayed to users.
-// We generate a short 6-char code and store it in the bin metadata.
-const BIN_API = 'https://api.jsonbin.io/v3/b';
-const HEADERS = {'Content-Type':'application/json','X-Bin-Private':'false'};
-// NOTE: JSONBin free tier = 10,000 reads/month, 2,500 writes/month. More than enough for 2 friends.
+// ─── Config ───────────────────────────────────────────────────────────────────
+let SERVER = localStorage.getItem('lf_server') || '';
 
-async function binCreate(data) {
-  const r = await fetch(BIN_API, {method:'POST', headers:HEADERS, body:JSON.stringify(data)});
-  const j = await r.json();
-  return j.metadata?.id || null;
-}
-async function binRead(id) {
-  const r = await fetch(`${BIN_API}/${id}/latest`);
-  if (!r.ok) return null;
-  const j = await r.json();
-  return j.record || null;
-}
-async function binUpdate(id, data) {
-  const r = await fetch(`${BIN_API}/${id}`, {method:'PUT', headers:HEADERS, body:JSON.stringify(data)});
-  return r.ok;
+function saveConfig() {
+  let url = (document.getElementById('cfg-url').value || '').trim().replace(/\/$/, '');
+  if (!url.startsWith('http')) { toast('Enter a full URL starting with https://'); return; }
+  SERVER = url;
+  localStorage.setItem('lf_server', url);
+  show('s-home');
 }
 
-// ─── WORD LIST ────────────────────────────────────────────────────────────────
-const W = new Set(`ace aced aces ache ached aches acre acres act acted acts add adds aide aids aim aimed aims air aired airs ale ales aloe also alto altos amen amend amps ample and ands ane anes anger anew ante anted antes ants ape aped apes arch arcs are area areas ark arks arm armed arms art arts ash ate atop aunt aunts avid awed axes bade bag bags bale bales bane banes bar bare bared barn barns bars base based bash bat bate bated bath baths bats bay bays bead beam bean beans beat beats bed beds best bet bide bile bins bird birds bite bled blot blue blues boil bond bone bones bore bored bores born both brag bran brew brim bring brine buck bud buds bug bugs bulk bull bun buns bur burn burns bus bush but bye cage cages cane canes cape capes car card cards care cared cares carp cart carts cast cave caves cell cells cent clad clam clap claw claws clay clop clot coat coats code codes coil coils cold cope coped copes cord cords core cored corn cot cots crab cram crane cranes crap crave crew crop cub cubs cud cup cups curb cure cured cures cute dab dabs dale damp dare dares dark dart date dated deal dean dear deck deed den dens dew dig din dine dined ding dire dirt dog dogs dole done dose dove down drip drop drug dry dub duck ducks due duel duels dug dune dust each earn ease eased edit elms emit end ends even face faced fade fake fame fare fared farm fast fate fated feat feel fend fern fest fib find fine fined fire fired fish fist fix flag flap flat flaw flea flex flip flop flow foam foe foes fold fond ford fore form fort foul fume gain gale game gamed gap garb gate gave gaze gel gift gild girl give given glad glade glam glare glean gleam glide globe glow glue goal goad goat gore gown grab grade gram grind grit groan grove grub gulf gust hale halt hare harm haste hate heal heap hear heard heat help herd hide hint hire hold hole home hose host hurl idea idle inch into iris isle jab jade jag jam jest join jot jump keen keep kick kids kill kin kind kite knob knot lace lack lad lade lane lark last laud laze lead leak lean leap left lend lens lid lids lift lime line link lion lips list live lobe lock loft long lore lose lost lure lush mace mail male mall mane map mare mark mars mast mate maze meal mean meat meet mend mesa mice mind mine miner mint mire mode mole more morn mote mule nail near need nick nit node nods nose note noted nude oak oar oars oboe oil omen one oral orb ores paced page paid pail pain pair pale palm pane pare park parse part paste path pave pays peak peal pear peat peel peer pens pest pets pike pine pined pint pipe pith plan plant plea plead plod plot plug plum pond pore port post pout prey prose pull pulp pulse pump pure push quit race raft rage rags rail rain rake ramp rang rank rare rate rave real reap reed reel rend rent rest ride rim rinse rise rite road roam roar robe rode role rope rose rude rule rush rust safe sail sale salt same sand sane sang save seal seam seep self send sent serf shed shin shod shoe shop shot shun side silk silo silt sink site size skip slim slid slip slot slow slug smear smoke snag snap snare soft soil sole sort soul span spar sped spin spite spot spur stab stain stake stem step stew stir stop store strand strip stub stud sue sure swam swear tack tad tale tall tan tape tart task teak team teal tear tell tend term test thin tide tile tilt time toad toll tore torn tote tow town trace train trap trek trim trip true tuck tune ugly undo vain vale vary vast veil vein verb vice vine vow wade waft wage wail wane ward ware warn warp wart wave wear well went wide wile wilt wind wine wink word wore worn wrap wren yard yell yore zeal zone zoom`.split(' '));
+// ─── API ──────────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(SERVER + path, opts);
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    throw new Error(j.error || `HTTP ${r.status}`);
+  }
+  return r.json();
+}
 
-// ─── DICE ─────────────────────────────────────────────────────────────────────
-const DICE=['AAEEGN','ABBJOO','ACHOPS','AFFKPS','AOOTTW','CIMOTU','DEILRX','DELRVY',
-            'DISTTY','EEGHNW','EEINSU','EHRTVW','EIOSST','ELRTTY','HIMNQU','HLNNRZ'];
-function rollBoard(){return DICE.map(d=>d[Math.floor(Math.random()*6)]).sort(()=>Math.random()-.5)}
+// ─── Boggle engine ────────────────────────────────────────────────────────────
+const DICE = [
+  'AAEEGN','ABBJOO','ACHOPS','AFFKPS','AOOTTW','CIMOTU','DEILRX','DELRVY',
+  'DISTTY','EEGHNW','EEINSU','EHRTVW','EIOSST','ELRTTY','HIMNQU','HLNNRZ'
+];
+function rollBoard() {
+  return DICE.map(d => d[Math.floor(Math.random() * 6)]).sort(() => Math.random() - .5);
+}
+function adjCells(i) {
+  const r = Math.floor(i/4), c = i%4, a = [];
+  for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
+    if (!dr && !dc) continue;
+    const nr=r+dr, nc=c+dc;
+    if (nr>=0 && nr<4 && nc>=0 && nc<4) a.push(nr*4+nc);
+  }
+  return a;
+}
+function wordPts(w) {
+  const n=w.length;
+  if(n<=2)return 0; if(n<=4)return 1; if(n===5)return 2;
+  if(n===6)return 3; if(n===7)return 5; return 11;
+}
 
-// ─── ADJACENCY ────────────────────────────────────────────────────────────────
-function adj(i){const r=Math.floor(i/4),c=i%4,a=[];
-  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
-    if(!dr&&!dc)continue;const nr=r+dr,nc=c+dc;
-    if(nr>=0&&nr<4&&nc>=0&&nc<4)a.push(nr*4+nc);}return a;}
+// ─── Word list ────────────────────────────────────────────────────────────────
+const WORDS = new Set(`ace aced aces ache ached aches acre acres act acted acts add adds aide aids aim aimed aims air aired airs ale ales aloe also alto altos amen amend amps and ands ane anes ante anted antes ants ape aped apes arch arcs are area areas ark arks arm armed arms art arts ash ate atop aunt aunts avid awed axes bade bag bags bale bales bane banes bar bare bared barn barns bars base based bash bat bate bath baths bats bay bays bead beam bean beans beat beats bed beds best bet bide bile bins bird birds bite bled blot blue blues boil bond bone bones bore bored bores born both brag bran brew brim brine buck bud buds bug bugs bulk bull bun buns bur burn burns bus bush but bye cage cages cane canes cape capes car card cards care cared cares carp cart carts cast cave caves cell cells cent clad clam clap claw claws clay clop clot coat coats code codes coil coils cold cope coped copes cord cords core cored corn cot cots crab cram crane cranes crap crave crew crop cub cubs cud cup cups curb cure cured cures cute dab dabs dale damp dare dares dark dart date dated deal dean dear deck deed den dens dew dig din dine dined ding dire dirt dog dogs dole done dose dove down drip drop drug dry dub duck ducks due duel duels dug dune dust each earn ease eased edit elms emit end ends even face faced fade fake fame fare fared farm fast fate fated feat feel fend fern fest fib find fine fined fire fired fish fist fix flag flap flat flaw flea flex flip flop flow foam foe foes fold fond ford fore form fort foul fume gain gale game gamed gap garb gate gave gaze gel gift gild girl give given glad glade glam glare glean gleam glide globe glow glue goal goad goat gore gown grab grade gram grind grit groan grove grub gulf gust hale halt hare harm haste hate heal heap hear heard heat help herd hide hint hire hold hole home hose host hurl idea idle inch into iris isle jab jade jag jam jest join jot jump keen keep kick kids kill kin kind kite knob knot lace lack lad lade lane lark last laud laze lead leak lean leap left lend lens lid lids lift lime line link lion lips list live lobe lock loft long lore lose lost lure lush mace mail male mall mane map mare mark mars mast mate maze meal mean meat meet mend mesa mice mind mine miner mint mire mode mole more morn mote mule nail near need nick nit node nods nose note noted nude oak oar oars oboe oil omen one oral orb ores paced page paid pail pain pair pale palm pane pare park parse part paste path pave pays peak peal pear peat peel peer pens pest pets pike pine pined pint pipe pith plan plant plea plead plod plot plug plum pond pore port post pout prey pull pulp pulse pump pure push quit race raft rage rags rail rain rake ramp rang rank rare rate rave real reap reed reel rend rent rest ride rim rinse rise rite road roam roar robe rode role rope rose rude rule rush rust safe sail sale salt same sand sane sang save seal seam seep self send sent serf shed shin shod shoe shop shot shun side silk silo silt sink site size skip slim slid slip slot slow slug smear smoke snag snap snare soft soil sole sort soul span spar sped spin spite spot spur stab stain stake stem step stew stir stop store strip stub stud sue sure swam swear tack tad tale tall tan tape tart task teak team teal tear tell tend term test thin tide tile tilt time toad toll tore torn tote tow town trace train trap trek trim trip true tuck tune ugly undo vain vale vary vast veil vein verb vice vine vow wade waft wage wail wane ward ware warn warp wart wave wear well went wide wile wilt wind wine wink word wore worn wrap wren yard yell yore zeal zone zoom`.split(' '));
 
-function canPath(board,word){
-  const L=board.map(l=>l==='Q'?'QU':l),up=word.toUpperCase();
-  function dfs(i,rem,vis){
-    if(!rem)return true;
-    for(const n of adj(i)){if(!vis.has(n)&&rem.startsWith(L[n])){
-      vis.add(n);if(dfs(n,rem.slice(L[n].length),vis))return true;vis.delete(n);}}
-    return false;}
-  for(let i=0;i<16;i++){const l=L[i];if(up.startsWith(l)){const v=new Set([i]);if(dfs(i,up.slice(l.length),v))return true;}}
-  return false;}
-
-function pts(w){const n=w.length;if(n<=2)return 0;if(n<=4)return 1;if(n===5)return 2;if(n===6)return 3;if(n===7)return 5;return 11;}
-
-// ─── STATE ────────────────────────────────────────────────────────────────────
-let G={};          // game object (mirrored on JSONBin)
-let binId='';      // JSONBin bin ID
-let isHost=false;
-let myKey='';      // 'p1' or 'p2'
-let oppKey='';
-
+// ─── State ────────────────────────────────────────────────────────────────────
+let G={}, myRole='', oppRole='', gameCode='', curRound=0;
 let sel=[], curWord='', roundSet=new Set();
 let timerIv=null, pollIv=null, timeLeft=120;
 
-// ─── UI HELPERS ───────────────────────────────────────────────────────────────
-function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');}
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2600);
+}
+function setBtn(id, busy, label) {
+  const b = document.getElementById(id);
+  b.disabled = busy;
+  b.innerHTML = busy ? `<span class="spin"></span>${label}` : label;
+}
+function mkDots(elId, cur) {
+  document.getElementById(elId).innerHTML = [0,1,2].map(i =>
+    `<div class="dot ${i<cur?'done':i===cur?'cur':''}"></div>`).join('');
+}
 
-function toast(msg){const t=document.getElementById('toast');t.textContent=msg;
-  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+document.getElementById('cfg-url').value = SERVER;
+if (SERVER) show('s-home');
 
-function dots(elId,cur){
-  document.getElementById(elId).innerHTML=[0,1,2].map(i=>
-    `<div class="round-dot ${i<cur?'done':i===cur?'current':''}"></div>`).join('');}
+// ─── Create game ──────────────────────────────────────────────────────────────
+function goCreate() { show('s-create'); }
+function goJoin()   { show('s-join');   }
 
-// ─── CREATE GAME ──────────────────────────────────────────────────────────────
-function goCreate(){show('s-create');}
-function goJoin(){show('s-join');}
-
-async function createGame(){
-  const name=document.getElementById('create-name').value.trim();
-  if(!name){toast('Enter your name');return;}
-  const mins=parseInt(document.getElementById('timer-range').value);
-
-  // Show loading
-  const btn=document.querySelector('#s-create .btn-primary');
-  btn.textContent='Creating…';btn.disabled=true;
-
-  const gameData={
-    timerMins:mins,
-    boards:[rollBoard(),rollBoard(),rollBoard()],
-    p1:{name,scores:[null,null,null],words:[[],[],[]],done:[false,false,false]},
-    p2:{name:'',scores:[null,null,null],words:[[],[],[]],done:[false,false,false]},
-    hostStarted:false,
-    created:Date.now()
-  };
-
-  try{
-    binId=await binCreate(gameData);
-    if(!binId)throw new Error('no id');
-    G=gameData; isHost=true; myKey='p1'; oppKey='p2';
-    // Store in sessionStorage for page refreshes
-    sessionStorage.setItem('lf_bin',binId);
-    sessionStorage.setItem('lf_key',myKey);
-
-    document.getElementById('lobby-code').textContent=binId.slice(-6).toUpperCase();
-    document.getElementById('lobby-eye').textContent='waiting for friend';
-    document.getElementById('lobby-title').textContent='Share the code';
+async function createGame() {
+  const name = document.getElementById('c-name').value.trim();
+  const mins = parseInt(document.getElementById('c-mins').value);
+  if (!name) { toast('Enter your name first'); return; }
+  setBtn('btn-create', true, 'Creating…');
+  try {
+    const res = await api('POST', '/game', {
+      name, timerMins: mins,
+      boards: [rollBoard(), rollBoard(), rollBoard()]
+    });
+    G = res.game; gameCode = res.code; myRole = 'p1'; oppRole = 'p2';
+    document.getElementById('l-code').textContent  = res.code;
+    document.getElementById('l-eye').textContent   = 'waiting for friend';
+    document.getElementById('l-title').textContent = 'Share the code';
+    document.getElementById('l-msg').textContent   = 'Waiting for your friend to join…';
+    document.getElementById('btn-start').style.display = 'none';
     show('s-lobby');
     pollLobby();
-  }catch(e){
-    toast('Could not create game — check your connection');
-  }finally{btn.textContent='Create & get code';btn.disabled=false;}
+  } catch(e) { toast('Server error: ' + e.message); }
+  finally { setBtn('btn-create', false, 'Create &amp; get code'); }
 }
 
-function copyCode(){
-  const code=document.getElementById('lobby-code').textContent;
-  navigator.clipboard.writeText(code).then(()=>toast('Code copied!')).catch(()=>toast('Code: '+code));}
+function copyCode() {
+  const c = document.getElementById('l-code').textContent;
+  navigator.clipboard.writeText(c).then(() => toast('Code copied!')).catch(() => toast('Code: ' + c));
+}
+function leaveLobby() { clearInterval(pollIv); show('s-home'); }
 
-function cancelLobby(){clearInterval(pollIv);show('s-home');}
+function pollLobby() {
+  pollIv = setInterval(async () => {
+    try {
+      const g = await api('GET', '/game/' + gameCode);
+      G = g;
+      if (g.p2.name) {
+        clearInterval(pollIv);
+        document.getElementById('l-msg').innerHTML = `<strong>${g.p2.name}</strong> joined! Ready to go.`;
+        document.getElementById('btn-start').style.display = 'block';
+      }
+    } catch(e) {}
+  }, 3000);
+}
 
-// Poll until opponent joins
-function pollLobby(){
-  pollIv=setInterval(async()=>{
-    const g=await binRead(binId);
-    if(!g)return;
-    G=g;
-    if(g.p2.name){
-      clearInterval(pollIv);
-      document.getElementById('lobby-status').innerHTML=`<strong>${g.p2.name}</strong> has joined! Ready to start.`;
-      document.getElementById('start-btn').style.display='block';
-    }
-  },3000);}
-
-async function hostStart(){
-  G.hostStarted=true;
-  await binUpdate(binId,G);
+async function hostStart() {
   clearInterval(pollIv);
-  goReady(0);}
+  try { G = await api('POST', '/game/' + gameCode + '/start'); } catch(e) {}
+  goReady(0);
+}
 
-// ─── JOIN GAME ────────────────────────────────────────────────────────────────
-async function joinGame(){
-  const name=document.getElementById('join-name').value.trim();
-  const codeInput=document.getElementById('join-code').value.trim().toUpperCase();
-  if(!name){toast('Enter your name');return;}
-  if(codeInput.length<4){toast('Enter the full 4–6 character code');return;}
-
-  const btn=document.querySelector('#s-join .btn-primary');
-  btn.textContent='Joining…';btn.disabled=true;
-
-  try{
-    // The code is the LAST 6 chars of the bin ID (we show last 6 to user)
-    // We need to find the bin. Since JSONBin doesn't support search,
-    // we store the full binId in sessionStorage on the joining device.
-    // The host should share the full code which we display.
-    // Fallback: try the input as a full bin ID too.
-    let foundId=null, g=null;
-
-    // Try interpreting code as suffix — we stored last 6 chars
-    // We need to search... but JSONBin free doesn't support it.
-    // Instead: show the full bin ID as the code (24 chars is too long)
-    // Better approach: we display the last 8 chars, user enters those,
-    // and we stored a lookup in a MASTER bin.
-    // SIMPLEST: store a lookup bin at a fixed known bin ID.
-    // We'll use a well-known "directory" bin approach.
-    // On create, we write {CODE: binId} to a directory bin.
-    // On join, we read the directory bin and look up the code.
-
-    // For simplicity and reliability, let's just use the full bin ID as the code
-    // but display it nicely. Actually — let's just make the code the bin ID directly.
-    // We show it as the last 8 hex chars which is plenty unique.
-    // User enters those 8 chars.
-
-    // Try the code as-is first (it might be a stored full id)
-    const stored=sessionStorage.getItem('lf_dir_'+codeInput);
-    if(stored){foundId=stored; g=await binRead(stored);}
-
-    // If not found locally, try using the code as the bin id directly
-    if(!g){
-      // Attempt direct lookup using directory bin
-      g = await lookupByCode(codeInput);
-      if(g) foundId = g._binId;
-    }
-
-    if(!g||!foundId){toast('Game not found — check the code');return;}
-
-    if(g.p2.name && g.p2.name!==name){toast('Game already full');return;}
-
-    binId=foundId;
-    G=g; isHost=false; myKey='p2'; oppKey='p1';
-    G.p2.name=name;
-    await binUpdate(binId,G);
-
-    sessionStorage.setItem('lf_bin',binId);
-    sessionStorage.setItem('lf_key',myKey);
-
-    // Wait for host to start
-    document.getElementById('lobby-code').textContent=codeInput;
-    document.getElementById('lobby-eye').textContent='joined game';
-    document.getElementById('lobby-title').textContent='Waiting to start';
-    document.getElementById('lobby-status').innerHTML=`<span class="pulse"></span><span>Waiting for ${G.p1.name} to start…</span>`;
-    document.getElementById('start-btn').style.display='none';
+// ─── Join game ────────────────────────────────────────────────────────────────
+async function joinGame() {
+  const name = document.getElementById('j-name').value.trim();
+  const code = document.getElementById('j-code').value.trim().toUpperCase();
+  if (!name) { toast('Enter your name'); return; }
+  if (code.length !== 5) { toast('Code is 5 characters'); return; }
+  setBtn('btn-join', true, 'Joining…');
+  try {
+    G = await api('POST', '/game/' + code + '/join', { name });
+    gameCode = code; myRole = 'p2'; oppRole = 'p1';
+    document.getElementById('l-code').textContent   = code;
+    document.getElementById('l-eye').textContent    = 'joined!';
+    document.getElementById('l-title').textContent  = `Game with ${G.p1.name}`;
+    document.getElementById('l-msg').textContent    = `Waiting for ${G.p1.name} to start…`;
+    document.getElementById('btn-start').style.display = 'none';
     show('s-lobby');
     pollForStart();
-  }catch(e){
-    toast('Could not join — check your connection');
-  }finally{btn.textContent='Join game';btn.disabled=false;}
+  } catch(e) {
+    toast(e.message === 'game not found' ? 'Game not found — check the code' : e.message);
+  } finally { setBtn('btn-join', false, 'Join game'); }
 }
 
-// ─── DIRECTORY BIN SYSTEM ─────────────────────────────────────────────────────
-// We keep one "directory" bin that maps short codes → bin IDs
-// This bin ID is hardcoded — create it once below.
-// On first run the directory is auto-created and its ID saved in localStorage.
-
-let DIR_BIN_ID = localStorage.getItem('lf_dir_bin') || '';
-
-async function ensureDirectory(){
-  if(DIR_BIN_ID) return;
-  // Create a new directory bin
-  const id = await binCreate({codes:{}});
-  if(id){DIR_BIN_ID=id;localStorage.setItem('lf_dir_bin',id);}
+function pollForStart() {
+  pollIv = setInterval(async () => {
+    try {
+      const g = await api('GET', '/game/' + gameCode);
+      G = g;
+      if (g.hostStarted) { clearInterval(pollIv); goReady(0); }
+    } catch(e) {}
+  }, 3000);
 }
 
-async function registerCode(code, binId){
-  await ensureDirectory();
-  if(!DIR_BIN_ID) return;
-  try{
-    const d = await binRead(DIR_BIN_ID);
-    const dir = d || {codes:{}};
-    dir.codes[code] = binId;
-    await binUpdate(DIR_BIN_ID, dir);
-    // Also cache locally
-    sessionStorage.setItem('lf_dir_'+code, binId);
-  }catch(e){}
-}
-
-async function lookupByCode(code){
-  // Check local cache first
-  const cached = sessionStorage.getItem('lf_dir_'+code);
-  if(cached){
-    const g = await binRead(cached);
-    if(g){g._binId=cached;return g;}
-  }
-  // Check directory bin
-  if(!DIR_BIN_ID){
-    // Maybe the other player's DIR_BIN_ID is in the game somehow
-    // Fallback: can't find it
-    return null;
-  }
-  try{
-    const d = await binRead(DIR_BIN_ID);
-    if(d && d.codes && d.codes[code]){
-      const id = d.codes[code];
-      sessionStorage.setItem('lf_dir_'+code, id);
-      const g = await binRead(id);
-      if(g){g._binId=id;return g;}
-    }
-  }catch(e){}
-  return null;
-}
-
-// ─── REVISED CREATE (uses directory) ─────────────────────────────────────────
-// Patch createGame to register the code
-const _origCreate = createGame;
-// We'll override inline below with the corrected version.
-
-// Override createGame to use directory
-async function createGame(){
-  const name=document.getElementById('create-name').value.trim();
-  if(!name){toast('Enter your name');return;}
-  const mins=parseInt(document.getElementById('timer-range').value);
-
-  const btn=document.querySelector('#s-create .btn-primary');
-  btn.textContent='Creating…';btn.disabled=true;
-
-  const gameData={
-    timerMins:mins,
-    boards:[rollBoard(),rollBoard(),rollBoard()],
-    p1:{name,scores:[null,null,null],words:[[],[],[]],done:[false,false,false]},
-    p2:{name:'',scores:[null,null,null],words:[[],[],[]],done:[false,false,false]},
-    hostStarted:false,
-    created:Date.now()
-  };
-
-  try{
-    await ensureDirectory();
-    binId=await binCreate(gameData);
-    if(!binId)throw new Error('no id');
-    G=gameData; isHost=true; myKey='p1'; oppKey='p2';
-
-    // Generate a short readable code
-    const shortCode = genShortCode();
-    gameData.shortCode = shortCode;
-    await binUpdate(binId, gameData);
-    await registerCode(shortCode, binId);
-
-    // Share the short code AND also tell user the DIR bin ID for their friend
-    // Actually we need the friend to have the same DIR_BIN_ID.
-    // We embed it in the game object.
-    gameData.dirBin = DIR_BIN_ID;
-    await binUpdate(binId, gameData);
-    G = gameData;
-
-    sessionStorage.setItem('lf_bin',binId);
-    sessionStorage.setItem('lf_key',myKey);
-    sessionStorage.setItem('lf_dir_'+shortCode, binId);
-
-    document.getElementById('lobby-code').textContent=shortCode;
-    document.getElementById('lobby-eye').textContent='waiting for friend';
-    document.getElementById('lobby-title').textContent='Share the code';
-    show('s-lobby');
-    pollLobby();
-  }catch(e){
-    toast('Could not create game — check your connection');
-    console.error(e);
-  }finally{btn.textContent='Create & get code';btn.disabled=false;}
-}
-
-function genShortCode(){
-  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let c='';for(let i=0;i<5;i++)c+=chars[Math.floor(Math.random()*chars.length)];
-  return c;}
-
-// ─── REVISED JOIN (uses directory bin from game object) ───────────────────────
-async function joinGame(){
-  const name=document.getElementById('join-name').value.trim();
-  const code=document.getElementById('join-code').value.trim().toUpperCase().replace(/\s/g,'');
-  if(!name){toast('Enter your name');return;}
-  if(!code){toast('Enter the game code');return;}
-
-  const btn=document.querySelector('#s-join .btn-primary');
-  btn.textContent='Joining…';btn.disabled=true;
-
-  try{
-    // 1. Check local session cache
-    let foundId=sessionStorage.getItem('lf_dir_'+code), g=null;
-
-    // 2. If not cached, try local DIR_BIN
-    if(!foundId && DIR_BIN_ID){
-      const d=await binRead(DIR_BIN_ID);
-      if(d&&d.codes&&d.codes[code]){foundId=d.codes[code];}
-    }
-
-    // 3. If still not found, can't proceed — guide user
-    if(!foundId){
-      // Try the code itself as a direct bin id (fallback)
-      toast('Code not found. Make sure you enter exactly what your friend shared.');
-      return;
-    }
-
-    g=await binRead(foundId);
-    if(!g){toast('Game not found or expired');return;}
-
-    // Sync our directory bin with the host's
-    if(g.dirBin && g.dirBin!==DIR_BIN_ID){
-      DIR_BIN_ID=g.dirBin;
-      localStorage.setItem('lf_dir_bin',DIR_BIN_ID);
-    }
-
-    if(g.p2.name && g.p2.name!==name){toast('Game already has 2 players');return;}
-
-    binId=foundId; G=g; isHost=false; myKey='p2'; oppKey='p1';
-    G.p2.name=name;
-    await binUpdate(binId,G);
-
-    sessionStorage.setItem('lf_bin',binId);
-    sessionStorage.setItem('lf_key',myKey);
-    sessionStorage.setItem('lf_dir_'+code,binId);
-
-    document.getElementById('lobby-code').textContent=code;
-    document.getElementById('lobby-eye').textContent='joined!';
-    document.getElementById('lobby-title').textContent=`Game with ${G.p1.name}`;
-    document.getElementById('lobby-status').innerHTML=`<span class="pulse"></span><span>Waiting for ${G.p1.name} to start the first round…</span>`;
-    document.getElementById('start-btn').style.display='none';
-    show('s-lobby');
-    pollForStart();
-  }catch(e){
-    toast('Could not join — check your connection');
-    console.error(e);
-  }finally{btn.textContent='Join game';btn.disabled=false;}
-}
-
-function pollForStart(){
-  pollIv=setInterval(async()=>{
-    const g=await binRead(binId);
-    if(!g)return;
-    G=g;
-    if(g.hostStarted){clearInterval(pollIv);goReady(0);}
-  },3000);}
-
-// ─── READY SCREEN ─────────────────────────────────────────────────────────────
-function goReady(r){
-  clearInterval(pollIv);
-  G.currentRound=r;
-  document.getElementById('ready-eye').textContent=`Round ${r+1} of 3`;
-  document.getElementById('ready-h').textContent=`Round ${r+1}`;
-  document.getElementById('ready-desc').textContent=
-    `You have ${G.timerMins} minute${G.timerMins>1?'s':''} to find as many words as you can. `+
-    `You and ${G[oppKey].name||'your friend'} are playing the same board — `+
-    `but each whenever you're ready. Find words unique to you for the best score!`;
-  dots('ready-dots',r);
+// ─── Ready screen ─────────────────────────────────────────────────────────────
+function goReady(r) {
+  curRound = r;
+  const opp = G[oppRole].name || 'your friend';
+  document.getElementById('r-eye').textContent   = `Round ${r+1} of 3`;
+  document.getElementById('r-title').textContent = `Round ${r+1}`;
+  document.getElementById('r-desc').textContent  =
+    `You have ${G.timerMins} minute${G.timerMins>1?'s':''} to find as many words as possible. ` +
+    `You and ${opp} are playing the same board — each on your own time.`;
+  mkDots('r-dots', r);
   show('s-ready');
 }
 
-// ─── BOARD ────────────────────────────────────────────────────────────────────
-function startRound(){
-  const r=G.currentRound;
-  sel=[];curWord='';roundSet=new Set();
-  timeLeft=G.timerMins*60;
-
-  document.getElementById('board-badge').textContent=`Round ${r+1} of 3`;
-  document.getElementById('cur-score').textContent='0';
-  document.getElementById('cur-words').textContent='0';
-  document.getElementById('word-disp').textContent='tap letters · drag to connect';
-  document.getElementById('word-disp').className='word-display';
-  document.getElementById('word-list').innerHTML='<span class="empty-note">Words will appear here</span>';
-
-  buildGrid(G.boards[r]);
+// ─── Board ────────────────────────────────────────────────────────────────────
+function startRound() {
+  sel=[]; curWord=''; roundSet=new Set();
+  timeLeft = G.timerMins * 60;
+  document.getElementById('b-badge').textContent = `Round ${curRound+1} of 3`;
+  document.getElementById('b-score').textContent = '0';
+  document.getElementById('b-words').textContent = '0';
+  document.getElementById('wdisp').textContent   = 'tap letters · drag to connect';
+  document.getElementById('wdisp').className     = 'wdisp';
+  document.getElementById('wlist').innerHTML     = '<span class="enote">Your words will appear here</span>';
+  buildGrid(G.boards[curRound]);
   tickTimer();
   show('s-board');
-  timerIv=setInterval(()=>{timeLeft--;tickTimer();if(timeLeft<=0)endRound();},1000);
+  timerIv = setInterval(() => { timeLeft--; tickTimer(); if (timeLeft <= 0) endRound(); }, 1000);
 }
 
-function buildGrid(board){
-  const g=document.getElementById('grid');g.innerHTML='';
-  board.forEach((L,i)=>{
-    const d=document.createElement('div');
-    d.className='cell';d.textContent=L==='Q'?'Qu':L;d.dataset.i=i;
-    d.addEventListener('pointerdown',e=>{e.preventDefault();startCell(i);});
-    d.addEventListener('pointerenter',e=>{if(e.buttons>0)addCell(i);});
-    d.addEventListener('pointerup',e=>{e.preventDefault();submitWord();});
+function buildGrid(board) {
+  const g = document.getElementById('grid');
+  g.innerHTML = '';
+  board.forEach((L, i) => {
+    const d = document.createElement('div');
+    d.className = 'cell';
+    d.textContent = L === 'Q' ? 'Qu' : L;
+    d.dataset.i = i;
+    d.addEventListener('pointerdown', e => { e.preventDefault(); startCell(i); });
+    d.addEventListener('pointerenter', e => { if (e.buttons > 0) addCell(i); });
+    d.addEventListener('pointerup',   e => { e.preventDefault(); submitWord(); });
     g.appendChild(d);
   });
-  g.addEventListener('pointerup',()=>submitWord());
+  g.addEventListener('pointerup', () => submitWord());
 }
 
-function startCell(i){sel=[i];redrawWord();hilite();}
-function addCell(i){
-  if(!sel.length)return;
-  if(sel.includes(i)){
-    const idx=sel.indexOf(i);
-    if(idx===sel.length-2){sel.pop();redrawWord();hilite();}
-    return;}
-  if(adj(sel[sel.length-1]).includes(i)){sel.push(i);redrawWord();hilite();}
+function startCell(i) { sel = [i]; redraw(); hilite(); }
+function addCell(i) {
+  if (!sel.length) return;
+  if (sel.includes(i)) {
+    if (sel.indexOf(i) === sel.length-2) { sel.pop(); redraw(); hilite(); }
+    return;
+  }
+  if (adjCells(sel[sel.length-1]).includes(i)) { sel.push(i); redraw(); hilite(); }
 }
-
-function redrawWord(){
-  const board=G.boards[G.currentRound];
-  curWord=sel.map(i=>board[i]==='Q'?'QU':board[i]).join('');
-  const el=document.getElementById('word-disp');
-  el.textContent=curWord||'tap letters · drag to connect';
-  if(!curWord){el.className='word-display';return;}
-  const valid=curWord.length>=3&&W.has(curWord.toLowerCase())&&!roundSet.has(curWord);
-  el.className='word-display'+(valid?' valid':'');
+function redraw() {
+  const board = G.boards[curRound];
+  curWord = sel.map(i => board[i]==='Q' ? 'QU' : board[i]).join('');
+  const el = document.getElementById('wdisp');
+  el.textContent = curWord || 'tap letters · drag to connect';
+  if (!curWord) { el.className = 'wdisp'; return; }
+  const valid = curWord.length>=3 && WORDS.has(curWord.toLowerCase()) && !roundSet.has(curWord);
+  el.className = 'wdisp' + (valid ? ' ok' : '');
 }
-
-function hilite(){
-  document.querySelectorAll('.cell').forEach((c,i)=>{
-    c.className='cell';
-    if(sel.includes(i)) c.className=i===sel[sel.length-1]?'cell selected':'cell path';
+function hilite() {
+  document.querySelectorAll('.cell').forEach((c,i) => {
+    c.className = 'cell';
+    if (sel.includes(i)) c.className = i===sel[sel.length-1] ? 'cell sel' : 'cell path';
   });
 }
-
-function submitWord(){
-  if(!sel.length)return;
-  const board=G.boards[G.currentRound];
-  const w=sel.map(i=>board[i]==='Q'?'QU':board[i]).join('');
-  if(w.length>=3&&W.has(w.toLowerCase())&&!roundSet.has(w)){
+function submitWord() {
+  if (!sel.length) return;
+  const board = G.boards[curRound];
+  const w = sel.map(i => board[i]==='Q' ? 'QU' : board[i]).join('');
+  if (w.length>=3 && WORDS.has(w.toLowerCase()) && !roundSet.has(w)) {
     roundSet.add(w);
-    const p=pts(w);
-    const cur=parseInt(document.getElementById('cur-score').textContent)+p;
-    document.getElementById('cur-score').textContent=cur;
-    document.getElementById('cur-words').textContent=roundSet.size;
+    const pts = wordPts(w);
+    const cur = parseInt(document.getElementById('b-score').textContent) + pts;
+    document.getElementById('b-score').textContent = cur;
+    document.getElementById('b-words').textContent = roundSet.size;
     addChip(w);
-    const copy=[...sel];
-    copy.forEach(i=>{const c=document.querySelector(`.cell[data-i="${i}"]`);if(c)c.className='cell flash';});
-    setTimeout(()=>{sel=[];hilite();redrawWord();},320);
-  }else{
-    if(w.length>=3&&!W.has(w.toLowerCase())){
-      const el=document.getElementById('word-disp');
-      el.className='word-display invalid shake';
-      setTimeout(()=>el.className='word-display',380);
+    const snap = [...sel];
+    snap.forEach(i => { const c=document.querySelector(`.cell[data-i="${i}"]`); if(c) c.className='cell flash'; });
+    setTimeout(() => { sel=[]; hilite(); redraw(); }, 300);
+  } else {
+    if (w.length>=3 && !WORDS.has(w.toLowerCase())) {
+      const el = document.getElementById('wdisp');
+      el.className = 'wdisp bad shake';
+      setTimeout(() => el.className='wdisp', 350);
     }
-    sel=[];hilite();redrawWord();
+    sel=[]; hilite(); redraw();
   }
 }
-
-function addChip(w){
-  const list=document.getElementById('word-list');
-  const en=list.querySelector('.empty-note');if(en)en.remove();
-  const ch=document.createElement('span');
-  ch.className='word-chip fresh popin';ch.textContent=w;
+function addChip(w) {
+  const list = document.getElementById('wlist');
+  const en = list.querySelector('.enote'); if (en) en.remove();
+  const ch = document.createElement('span');
+  ch.className = 'chip fresh popin'; ch.textContent = w;
   list.prepend(ch);
-  setTimeout(()=>ch.classList.remove('fresh'),1800);
+  setTimeout(() => ch.classList.remove('fresh'), 2000);
+}
+function tickTimer() {
+  const total = G.timerMins*60, pct = timeLeft/total;
+  const circ = 2*Math.PI*20, off = circ*(1-pct);
+  const ring = document.getElementById('ring');
+  ring.style.strokeDashoffset = off;
+  ring.style.stroke = timeLeft<=20 ? 'var(--red)' : timeLeft<=60 ? 'var(--gold)' : 'var(--acc)';
+  const m=Math.floor(timeLeft/60), s=timeLeft%60;
+  document.getElementById('t-txt').textContent = `${m}:${s.toString().padStart(2,'0')}`;
 }
 
-function tickTimer(){
-  const total=G.timerMins*60,pct=timeLeft/total;
-  const circ=2*Math.PI*19, off=circ*(1-pct);
-  const ring=document.getElementById('ring');
-  ring.style.strokeDashoffset=off;
-  ring.style.stroke=timeLeft<=30?'#ff5f5f':timeLeft<=60?'#ffcc44':'var(--accent)';
-  const m=Math.floor(timeLeft/60),s=timeLeft%60;
-  document.getElementById('timer-txt').textContent=`${m}:${s.toString().padStart(2,'0')}`;
-}
-
-async function endRound(){
+// ─── End round ────────────────────────────────────────────────────────────────
+async function endRound() {
   clearInterval(timerIv);
-  const r=G.currentRound;
-  const score=parseInt(document.getElementById('cur-score').textContent);
-  const words=Array.from(roundSet);
-
-  // Save to JSONBin
-  const g=await binRead(binId)||G;
-  g[myKey].scores[r]=score;
-  g[myKey].words[r]=words;
-  g[myKey].done[r]=true;
-  G=g;
-  await binUpdate(binId,G);
-
-  showRoundResult(r);
+  const score = parseInt(document.getElementById('b-score').textContent);
+  const words = Array.from(roundSet);
+  try {
+    G = await api('POST', `/game/${gameCode}/round/${curRound}`, { player: myRole, score, words });
+  } catch(e) { toast('Could not save round — check connection'); }
+  showRoundResult();
 }
 
-// ─── ROUND RESULT ─────────────────────────────────────────────────────────────
-async function showRoundResult(r){
-  const g=await binRead(binId)||G;G=g;
-  document.getElementById('rr-eye').textContent=`Round ${r+1} complete`;
-  dots('rr-dots',r);
+// ─── Round result ─────────────────────────────────────────────────────────────
+async function showRoundResult() {
+  try { G = await api('GET', '/game/' + gameCode); } catch(e) {}
+  const r = curRound;
+  document.getElementById('rr-eye').textContent = `Round ${r+1} complete`;
+  mkDots('rr-dots', r);
 
-  const myScore=G[myKey].scores[r]??0;
-  const oppScore=G[oppKey].scores[r];
-  const oppDone=G[oppKey].done[r];
-  const oppName=G[oppKey].name||'Friend';
+  const myScore  = G[myRole].scores[r]  ?? 0;
+  const oppScore = G[oppRole].scores[r];
+  const oppDone  = G[oppRole].done[r];
+  const oppName  = G[oppRole].name || 'Friend';
 
-  const iWin=oppDone&&myScore>oppScore;
-  const theyWin=oppDone&&oppScore>myScore;
-  const tie=oppDone&&myScore===oppScore;
+  const iWin    = oppDone && myScore > oppScore;
+  const theyWin = oppDone && oppScore > myScore;
+  const tie     = oppDone && myScore === oppScore;
 
-  document.getElementById('rr-grid').innerHTML=`
-    <div class="result-card${iWin?' winner':''}">
-      <div class="player-name">You</div>
-      <div class="player-score">${myScore}</div>
+  document.getElementById('rr-grid').innerHTML = `
+    <div class="rcard ${iWin?'win':''}">
+      <div class="pname">You</div>
+      <div class="pscore">${myScore}</div>
       ${iWin?'<div class="badge">+1 round</div>':tie?'<div class="badge tie">Tie</div>':''}
     </div>
-    <div class="result-card${theyWin?' winner':''}">
-      <div class="player-name">${oppName}</div>
-      <div class="${oppDone?'player-score blue':'player-score dim'}">${oppDone?oppScore:'Not yet'}</div>
-      ${theyWin?'<div class="badge" style="background:var(--blue);color:#0d0d0f">+1 round</div>':tie?'<div class="badge tie">Tie</div>':''}
+    <div class="rcard ${theyWin?'win':''}">
+      <div class="pname">${oppName}</div>
+      <div class="${oppDone?'pscore bl':'pscore dim'}">${oppDone?oppScore:'Not yet'}</div>
+      ${theyWin?'<div class="badge bl">+1 round</div>':tie?'<div class="badge tie">Tie</div>':''}
     </div>`;
 
-  const last=r===2;
-  const rBtn=document.getElementById('rr-btn');
-  rBtn.textContent=last?'See final results →':`Start Round ${r+2} →`;
-
-  document.getElementById('rr-desc').textContent=last
-    ?(oppDone?'All 3 rounds done! See who won.':'Your friend still needs to play. Check the results now or come back later.')
-    :(oppDone?`Both done with round ${r+1}.`:`${oppName} can play round ${r+1} whenever they're free.`);
-
-  show('s-rresult');
+  const last = r===2;
+  document.getElementById('rr-btn').textContent = last ? 'See final results →' : `Start Round ${r+2} →`;
+  document.getElementById('rr-desc').textContent = last
+    ? (oppDone ? 'All 3 rounds done!' : `${oppName} can still play. Results update when they finish.`)
+    : (oppDone ? `Both done with Round ${r+1}.` : `${oppName} can play this round whenever they're free.`);
+  show('s-rr');
 }
 
-function afterRound(){
-  const r=G.currentRound;
-  if(r<2){G.currentRound=r+1;goReady(r+1);}
-  else showFinal();
+function afterRound() {
+  curRound < 2 ? goReady(curRound+1) : showFinal();
 }
 
-// ─── FINAL ────────────────────────────────────────────────────────────────────
-async function showFinal(){
-  const g=await binRead(binId)||G;G=g;
-  const myTot=(G[myKey].scores||[0,0,0]).map(s=>s??0).reduce((a,b)=>a+b,0);
-  const oppScores=(G[oppKey].scores||[null,null,null]);
-  const oppPlayed=oppScores.some(s=>s!==null);
-  const oppTot=oppScores.map(s=>s??0).reduce((a,b)=>a+b,0);
-  const oppName=G[oppKey].name||'Friend';
+// ─── Final results ────────────────────────────────────────────────────────────
+async function showFinal() {
+  try { G = await api('GET', '/game/' + gameCode); } catch(e) {}
 
-  const headline=!oppPlayed?'Your scores':myTot>oppTot?'You win! 🎉':oppTot>myTot?`${oppName} wins!`:"It's a tie!";
-  document.getElementById('final-h').textContent=headline;
+  const myS     = G[myRole].scores.map(s=>s??0);
+  const oppS    = G[oppRole].scores;
+  const oppPlayed = oppS.some(s=>s!==null);
+  const myTot   = myS.reduce((a,b)=>a+b,0);
+  const oppTot  = oppS.map(s=>s??0).reduce((a,b)=>a+b,0);
+  const oppName = G[oppRole].name || 'Friend';
+  const myName  = G[myRole].name  || 'You';
 
-  const myBreak=(G[myKey].scores||[0,0,0]).map(s=>s??0).join(' + ');
-  const oppBreak=oppPlayed?oppScores.map(s=>s??'?').join(' + '):'—';
+  const hl = !oppPlayed ? 'Your scores' :
+    myTot>oppTot ? 'You win! 🎉' : oppTot>myTot ? `${oppName} wins!` : "It's a tie!";
+  document.getElementById('f-title').textContent = hl;
 
-  document.getElementById('final-board').innerHTML=`
-    <div class="final-row${!oppPlayed||myTot>=oppTot?' you':''}">
-      <div><div class="final-name">You (${G[myKey].name})</div>
-        <div class="final-pts">${myBreak} = ${myTot} pts</div></div>
-      <div class="final-score">${myTot}</div>
+  document.getElementById('f-board').innerHTML = `
+    <div class="frow ${!oppPlayed||myTot>=oppTot?'you':''}">
+      <div>
+        <div class="fname">${myName} (you)</div>
+        <div class="fbreak">${myS.join(' + ')} = ${myTot} pts</div>
+      </div>
+      <div class="fscore">${myTot}</div>
     </div>
-    <div class="final-row${oppPlayed&&oppTot>myTot?' opp':''}">
-      <div><div class="final-name">${oppName}</div>
-        <div class="final-pts">${oppBreak}${oppPlayed?' = '+oppTot+' pts':''}</div></div>
-      <div class="final-score" style="color:var(--blue)">${oppPlayed?oppTot:'—'}</div>
+    <div class="frow ${oppPlayed&&oppTot>myTot?'opp':''}">
+      <div>
+        <div class="fname">${oppName}</div>
+        <div class="fbreak">${oppPlayed?oppS.map(s=>s??'?').join(' + ')+' = '+oppTot+' pts':'Not played yet'}</div>
+      </div>
+      <div class="fscore" style="color:var(--blue)">${oppPlayed?oppTot:'—'}</div>
     </div>`;
 
-  // Round tabs
-  const tabs=document.getElementById('round-tabs');
-  const reviews=document.getElementById('round-reviews');
-  tabs.innerHTML='';reviews.innerHTML='';
+  const tabs    = document.getElementById('f-tabs');
+  const reviews = document.getElementById('f-reviews');
+  tabs.innerHTML=''; reviews.innerHTML='';
 
-  for(let r=0;r<3;r++){
-    const tb=document.createElement('button');
-    tb.className='tab-btn'+(r===0?' active':'');
-    tb.textContent=`Round ${r+1}`;
+  for (let r=0; r<3; r++) {
+    const tb = document.createElement('button');
+    tb.className = 'tabbtn'+(r===0?' on':'');
+    tb.textContent = `Round ${r+1}`;
     const _r=r;
-    tb.onclick=()=>{
-      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-      tb.classList.add('active');
-      document.querySelectorAll('.round-review').forEach(el=>el.classList.remove('active'));
-      document.getElementById(`rv-${_r}`).classList.add('active');};
+    tb.onclick = () => {
+      document.querySelectorAll('.tabbtn').forEach(b=>b.classList.remove('on'));
+      tb.classList.add('on');
+      document.querySelectorAll('.rv').forEach(el=>el.classList.remove('on'));
+      document.getElementById(`rv-${_r}`).classList.add('on');
+    };
     tabs.appendChild(tb);
 
-    const myW=G[myKey].words[r]||[];
-    const oppW=G[oppKey].words[r]||[];
+    const myW  = G[myRole].words[r]  || [];
+    const oppW = G[oppRole].words[r] || [];
     const shared=myW.filter(w=>oppW.includes(w));
-    const myU=myW.filter(w=>!oppW.includes(w));
-    const oppU=oppW.filter(w=>!myW.includes(w));
-    const myPts=G[myKey].scores[r]??0;
-    const oppPts=G[oppKey].scores[r];
+    const myU  =myW.filter(w=>!oppW.includes(w));
+    const oppU =oppW.filter(w=>!myW.includes(w));
+    const myPts  = G[myRole].scores[r]  ?? 0;
+    const oppPts = G[oppRole].scores[r];
 
-    const div=document.createElement('div');
-    div.className='round-review'+(r===0?' active':'');
-    div.id=`rv-${r}`;
-    div.innerHTML=`<div class="words-compare">
-      <div class="compare-col">
-        <div class="col-head">You — ${myPts}pts</div>
-        ${myU.map(w=>`<span class="w-chip mine">${w}</span>`).join('')}
-        ${shared.map(w=>`<span class="w-chip shared">${w}</span>`).join('')}
-        ${!myW.length?'<span style="font-size:12px;color:var(--muted)">—</span>':''}
+    const div = document.createElement('div');
+    div.className = 'rv'+(r===0?' on':'');
+    div.id = `rv-${r}`;
+    div.innerHTML = `
+      <div class="wcmp">
+        <div>
+          <div class="chead">You — ${myPts} pts</div>
+          ${myU.map(w=>`<span class="wc m">${w}</span>`).join('')}
+          ${shared.map(w=>`<span class="wc s">${w}</span>`).join('')}
+          ${!myW.length?'<span style="font-size:12px;color:var(--muted)">—</span>':''}
+        </div>
+        <div>
+          <div class="chead">${oppName}${oppPts!==null?` — ${oppPts} pts`:''}</div>
+          ${oppU.map(w=>`<span class="wc t">${w}</span>`).join('')}
+          ${shared.map(w=>`<span class="wc s">${w}</span>`).join('')}
+          ${!oppW.length?`<span style="font-size:12px;color:var(--muted)">${oppPts===null?'Not played yet':'—'}</span>`:''}
+        </div>
       </div>
-      <div class="compare-col">
-        <div class="col-head">${oppName}${oppPts!==null?' — '+oppPts+'pts':''}</div>
-        ${oppU.map(w=>`<span class="w-chip theirs">${w}</span>`).join('')}
-        ${shared.map(w=>`<span class="w-chip shared">${w}</span>`).join('')}
-        ${!oppW.length?`<span style="font-size:12px;color:var(--muted)">${oppPts===null?'Not played yet':'—'}</span>`:''}
-      </div>
-    </div>
-    ${shared.length?`<p style="margin-top:8px;font-size:11px;color:var(--muted)">Gray = found by both (cancel out in some variants)</p>`:''}`;
+      ${shared.length?`<p style="margin-top:8px;font-size:11px">Gray words were found by both players</p>`:''}`;
     reviews.appendChild(div);
   }
-
   show('s-final');
 }
-
-// ─── RESUME on reload ─────────────────────────────────────────────────────────
-(async()=>{
-  const savedBin=sessionStorage.getItem('lf_bin');
-  const savedKey=sessionStorage.getItem('lf_key');
-  if(savedBin&&savedKey){
-    // Offer to resume — just silently restore state
-    binId=savedBin; myKey=savedKey; oppKey=myKey==='p1'?'p2':'p1';
-    isHost=myKey==='p1';
-  }
-})();
 </script>
 </body>
 </html>
