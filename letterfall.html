@@ -418,9 +418,14 @@ function cacheCellRects() {
 function cellUnder(x, y) {
   if (!_cellRects) return -1;
   for (let i=0; i<_cellRects.length; i++) {
-    const r=_cellRects[i];
-    // Add a small tolerance (3px) on all sides to help diagonal dragging
-    if (x>=r.left-3 && x<=r.right+3 && y>=r.top-3 && y<=r.bottom+3) return i;
+    const r = _cellRects[i];
+    const marginX = (r.width * 0.25);   // 25% margins
+    const marginY = (r.height * 0.25);
+    const cx1 = r.left + marginX;
+    const cx2 = r.right - marginX;
+    const cy1 = r.top + marginY;
+    const cy2 = r.bottom - marginY;
+    if (x >= cx1 && x <= cx2 && y >= cy1 && y <= cy2) return i;
   }
   return -1;
 }
