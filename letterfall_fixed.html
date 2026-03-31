@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Letterfall</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@800&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0e12;--s1:#17171d;--s2:#22222b;--s3:#2e2e3a;
+  --b1:rgba(255,255,255,0.07);--b2:rgba(255,255,255,0.15);--b3:rgba(255,255,255,0.28);
+  --txt:#f4f1ec;--muted:#8e8b87;
+  --acc:#d4ff47;--acc2:rgba(212,255,71,0.13);--acc3:rgba(212,255,71,0.28);--accdk:#9bc72a;
+  --red:#ff6b6b;--blue:#5ec5ff;--gold:#ffcc44;--green:#3ddc84;
+  --r:14px;--rsm:9px;
+}
+body{background:var(--bg);color:var(--txt);font-family:'Inter',sans-serif;min-height:100dvh;display:flex;align-items:flex-start;justify-content:center;padding:20px 16px 56px;}
+#app{width:100%;max-width:390px;}
+.screen{display:none;flex-direction:column;gap:15px;}
+.screen.on{display:flex;}
+.eye{font-size:11px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;font-weight:500;}
+.logo{font-size:52px;font-weight:800;letter-spacing:-3.5px;line-height:1;color:var(--acc);margin-top:2px;font-family:'Syne',sans-serif;}
+h2{font-size:22px;font-weight:700;letter-spacing:-.3px;}
+p{font-size:14px;color:var(--muted);line-height:1.7;}
+.btn{width:100%;padding:15px 20px;border-radius:var(--r);border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;letter-spacing:.01em;transition:transform .12s,opacity .15s;-webkit-tap-highlight-color:transparent;}
+.btn:active{transform:scale(.96);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-acc{background:var(--acc);color:#0e0e12;}
+.btn-acc:hover:not(:disabled){opacity:.88;}
+.btn-out{background:transparent;color:var(--txt);border:1px solid var(--b2);}
+.btn-out:hover:not(:disabled){background:var(--s2);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--b1);font-size:13px;padding:10px;}
+label{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px;font-weight:500;}
+input[type=text]{width:100%;padding:14px 16px;border-radius:var(--rsm);background:var(--s2);border:1.5px solid var(--b2);color:var(--txt);font-family:'Inter',sans-serif;font-size:16px;font-weight:500;outline:none;transition:border-color .2s;}
+input[type=text]:focus{border-color:var(--acc);}
+input[type=text]::placeholder{color:var(--muted);}
+input[type=range]{width:100%;accent-color:var(--acc);cursor:pointer;}
+.rrow{display:flex;align-items:center;gap:12px;}
+.rval{font-family:'DM Mono',monospace;font-size:14px;color:var(--acc);min-width:44px;}
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:18px;}
+.code-block{background:var(--s2);border:1px solid var(--b2);border-radius:var(--r);padding:24px;text-align:center;}
+.code-big{font-family:'DM Mono',monospace;font-size:46px;font-weight:500;letter-spacing:12px;color:var(--acc);line-height:1;margin:8px 0;}
+.code-hint{font-size:12px;color:var(--muted);}
+.statrow{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted);}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--acc);flex-shrink:0;animation:blink 1.8s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.1}}
+.dots{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--s2);border:1px solid var(--b2);transition:all .35s;}
+.dot.done{background:var(--acc);border-color:var(--acc);}
+.dot.cur{border-color:var(--acc);background:var(--acc2);}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--b1);gap:12px;}
+.setting-row:last-child{border-bottom:none;padding-bottom:0;}
+.setting-label{font-size:14px;font-weight:600;}
+.setting-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.seg{display:flex;gap:4px;flex-shrink:0;}
+.seg-btn{padding:7px 10px;border-radius:8px;border:1px solid var(--b2);background:transparent;color:var(--muted);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .18s;white-space:nowrap;}
+.seg-btn.on{background:var(--acc);color:#0e0e12;border-color:var(--acc);}
+.ghdr{display:flex;align-items:center;justify-content:space-between;}
+.rbadge{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:6px 13px;font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--muted);text-transform:uppercase;}
+.tring{position:relative;width:50px;height:50px;}
+.tring svg{transform:rotate(-90deg);}
+.tr-bg{fill:none;stroke:var(--s2);stroke-width:3.5;}
+.tr-prog{fill:none;stroke:var(--acc);stroke-width:3.5;stroke-linecap:round;transition:stroke-dashoffset 1s linear,stroke .5s;}
+.tr-txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;color:var(--txt);}
+.scorerow{display:flex;align-items:flex-end;justify-content:space-between;}
+.snum{font-size:34px;font-weight:700;color:var(--acc);line-height:1;}
+.slbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px;font-weight:500;}
+#grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;user-select:none;-webkit-user-select:none;touch-action:none;}
+.cell{
+  aspect-ratio:1;border-radius:13px;background:var(--s2);border:1.5px solid var(--b2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;color:var(--txt);
+  transition:background .12s ease,border-color .12s ease,transform .1s ease,color .1s ease,box-shadow .12s ease;
+  position:relative;
+}
+.cell.path{
+  background:#ffffff;border-color:#ffffff;color:#0e0e12;
+}
+.cell.sel{
+  background:#fff;color:#0e0e12;border-color:#fff;transform:scale(1.1);z-index:2;
+  box-shadow:0 0 22px rgba(255,255,255,0.28),0 0 8px rgba(255,255,255,0.15);
+}
+.cell.flash{background:var(--acc);color:#0e0e12;border-color:var(--acc);transform:scale(1.05);}
+.wdisp{background:var(--s2);border:1.5px solid var(--b2);border-radius:var(--rsm);padding:13px 16px;font-family:'DM Mono',monospace;font-size:21px;font-weight:500;letter-spacing:4px;text-align:center;min-height:54px;text-transform:uppercase;color:var(--txt);transition:color .15s,border-color .15s,background .15s;}
+.wdisp.ok{color:var(--acc);border-color:var(--acc);background:rgba(212,255,71,0.07);}
+.wdisp.bad{color:var(--red);border-color:rgba(255,107,107,0.35);}
+.pts-preview{font-size:12px;color:var(--acc);text-align:center;min-height:20px;font-family:'DM Mono',monospace;letter-spacing:.06em;font-weight:500;}
+.wlwrap{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:12px;max-height:120px;overflow-y:auto;}
+.wlist{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:4px 10px;font-family:'DM Mono',monospace;font-size:12px;text-transform:uppercase;color:var(--txt);}
+.chip.fresh{background:var(--acc2);border-color:rgba(212,255,71,0.4);color:var(--acc);}
+.enote{font-size:12px;color:var(--muted);}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;}
+.rcard{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:14px;text-align:center;}
+.pname{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;font-weight:500;}
+.pscore{font-size:34px;font-weight:700;color:var(--acc);line-height:1;}
+.pscore.bl{color:var(--blue);}
+.pscore.dim{font-size:18px;color:var(--muted);}
+.badge{display:inline-block;background:var(--acc);color:#0e0e12;border-radius:6px;padding:3px 9px;font-size:10px;font-weight:700;margin-top:6px;letter-spacing:.04em;}
+.badge.tie{background:var(--gold);}
+.badge.bl{background:var(--blue);color:#0e0e12;}
+.stats-box{background:var(--s2);border:1px solid var(--b2);border-radius:var(--r);padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.stat-item{text-align:center;}
+.stat-val{font-size:24px;font-weight:700;color:var(--acc);line-height:1;}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:3px;font-weight:500;}
+.longest-word{background:var(--s2);border:1px solid var(--b2);border-radius:var(--r);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}
+.lw-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:500;}
+.lw-word{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--gold);text-transform:uppercase;letter-spacing:3px;}
+.frow{display:flex;align-items:center;justify-content:space-between;background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:14px 18px;}
+.frow.you{border-color:var(--acc);}
+.frow.opp{border-color:var(--blue);}
+.fname{font-size:15px;font-weight:600;}
+.fbreak{font-size:12px;color:var(--muted);margin-top:2px;}
+.fscore{font-size:30px;font-weight:700;}
+.frow.you .fscore{color:var(--acc);}
+.frow.opp .fscore{color:var(--blue);}
+.tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.tabbtn{padding:8px 12px;border-radius:9px;border:1px solid var(--b2);background:transparent;color:var(--muted);font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+.tabbtn.on{background:var(--s2);color:var(--txt);border-color:var(--acc);}
+.rv{display:none;}
+.rv.on{display:block;}
+.wcmp{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.chead{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;font-weight:500;}
+.wc{display:inline-block;border-radius:5px;padding:3px 9px;font-family:'DM Mono',monospace;font-size:11px;text-transform:uppercase;margin:2px 2px 0 0;border:1px solid transparent;}
+.wc.m{background:var(--acc2);border-color:rgba(212,255,71,0.35);color:var(--acc);}
+.wc.t{background:rgba(94,197,255,.1);border-color:rgba(94,197,255,.3);color:var(--blue);}
+.wc.s{background:var(--s2);border-color:var(--b2);color:var(--muted);}
+.div{height:1px;background:var(--b1);}
+.players-list{display:flex;flex-direction:column;gap:6px;}
+.player-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--s2);border:1px solid var(--b2);border-radius:10px;font-size:14px;}
+.player-name{font-weight:600;}
+.player-status{font-size:12px;color:var(--muted);}
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--txt);color:var(--bg);padding:11px 24px;border-radius:28px;font-size:13px;font-weight:600;z-index:999;transition:transform .32s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;pointer-events:none;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+.spin{width:22px;height:22px;border:2.5px solid var(--b2);border-top-color:var(--acc);border-radius:50%;animation:rot .7s linear infinite;display:inline-block;vertical-align:middle;margin-right:8px;}
+@keyframes rot{to{transform:rotate(360deg);}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+.shake{animation:shake .3s ease;}
+@keyframes popin{0%{transform:scale(.65);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+.popin{animation:popin .22s ease;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- HOME -->
+<div class="screen on" id="s-home">
+  <div style="padding-top:6px">
+    <div class="eye">multiplayer word game</div>
+    <div class="logo">Letterfall</div>
+  </div>
+  <p>Find words in a 4×4 grid. Play rounds against friends — same board, own phones, any time.</p>
+  <button class="btn btn-acc" onclick="goCreate()">Create a game</button>
+  <button class="btn btn-out" onclick="goJoin()">Join with a code</button>
+  <button class="btn btn-ghost" onclick="show('s-settings')">⚙ Settings</button>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen" id="s-settings">
+  <div><div class="eye">preferences</div><h2>Settings</h2></div>
+  <div class="card">
+    <div class="setting-row">
+      <div><div class="setting-label">Round timer</div><div class="setting-sub">Minutes per round</div></div>
+      <div class="seg" id="seg-timer">
+        <button class="seg-btn" data-val="1" onclick="setSeg('timer',1)">1m</button>
+        <button class="seg-btn on" data-val="2" onclick="setSeg('timer',2)">2m</button>
+        <button class="seg-btn" data-val="3" onclick="setSeg('timer',3)">3m</button>
+        <button class="seg-btn" data-val="5" onclick="setSeg('timer',5)">5m</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-label">Min word length</div><div class="setting-sub">Shortest valid word</div></div>
+      <div class="seg" id="seg-minlen">
+        <button class="seg-btn on" data-val="3" onclick="setSeg('minlen',3)">3</button>
+        <button class="seg-btn" data-val="4" onclick="setSeg('minlen',4)">4</button>
+        <button class="seg-btn" data-val="5" onclick="setSeg('minlen',5)">5</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-label">Rounds per game</div><div class="setting-sub">Number of rounds</div></div>
+      <div class="seg" id="seg-rounds">
+        <button class="seg-btn" data-val="1" onclick="setSeg('rounds',1)">1</button>
+        <button class="seg-btn" data-val="2" onclick="setSeg('rounds',2)">2</button>
+        <button class="seg-btn on" data-val="3" onclick="setSeg('rounds',3)">3</button>
+        <button class="seg-btn" data-val="5" onclick="setSeg('rounds',5)">5</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-label">Max players</div><div class="setting-sub">People per game</div></div>
+      <div class="seg" id="seg-maxp">
+        <button class="seg-btn on" data-val="2" onclick="setSeg('maxp',2)">2</button>
+        <button class="seg-btn" data-val="4" onclick="setSeg('maxp',4)">4</button>
+        <button class="seg-btn" data-val="6" onclick="setSeg('maxp',6)">6</button>
+        <button class="seg-btn" data-val="10" onclick="setSeg('maxp',10)">10</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="font-size:13px;color:var(--muted);line-height:1.8;">
+    <strong style="color:var(--txt);display:block;margin-bottom:4px;">Scoring</strong>
+    3 letters = 1 pt · 4 letters = 2 pts · 5 letters = 3 pts · 6+ = 5 pts
+  </div>
+  <button class="btn btn-acc" onclick="show('s-home')">Done</button>
+</div>
+
+<!-- CREATE -->
+<div class="screen" id="s-create">
+  <div><div class="eye">new game</div><h2>Set it up</h2></div>
+  <div><label>Your name</label><input type="text" id="c-name" placeholder="e.g. Alex" maxlength="20"></div>
+  <button class="btn btn-acc" id="btn-create" onclick="createGame()">Create &amp; get code</button>
+  <button class="btn btn-ghost" onclick="show('s-home')">Back</button>
+</div>
+
+<!-- LOBBY -->
+<div class="screen" id="s-lobby">
+  <div><div class="eye" id="l-eye">waiting for players</div><h2 id="l-title">Share the code</h2></div>
+  <div class="code-block">
+    <div class="code-hint">game code</div>
+    <div class="code-big" id="l-code">—</div>
+    <div class="code-hint">send this to everyone playing</div>
+  </div>
+  <button class="btn btn-out" onclick="copyCode()">Copy code</button>
+  <div class="card">
+    <div class="statrow"><span class="pulse"></span><span id="l-msg">Waiting for players to join…</span></div>
+  </div>
+  <div class="players-list" id="l-players"></div>
+  <button class="btn btn-acc" id="btn-start" style="display:none" onclick="hostStart()">Start Round 1 →</button>
+  <button class="btn btn-ghost" onclick="leaveLobby()">Leave</button>
+</div>
+
+<!-- JOIN -->
+<div class="screen" id="s-join">
+  <div><div class="eye">join game</div><h2>Enter the code</h2></div>
+  <div><label>Your name</label><input type="text" id="j-name" placeholder="e.g. Jordan" maxlength="20"></div>
+  <div><label>Game code</label>
+    <input type="text" id="j-code" placeholder="XXXXX" maxlength="5"
+           style="text-transform:uppercase;letter-spacing:8px;font-family:'DM Mono',monospace;font-size:28px;text-align:center">
+  </div>
+  <button class="btn btn-acc" id="btn-join" onclick="joinGame()">Join game</button>
+  <button class="btn btn-ghost" onclick="show('s-home')">Back</button>
+</div>
+
+<!-- READY -->
+<div class="screen" id="s-ready">
+  <div><div class="eye" id="r-eye">Round 1 of 3</div><h2 id="r-title">Ready?</h2></div>
+  <div class="dots" id="r-dots"></div>
+  <div class="card"><p id="r-desc"></p></div>
+  <button class="btn btn-acc" onclick="startRound()">Start →</button>
+</div>
+
+<!-- BOARD -->
+<div class="screen" id="s-board">
+  <div class="ghdr">
+    <div class="rbadge" id="b-badge">Round 1</div>
+    <div class="tring">
+      <svg width="50" height="50" viewBox="0 0 50 50">
+        <circle class="tr-bg" cx="25" cy="25" r="20"/>
+        <circle class="tr-prog" id="ring" cx="25" cy="25" r="20" stroke-dasharray="125.6" stroke-dashoffset="0"/>
+      </svg>
+      <div class="tr-txt" id="t-txt">2:00</div>
+    </div>
+  </div>
+  <div class="scorerow">
+    <div><div class="slbl">score</div><div class="snum" id="b-score">0</div></div>
+    <div style="text-align:right"><div class="slbl">words</div><div class="snum" id="b-words">0</div></div>
+  </div>
+  <div id="grid"></div>
+  <div class="wdisp" id="wdisp">tap a letter to start</div>
+  <div class="pts-preview" id="pts-preview"></div>
+  <div class="wlwrap"><div class="wlist" id="wlist"></div></div>
+</div>
+
+<!-- ROUND RESULT -->
+<div class="screen" id="s-rr">
+  <div><div class="eye" id="rr-eye">Round 1 complete</div><h2>Your round</h2></div>
+  <div class="dots" id="rr-dots"></div>
+  <div class="stats-box" id="rr-stats"></div>
+  <div class="longest-word" id="rr-longest" style="display:none"></div>
+  <div class="rgrid" id="rr-grid"></div>
+  <div class="card"><p id="rr-desc"></p></div>
+  <button class="btn btn-acc" id="rr-btn" onclick="afterRound()">Next →</button>
+</div>
+
+<!-- FINAL -->
+<div class="screen" id="s-final">
+  <div><div class="eye">game over</div><h2 id="f-title">Final scores</h2></div>
+  <div style="display:flex;flex-direction:column;gap:8px" id="f-board"></div>
+  <div class="div"></div>
+  <div><div class="tabs" id="f-tabs"></div><div id="f-reviews"></div></div>
+  <div style="display:flex;gap:10px;margin-top:4px">
+    <button class="btn btn-acc" style="flex:1" onclick="playAgain()">Play again</button>
+    <button class="btn btn-out" style="flex:1" onclick="goHome()">Home</button>
+  </div>
+</div>
+
+</div>
+<div id="toast"></div>
+
+<script>
+// ─── Server ──────────────────────────────────────────────────────────────────
+const SERVER = 'https://api.kellinnovations.com/letterfall';
+async function api(method, path, body) {
+  const opts = {method, headers:{'Content-Type':'application/json'}};
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(SERVER + path, opts);
+  if (!r.ok) { const j=await r.json().catch(()=>({})); throw new Error(j.error||`HTTP ${r.status}`); }
+  return r.json();
+}
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+const CFG = {
+  timer:  parseInt(localStorage.getItem('lf_timer')  || '2'),
+  minlen: parseInt(localStorage.getItem('lf_minlen') || '3'),
+  rounds: parseInt(localStorage.getItem('lf_rounds') || '3'),
+  maxp:   parseInt(localStorage.getItem('lf_maxp')   || '2'),
+};
+function setSeg(key, val) {
+  CFG[key] = val;
+  localStorage.setItem('lf_'+key, val);
+  document.querySelectorAll(`#seg-${key} .seg-btn`).forEach(b => {
+    b.classList.toggle('on', parseInt(b.dataset.val) === val);
+  });
+}
+['timer','minlen','rounds','maxp'].forEach(k => setSeg(k, CFG[k]));
+
+// ─── Session persistence — survive page reload ────────────────────────────────
+function saveSession() {
+  try {
+    sessionStorage.setItem('lf_sess', JSON.stringify({
+      gameCode, myRole, oppRole, curRound, myIndex,
+      screenId: document.querySelector('.screen.on')?.id || 's-home'
+    }));
+    if (G && G.code) sessionStorage.setItem('lf_game_'+G.code, JSON.stringify(G));
+  } catch(e) {}
+}
+async function restoreSession() {
+  try {
+    const sess = JSON.parse(sessionStorage.getItem('lf_sess')||'null');
+    if (!sess || !sess.gameCode) return false;
+    const g = await api('GET', '/game/'+sess.gameCode);
+    G = g; gameCode = sess.gameCode; myRole = sess.myRole; oppRole = sess.oppRole;
+    curRound = sess.curRound||0; myIndex = sess.myIndex||0;
+    const screen = sess.screenId;
+    if (screen === 's-board') {
+      goReady(curRound);
+    } else if (screen === 's-rr' || screen === 's-final') {
+      if (screen === 's-final') await showFinal();
+      else show(screen);
+    } else if (screen === 's-lobby' || screen === 's-ready') {
+      show(screen);
+      if (screen === 's-lobby') {
+        document.getElementById('l-code').textContent = gameCode;
+        if (myRole === 'p1') pollLobby(); else pollForStart();
+      }
+    } else {
+      show(screen);
+    }
+    return true;
+  } catch(e) { return false; }
+}
+
+// ─── Boggle dice ──────────────────────────────────────────────────────────────
+const DICE = [
+  'AAEEGN','ABBJOO','ACHOPS','AFFKPS','AOOTTW','CIMOTU',
+  'DEILRX','DELRVY','DISTTY','EEGHNW','EEINSU','EHRTVW',
+  'EIOSST','ELRTTY','AIMNQU','HLNNRZ'
+];
+function rollBoard() {
+  return DICE.slice().sort(()=>Math.random()-.5).map(d=>d[Math.floor(Math.random()*d.length)]);
+}
+function adjCells(i) {
+  const r=Math.floor(i/4),c=i%4,a=[];
+  for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++) {
+    if(!dr&&!dc) continue;
+    const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<4&&nc>=0&&nc<4) a.push(nr*4+nc);
+  }
+  return a;
+}
+const ADJ=Array.from({length:16},(_,i)=>adjCells(i));
+function wordPts(w) {
+  const n=w.length;
+  if(n<=2)return 0; if(n===3)return 1; if(n===4)return 2;
+  if(n===5)return 3; return 5;
+}
+
+// ─── Word list ────────────────────────────────────────────────────────────────
+const BASE = new Set('aah aal aas aba abo abs ace ach act add ado ads aft aga age ago ags aid ail aim air ais ait ala alb ale all alm alp als alt ama ami amp amu ana and ane ani ant any ape apo app apt arb arc are arf ark arm ars art ash asp ass ate att auk ava ave awe awl awn axe aye baa bad bag bah bam ban bar bas bat bay bed bee ben bet bib bid big bio bit boa bob bog bow box boy bra bro bud bug bum bun bus but buy cab cad cam can cap car cat caw cob cod col con cop cot cow cox cry cub cud cue cup cut dab dad dag dam day den dew did die dig dim din dip doe dog dot dry dub dud due dug duh dun dye ear eat ebb eel egg ego elf elk elm emu end era ere err eve ewe eye fab fad fan far fat fax fed fee fen few fie fig fin fit fix fly fob foe fog for fox fro fry fur gab gag gal gap gas gay gel gem get gin gnu god got gum gun gut gym had hag ham has hat hay hem hen her hew hex hey hid him hip his hit hob hog hop hot how hub hue hug hum hut ice icy ill imp ink inn ion ire irk ivy jab jam jar jaw jay jet jib jig job jog jot joy jug jut keg ken key kid kin kit lab lab lad lag lap law lax lay lea led leg let lid lie lip lit log lot low lug mac mad mag man map mar mat may men met mid mix mob moa mod mom mop mud mug nab nag nap nay net new nib nil nip nit nix nob nod nor not now nub nun nut oak oar oat odd ode off oft oil old one opt our out ova owe owl own pab pad pal pan pap par pas pat paw pay pea peg pen pep per pet pew pie pig pin pit ply pod pop pot pox pro pry pub pun pus put rad rag ram ran rap rat raw ray red ref rep rib rid rig rob rod roe rom rot row rub rue rug rum run rut sab sad sag sap sat saw say sea see set sew she shy sin sip sir sis sit six ska ski sky sly sob sod son sop soy spa spy sty sub sud sum sun tab tad tag tan tap tar tat tax tea ten the thy tic tie tin tip toe ton too top tot toy try tub tug two udo ugh ump urb urn use van vat vet vex via vie vow wad wag wan war was wax way web wed wee wet who why wig win wit woe won yak yam yap yaw yea yep yes yet yew you zap zee zen zip zoo ace aced aces ache ached aches acid acre acrid act acts add ado ads afar aged ages aide aids ail ails aim aims airs airt aisle ala alb albs ale alee ales alms aloe aloof alps also amas ambo amen ami amie amis amid amis amity amps amu amuse an and ane anew ang anil ankh anus any ape aped apes apex ape apod app apple appose apt aptly aqua arab arbs arch ardor ares argon aria arid arose array arrow arson art arts artist as ash ashy asks asp asps ass ate atop ates auk aunt aura autos aver avers avid avow away awe awed awee awes awl awls awns awny awol awry axe axed axes axis axle axon aye ayes baa baal baaing baas babe babel babes baby baccalaureate bacca backed backer backlog backs bacon badge badly bag bagged baggy bags bah baht bail bails bait baited baits bake baked baken baker bakes baking balas balconies balcony bald balder baldest baldly baldric bale baled baler bales balk balked balker balks balky ball balled ballet balls balm balms balmy balsa ban banal banco band banded bander bandit bands bane baneful bang banged banger bangs bani banish bank banked banker banks bans banyan banzai baobab baptise baptism baptize bar barb barbed barbs bard bare bared barely bares barf barfed barfs barge barged barges bark barked barker barks barm barmy barn barns baron barons barque barred barrel barren bars baes basaltic bascule base based baseless baser bases basest basil basin bask basked baskets bass bast bastard baste basted bastes bat batch bate bated bates bath bathe bathed bather bathes baths batik bats batted batter battle baud bauds bauk baulk baum bawdy bawl bawled bawls bays bazaar be beach beached beaches bead beaded beads beady beak beaks beam beamed beams bean beans bear beard bearded bears beast beat beaten beater beats beau beaus beauty beavers became becalm because beck beckon become bed bedamn bedbug bedded bedding bedew bedfellow bedew bedim bedizens bedlamp bedlamp bedlar bedless bedmate bedroom beds bedstead bedued bedye beduck bee bee beech beechnuts beef beefs beefy beehive been beep beeper beeps beer beers bees beeswax beet beetles before beg began beggar begged begin beginner begins begone begonia begot begrim begun begum behalf behave behaved behaver behaves beheaded beheader behem behind behoof behold behoof behold beholds behove behoved behoove behoof behoved beige being beige begets belabor belace belaced belash belated belatedly belaud belaud belch belched belches beld beleaguer beleaguered beleaguer beleaguer belgian beleaguer beleaguer beleaguer belied belied belief beliefs belied beliefs belies belif belike bellboy belldams belle belled belles bellhop bellhops bellic bellow bellowed bellower bellows bells belly bellying below belt belted belter belton belts beluga belying belyings belying bema bemad bemad bemadden bemad bemad bemaker bemaul bemire bemired bemires bemist bemist bemist bemist bemist bemist bemist bemist bemist bemist bemist bemist bemist bemist bemist bemist bemist bemist bemist bemist bemisc bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bemire bewail bewailed bewailer bewails beware bewared befitted bet bets bet betel bete betels betes beget betend betends betfair beth bethel bethefb bethe bethfb bethel bethels bethe bethel bethe bethink bethink bethink bethink bethink bethles bethines bethorn bethoro beths bethwack bethway bethwaye bethway bethways bethway bethway bethway bethwayward bethwayward bethward bethwerp bethwick bethwil bethwil bethwilel bethwild bethwil bethwil bethwilde bethwildes bethwildes bethwil bethwile bethwile bethwiles bethwile bethwiles bethwick bethwick bethwick bethwick bethwick bethwick bethwicks bethwie bethwier bethwiers bethwig bethwigd bethwig bethwig bethwig bethwig bethwig bethwig bethwig bethwigs bethwik bethwik bethwike bethwike bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethwind bethice bethice bethice bethice bethead bethead bet bethead bet bet bets'.split(' '));
+
+function isValidWord(w) {
+  const lo=w.toLowerCase();
+  if(lo.length<2) return false;
+  if(BASE.has(lo)) return true;
+  if(lo.length>3 && lo.endsWith('s') && BASE.has(lo.slice(0,-1))) return true;
+  if(lo.length>4 && lo.endsWith('es') && BASE.has(lo.slice(0,-2))) return true;
+  if(lo.length>4 && lo.endsWith('ed') && BASE.has(lo.slice(0,-2))) return true;
+  if(lo.length>4 && lo.endsWith('ed') && BASE.has(lo.slice(0,-1))) return true;
+  if(lo.length>5 && lo.endsWith('ing') && BASE.has(lo.slice(0,-3))) return true;
+  if(lo.length>5 && lo.endsWith('ing') && BASE.has(lo.slice(0,-3)+'e')) return true;
+  if(lo.length>4 && lo.endsWith('er') && BASE.has(lo.slice(0,-2))) return true;
+  if(lo.length>4 && lo.endsWith('er') && BASE.has(lo.slice(0,-1))) return true;
+  if(lo.length>4 && lo.endsWith('ly') && BASE.has(lo.slice(0,-2))) return true;
+  if(lo.length>5 && lo.endsWith('ier') && BASE.has(lo.slice(0,-3)+'y')) return true;
+  if(lo.length>5 && lo.endsWith('ness') && BASE.has(lo.slice(0,-4))) return true;
+  return false;
+}
+
+// ─── Prefix trie + board solver ──────────────────────────────────────────────
+let PREFIXES = null;
+function buildPrefixes() {
+  if(PREFIXES) return;
+  PREFIXES = new Set();
+  for(const w of BASE) for(let i=1;i<=w.length;i++) PREFIXES.add(w.slice(0,i));
+  for(const w of BASE) {
+    for(const suf of ['s','es','ed','ing','er','ly']) {
+      const full=w+suf;
+      for(let i=1;i<=full.length;i++) PREFIXES.add(full.slice(0,i));
+    }
+  }
+}
+
+const MAX_AVAIL = 45;
+function solveBoard(board, minLen) {
+  buildPrefixes();
+  const letters=board.map(l=>l==='Q'?'QU':l);
+  const found=new Set();
+  function dfs(path, word) {
+    if(word.length>=minLen && isValidWord(word)) found.add(word.toUpperCase());
+    if(word.length>=9) return;
+    const last=path[path.length-1];
+    for(const n of ADJ[last]) {
+      if(!path.includes(n)) {
+        const next=word+letters[n];
+        if(PREFIXES.has(next.toLowerCase())) {
+          path.push(n); dfs(path,next); path.pop();
+        }
+      }
+    }
+  }
+  for(let i=0;i<16;i++) dfs([i],letters[i]);
+  if(found.size>MAX_AVAIL) {
+    const arr=Array.from(found).sort((a,b)=>b.length-a.length||a.localeCompare(b));
+    const long=arr.filter(w=>w.length>=5).slice(0,Math.floor(MAX_AVAIL*0.4));
+    const med =arr.filter(w=>w.length===4).slice(0,Math.floor(MAX_AVAIL*0.35));
+    const shor=arr.filter(w=>w.length===3).slice(0,MAX_AVAIL-long.length-med.length);
+    return new Set([...long,...med,...shor]);
+  }
+  return found;
+}
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let G={}, myRole='p1', oppRole='p2', myIndex=0, gameCode='', curRound=0;
+let sel=[], roundSet=new Set(), roundAllWords=new Set();
+let timerIv=null, pollIv=null, timeLeft=120, isDragging=false;
+
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  saveSession();
+}
+function toast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2800);
+}
+function setBtn(id,busy,label) {
+  const b=document.getElementById(id); b.disabled=busy;
+  b.innerHTML=busy?`<span class="spin"></span>${label}`:label;
+}
+function mkDots(elId,cur) {
+  const nr=G.numRounds||CFG.rounds||3;
+  document.getElementById(elId).innerHTML=Array.from({length:nr},(_,i)=>
+    `<div class="dot ${i<cur?'done':i===cur?'cur':''}">${i<cur?'✓':''}</div>`).join('');
+}
+function nr() { return G.numRounds||CFG.rounds||3; }
+
+(async()=>{
+  const restored = await restoreSession();
+  if(!restored) show('s-home');
+})();
+
+function goHome() {
+  clearInterval(pollIv); clearInterval(timerIv);
+  sessionStorage.removeItem('lf_sess');
+  show('s-home');
+}
+function goCreate() { show('s-create'); }
+function goJoin()   { show('s-join');   }
+
+async function createGame() {
+  const name=document.getElementById('c-name').value.trim();
+  if(!name){ toast('Enter your name first'); return; }
+  setBtn('btn-create',true,'Creating…');
+  try {
+    const boards=Array.from({length:CFG.rounds},()=>rollBoard());
+    const res=await api('POST','/game',{
+      name, timerMins:CFG.timer, minLen:CFG.minlen,
+      numRounds:CFG.rounds, maxPlayers:CFG.maxp, boards
+    });
+    G=res.game; gameCode=res.code; myIndex=res.playerIndex||0;
+    myRole='p1'; oppRole='p2';
+    showLobby();
+    pollLobby();
+  } catch(e) { toast('Server error: '+e.message); }
+  finally { setBtn('btn-create',false,'Create &amp; get code'); }
+}
+
+function showLobby() {
+  document.getElementById('l-code').textContent=gameCode;
+  document.getElementById('l-eye').textContent='waiting for players';
+  document.getElementById('l-title').textContent='Share the code';
+  const maxP=G.maxPlayers||CFG.maxp;
+  document.getElementById('l-msg').textContent=maxP>2
+    ?`Up to ${maxP} players can join with this code`
+    :'Send this code to your friend';
+  document.getElementById('btn-start').style.display='none';
+  renderLobbyPlayers();
+  show('s-lobby');
+}
+
+function renderLobbyPlayers() {
+  const players=G.players||[];
+  const el=document.getElementById('l-players');
+  el.innerHTML=players.map((p,i)=>`
+    <div class="player-item">
+      <span class="player-name">${p.name}${i===myIndex?' (you)':''}</span>
+      <span class="player-status">${i===0?'host':'joined'}</span>
+    </div>`).join('');
+}
+
+function copyCode() {
+  const c=document.getElementById('l-code').textContent;
+  navigator.clipboard.writeText(c).then(()=>toast('Code copied!')).catch(()=>toast('Code: '+c));
+}
+function leaveLobby() { clearInterval(pollIv); goHome(); }
+
+function pollLobby() {
+  clearInterval(pollIv);
+  pollIv=setInterval(async()=>{
+    try {
+      const g=await api('GET','/game/'+gameCode); G=g;
+      saveSession();
+      renderLobbyPlayers();
+      const n=g.players?.length||1;
+      const max=g.maxPlayers||CFG.maxp;
+      document.getElementById('l-msg').textContent=
+        n>1?`${n}/${max} players joined${n>=2?' — ready to start!':''}`:
+        (max>2?`Up to ${max} players can join`:'Send this code to your friend');
+      if(n>=2) document.getElementById('btn-start').style.display='block';
+    } catch(e) {}
+  },3000);
+}
+
+async function hostStart() {
+  clearInterval(pollIv);
+  try { G=await api('POST','/game/'+gameCode+'/start'); } catch(e) {}
+  goReady(0);
+}
+
+async function joinGame() {
+  const name=document.getElementById('j-name').value.trim();
+  const code=document.getElementById('j-code').value.trim().toUpperCase();
+  if(!name){ toast('Enter your name'); return; }
+  if(code.length!==5){ toast('Code is 5 characters'); return; }
+  setBtn('btn-join',true,'Joining…');
+  try {
+    const res=await api('POST','/game/'+code+'/join',{name});
+    G=res.game; gameCode=code; myIndex=res.playerIndex||0;
+    myRole=myIndex===0?'p1':'p2'; oppRole=myIndex===0?'p2':'p1';
+    showLobby();
+    document.getElementById('l-eye').textContent='joined!';
+    document.getElementById('btn-start').style.display='none';
+    pollForStart();
+  } catch(e) { toast(e.message==='game not found'?'Game not found — check the code':e.message); }
+  finally { setBtn('btn-join',false,'Join game'); }
+}
+
+function pollForStart() {
+  clearInterval(pollIv);
+  pollIv=setInterval(async()=>{
+    try {
+      const g=await api('GET','/game/'+gameCode); G=g;
+      saveSession();
+      renderLobbyPlayers();
+      if(g.hostStarted){ clearInterval(pollIv); goReady(0); }
+    } catch(e) {}
+  },3000);
+}
+
+function goReady(r) {
+  curRound=r;
+  const minLen=G.minLen||CFG.minlen;
+  document.getElementById('r-eye').textContent=`Round ${r+1} of ${nr()}`;
+  document.getElementById('r-title').textContent=`Round ${r+1}`;
+  const others=(G.players||[]).filter((_,i)=>i!==myIndex).map(p=>p.name).filter(Boolean);
+  document.getElementById('r-desc').textContent=
+    `${G.timerMins} minute${G.timerMins>1?'s':''} · min ${minLen} letters · `+
+    `${(G.players||[]).length} players on the same board.`;
+  mkDots('r-dots',r);
+  show('s-ready');
+}
+
+function startRound() {
+  const minLen=G.minLen||CFG.minlen;
+  sel=[]; roundSet=new Set(); isDragging=false;
+  timeLeft=G.timerMins*60;
+  roundAllWords=solveBoard(G.boards[curRound], minLen);
+  document.getElementById('b-badge').textContent=`Round ${curRound+1} of ${nr()}`;
+  document.getElementById('b-score').textContent='0';
+  document.getElementById('b-words').textContent='0';
+  document.getElementById('wdisp').textContent='tap a letter to start';
+  document.getElementById('wdisp').className='wdisp';
+  document.getElementById('pts-preview').textContent='';
+  document.getElementById('wlist').innerHTML='<span class="enote">Your words will appear here</span>';
+  buildGrid(G.boards[curRound]);
+  tickTimer();
+  show('s-board');
+  setTimeout(cacheCellRects,100);
+  timerIv=setInterval(()=>{timeLeft--;tickTimer();if(timeLeft<=0)endRound();},1000);
+}
+
+let _cellRects = null;
+function cacheCellRects() {
+  _cellRects = Array.from(document.querySelectorAll('.cell')).map(c=>c.getBoundingClientRect());
+}
+function cellUnder(x, y) {
+  if (!_cellRects) return -1;
+  for (let i=0; i<_cellRects.length; i++) {
+    const r = _cellRects[i];
+    const marginX = (r.width * 0.2);
+    const marginY = (r.height * 0.2);
+    const cx1 = r.left + marginX;
+    const cx2 = r.right - marginX;
+    const cy1 = r.top + marginY;
+    const cy2 = r.bottom - marginY;
+    if (x >= cx1 && x <= cx2 && y >= cy1 && y <= cy2) return i;
+  }
+  return -1;
+}
+
+function buildGrid(board) {
+  const g=document.getElementById('grid');
+  g.innerHTML='';
+  board.forEach((L,i)=>{
+    const d=document.createElement('div');
+    d.className='cell'; d.textContent=L==='Q'?'Qu':L; d.dataset.i=i;
+    g.appendChild(d);
+  });
+
+  g.addEventListener('touchstart', e=>{
+    e.preventDefault();
+    cacheCellRects();
+    isDragging=true;
+    const t=e.touches[0];
+    const idx=cellUnder(t.clientX, t.clientY);
+    if (idx>=0) { sel=[idx]; redraw(); hilite(); }
+  },{passive:false});
+
+  g.addEventListener('touchmove', e=>{
+    e.preventDefault();
+    if (!isDragging||!sel.length) return;
+    const t=e.touches[0];
+    const idx=cellUnder(t.clientX, t.clientY);
+    if (idx<0) return;
+    handleMove(idx);
+  },{passive:false});
+
+  g.addEventListener('touchend', e=>{
+    e.preventDefault();
+    isDragging=false;
+    submitWord();
+  },{passive:false});
+
+  g.addEventListener('touchcancel', e=>{
+    e.preventDefault();
+    isDragging=false;
+    sel=[]; hilite(); redraw();
+  },{passive:false});
+
+  g.addEventListener('mousedown', e=>{
+    cacheCellRects();
+    isDragging=true;
+    const idx=parseInt(e.target.closest('.cell')?.dataset.i??-1);
+    if (idx>=0) { sel=[idx]; redraw(); hilite(); }
+  });
+  g.addEventListener('mousemove', e=>{
+    if (!isDragging||!sel.length) return;
+    const idx=parseInt(e.target.closest('.cell')?.dataset.i??-1);
+    if (idx>=0) handleMove(idx);
+  });
+  const endMouse=()=>{ if(isDragging){ isDragging=false; submitWord(); } };
+  g.addEventListener('mouseup', endMouse);
+  g.addEventListener('mouseleave', endMouse);
+}
+
+function handleMove(idx) {
+  const last=sel[sel.length-1];
+  if (idx===last) return;
+  if (sel.length>=2 && idx===sel[sel.length-2]) {
+    sel.pop(); redraw(); hilite(); return;
+  }
+  if (!sel.includes(idx) && ADJ[last].includes(idx)) {
+    sel.push(idx); redraw(); hilite();
+  }
+}
+
+function getBoard() { return G.boards[curRound]; }
+function currentWord() {
+  const board=getBoard();
+  return sel.map(i=>board[i]==='Q'?'QU':board[i]).join('');
+}
+
+function redraw() {
+  const w=currentWord();
+  const minLen=G.minLen||CFG.minlen;
+  const el=document.getElementById('wdisp');
+  const pp=document.getElementById('pts-preview');
+  el.textContent=w||'tap a letter to start';
+  if(!w){ el.className='wdisp'; pp.textContent=''; return; }
+  const already=roundSet.has(w.toUpperCase());
+  const valid=w.length>=minLen && isValidWord(w) && !already;
+  el.className='wdisp'+(valid?' ok':already?' bad':'');
+  if(valid){ const pts=wordPts(w); pp.textContent=`+${pts} pt${pts!==1?'s':''}`; }
+  else if(already){ pp.textContent='already found'; }
+  else{ pp.textContent=''; }
+}
+
+function hilite() {
+  const n=sel.length;
+  document.querySelectorAll('.cell').forEach((c,i)=>{
+    const pos=sel.indexOf(i);
+    if(pos<0){ c.className='cell'; return; }
+    if(i===sel[n-1]){ c.className='cell sel'; }
+    else { c.className='cell path'; }
+  });
+}
+
+function submitWord() {
+  if(!sel.length) return;
+  const board=getBoard();
+  const w=sel.map(i=>board[i]==='Q'?'QU':board[i]).join('');
+  const minLen=G.minLen||CFG.minlen;
+  if(w.length>=minLen && isValidWord(w) && !roundSet.has(w.toUpperCase())) {
+    roundSet.add(w.toUpperCase());
+    const pts=wordPts(w);
+    const cur=parseInt(document.getElementById('b-score').textContent)+pts;
+    document.getElementById('b-score').textContent=cur;
+    document.getElementById('b-words').textContent=roundSet.size;
+    addChip(w);
+    const snap=[...sel];
+    snap.forEach(i=>{const c=document.querySelector(`.cell[data-i="${i}"]`);if(c)c.className='cell flash';});
+    setTimeout(()=>{sel=[];hilite();redraw();},280);
+  } else {
+    if(w.length>=minLen && !isValidWord(w) && !roundSet.has(w.toUpperCase())) {
+      const el=document.getElementById('wdisp');
+      el.className='wdisp bad shake';
+      setTimeout(()=>el.className='wdisp',360);
+    }
+    sel=[]; hilite(); redraw();
+    document.getElementById('pts-preview').textContent='';
+  }
+}
+
+function addChip(w) {
+  const list=document.getElementById('wlist');
+  const en=list.querySelector('.enote'); if(en) en.remove();
+  const pts=wordPts(w);
+  const ch=document.createElement('span');
+  ch.className='chip fresh popin'; ch.textContent=`${w} +${pts}`;
+  list.prepend(ch);
+  setTimeout(()=>ch.classList.remove('fresh'),2000);
+}
+
+function tickTimer() {
+  const total=G.timerMins*60, pct=timeLeft/total;
+  const circ=2*Math.PI*20, off=circ*(1-pct);
+  const ring=document.getElementById('ring');
+  ring.style.strokeDashoffset=off;
+  ring.style.stroke=timeLeft<=20?'var(--red)':timeLeft<=60?'var(--gold)':'var(--acc)';
+  const m=Math.floor(timeLeft/60), s=timeLeft%60;
+  document.getElementById('t-txt').textContent=`${m}:${s.toString().padStart(2,'0')}`;
+}
+
+async function endRound() {
+  clearInterval(timerIv);
+  const score=parseInt(document.getElementById('b-score').textContent);
+  const words=Array.from(roundSet);
+  const allArr=Array.from(roundAllWords);
+  const longestAvail=allArr.reduce((a,b)=>b.length>a.length?b:a,'');
+  const totalAvail=allArr.length;
+  try {
+    const body={playerIndex:myIndex, player:myRole, score, words, totalAvail, longestAvail};
+    G=await api('POST',`/game/${gameCode}/round/${curRound}`,body);
+  } catch(e) { toast('Could not save round — check connection'); }
+  saveSession();
+  showRoundResult(score, words.length, totalAvail, longestAvail);
+}
+
+async function showRoundResult(myScoreVal, myWordCount, totalAvail, longestAvail) {
+  try { G=await api('GET','/game/'+gameCode); } catch(e) {}
+  const r=curRound;
+  document.getElementById('rr-eye').textContent=`Round ${r+1} of ${nr()} complete`;
+  mkDots('rr-dots',r);
+
+  document.getElementById('rr-stats').innerHTML=`
+    <div class="stat-item"><div class="stat-val">${myWordCount}</div><div class="stat-lbl">You found</div></div>
+    <div class="stat-item"><div class="stat-val" style="color:var(--muted)">${totalAvail}</div><div class="stat-lbl">Available</div></div>
+    <div class="stat-item"><div class="stat-val">${myScoreVal}</div><div class="stat-lbl">Your score</div></div>
+    <div class="stat-item"><div class="stat-val" style="color:var(--muted)">${Math.round(myWordCount/Math.max(totalAvail,1)*100)}%</div><div class="stat-lbl">Coverage</div></div>`;
+
+  const lwEl=document.getElementById('rr-longest');
+  if(longestAvail){
+    lwEl.style.display='flex';
+    lwEl.innerHTML=`<div class="lw-label">Longest available</div><div class="lw-word">${longestAvail}</div>`;
+  } else lwEl.style.display='none';
+
+  const players=G.players||[
+    {name:G.p1?.name||'P1', scores:G.p1?.scores||[], done:G.p1?.done||[]},
+    {name:G.p2?.name||'P2', scores:G.p2?.scores||[], done:G.p2?.done||[]}
+  ];
+  const COLORS=['var(--acc)','var(--blue)','var(--gold)','var(--green)','#ff8c69','#c084fc'];
+  const sorted=[...players].map((p,i)=>{
+    const s=p.scores?.[r]; const done=p.done?.[r];
+    return {name:p.name,score:s,done,idx:i,isMe:i===myIndex};
+  }).sort((a,b)=>((b.score??-1)-(a.score??-1)));
+  const topScore=sorted.find(x=>x.done)?.score??-1;
+  document.getElementById('rr-grid').innerHTML=sorted.map((p,rank)=>{
+    const color=COLORS[p.idx%COLORS.length];
+    const winning=p.done&&p.score===topScore&&topScore>=0&&sorted.filter(x=>x.done&&x.score===topScore).length===1;
+    return `<div class="rcard" style="${p.isMe?'border:1.5px solid var(--acc);background:var(--acc2)':''}">
+      <div class="pname">${p.isMe?'You':p.name}</div>
+      <div class="pscore" style="color:${p.isMe?'var(--acc)':p.done?color:'var(--muted)'}">${p.done?p.score:'—'}</div>
+      ${winning?'<div class="badge">👑 lead</div>':''}
+    </div>`;
+  }).join('');
+
+  const last=r===nr()-1;
+  document.getElementById('rr-btn').textContent=last?'See final results →':`Start Round ${r+2} →`;
+  const allDone=players.every(p=>p.done?.[r]);
+  document.getElementById('rr-desc').textContent=last
+    ?(allDone?`All ${nr()} rounds complete!`:'Others can still play. Come back for full results.')
+    :(allDone?`All done with Round ${r+1}!`:'Others can play this round any time.');
+  show('s-rr');
+}
+
+function afterRound() {
+  if(curRound<nr()-1) { goReady(curRound+1); }
+  else { showFinal(); }
+}
+
+async function showFinal() {
+  try { G=await api('GET','/game/'+gameCode); } catch(e) {
+    toast('Could not load results — check connection'); return;
+  }
+  const players=G.players||[
+    {name:G.p1?.name||'Player 1', scores:G.p1?.scores||[], words:G.p1?.words||[], done:G.p1?.done||[], totalAvail:G.p1?.totalAvail||[], longestAvail:G.p1?.longestAvail||[]},
+    {name:G.p2?.name||'Player 2', scores:G.p2?.scores||[], words:G.p2?.words||[], done:G.p2?.done||[], totalAvail:G.p2?.totalAvail||[], longestAvail:G.p2?.longestAvail||[]}
+  ];
+  const numR=nr();
+  const COLORS=['var(--acc)','var(--blue)','var(--gold)','var(--green)','#ff8c69','#c084fc','#fb923c','#34d399'];
+
+  const totals=players.map((p,i)=>{
+    const tot=(p.scores||[]).slice(0,numR).map(s=>s??0).reduce((a,b)=>a+b,0);
+    const played=(p.scores||[]).some(s=>s!==null);
+    return {name:p.name,idx:i,tot,played,isMe:i===myIndex};
+  }).sort((a,b)=>b.tot-a.tot);
+
+  const winner=totals[0];
+  let hl='Final scores';
+  if(totals.some(t=>t.played)){
+    if(winner.isMe) hl='You win! 🎉';
+    else hl=`${winner.name} wins!`;
+    if(totals.filter(t=>t.tot===winner.tot&&t.played).length>1) hl="It's a tie!";
+  }
+  document.getElementById('f-title').textContent=hl;
+
+  document.getElementById('f-board').innerHTML=totals.map((t,rank)=>{
+    const p=players[t.idx];
+    const scores=(p.scores||[]).slice(0,numR).map(s=>s??'?');
+    const color=COLORS[t.idx%COLORS.length];
+    return `<div class="frow ${t.isMe?'you':rank===0?'opp':''}">
+      <div>
+        <div class="fname">${rank===0?'🥇 ':rank===1?'🥈 ':rank===2?'🥉 ':''}\${t.isMe?t.name+' (you)':t.name}</div>
+        <div class="fbreak">${t.played?scores.join(' + ')+' = '+t.tot+' pts':'Not played yet'}</div>
+      </div>
+      <div class="fscore" style="color:${t.isMe?'var(--acc)':color}">${t.played?t.tot:'—'}</div>
+    </div>`;
+  }).join('');
+
+  const tabs=document.getElementById('f-tabs');
+  const reviews=document.getElementById('f-reviews');
+  tabs.innerHTML=''; reviews.innerHTML='';
+  for(let r=0;r<numR;r++){
+    const tb=document.createElement('button');
+    tb.className='tabbtn'+(r===0?' on':''); tb.textContent=`R${r+1}`;
+    const _r=r;
+    tb.onclick=()=>{
+      document.querySelectorAll('.tabbtn').forEach(b=>b.classList.remove('on')); tb.classList.add('on');
+      document.querySelectorAll('.rv').forEach(el=>el.classList.remove('on'));
+      document.getElementById(`rv-${_r}`).classList.add('on');
+    };
+    tabs.appendChild(tb);
+
+    const myP=players[myIndex]||{};
+    const myW=(myP.words?.[r]||[]).map(w=>w.toUpperCase());
+    const longest=players.map(p=>p.longestAvail?.[r]).find(Boolean)||'';
+    const total=players.map(p=>p.totalAvail?.[r]).find(v=>v!=null)||'?';
+
+    const div=document.createElement('div');
+    div.className='rv'+(r===0?' on':''); div.id=`rv-${r}`;
+    const allW=players.map(p=>(p.words?.[r]||[]).map(w=>w.toUpperCase()));
+    const cols=players.map((p,pi)=>{
+      const pw=allW[pi];
+      const isMe=pi===myIndex;
+      const color=COLORS[pi%COLORS.length];
+      return `<div>
+        <div class="chead" style="color:${isMe?'var(--acc)':color}">${isMe?'You':p.name} — ${p.scores?.[r]??'?'} pts</div>
+        ${pw.map(w=>{
+          const shared=players.some((_,qi)=>qi!==pi&&allW[qi].includes(w));
+          return `<span class="wc ${isMe?'m':''} ${shared?'s':''}" style="${!isMe&&!shared?`border-color:${color}30;color:${color};background:${color}11`:''}">` + w + '</span>';
+        }).join('')}
+        ${!pw.length?`<span style="font-size:11px;color:var(--muted)">${p.done?.[r]?'—':'Not played yet'}</span>`:''}</div>`;
+    }).join('');
+
+    div.innerHTML=`
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+        ${total} words · longest: <span style="color:var(--gold);font-family:'DM Mono',monospace">${longest||'—'}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(${Math.min(players.length,2)},1fr);gap:10px">${cols}</div>`;
+    reviews.appendChild(div);
+  }
+  show('s-final');
+}
+
+async function playAgain() {
+  if(!gameCode||!G) { goHome(); return; }
+  const me=G.players?.[myIndex]||{name:'Player'};
+  const numR=nr();
+  try {
+    const boards=Array.from({length:numR},()=>rollBoard());
+    const res=await api('POST','/game',{
+      name:me.name, timerMins:G.timerMins, minLen:G.minLen||CFG.minlen,
+      numRounds:numR, maxPlayers:G.maxPlayers||CFG.maxp, boards
+    });
+    G=res.game; gameCode=res.code; myIndex=res.playerIndex||0;
+    myRole='p1'; oppRole='p2'; curRound=0;
+    showLobby();
+    document.getElementById('l-eye').textContent='rematch!';
+    document.getElementById('l-title').textContent='New game — share code';
+    document.getElementById('l-msg').textContent='Share this new code with everyone';
+    pollLobby();
+  } catch(e) { toast('Could not start rematch: '+e.message); }
+}
+</script>
+</body>
+</html>
