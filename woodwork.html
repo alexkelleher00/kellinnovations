@@ -7,15 +7,23 @@
   <link rel="stylesheet" href="woodwork.css" />
 </head>
 <body>
+
   <header class="site-header">
-    <h1>Kelleher Innovations</h1>
-    <p>Building Intelligent Systems</p>
-    <nav>
-      <a href="index.html" class="active">Home</a>
-      <a href="portfolio.html">Portfolio</a>
-      <a href="woodwork.html">Woodwork</a>
-      <a href="psg.html">Punk Squad Games</a>
-    </nav>
+    <div class="header-inner">
+      <a href="index.html" class="site-brand">
+        <strong>Kelleher Innovations</strong>
+        <span>Building Intelligent Systems</span>
+      </a>
+      <nav>
+        <a href="index.html">Home</a>
+        <a href="portfolio.html">Portfolio</a>
+        <a href="woodwork.html" class="active">Woodwork</a>
+        <a href="psg.html">Punk Squad Games</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="page-hero">
     <div class="container">
       <h1>Woodworking Portfolio</h1>
       <p class="subtitle">Projects, builds, and shop work — click an image to open.</p>
@@ -25,64 +33,69 @@
         <button class="filter-btn" data-filter="small-projects">Small Projects</button>
       </nav>
     </div>
-  </header>
+  </div>
 
-  <main class="container">
-    <section id="gallery" class="gallery">
-      <!-- Example card. Duplicate & change data- attributes for your images -->
-      <figure class="card" data-category="furniture" data-caption="Circular End Table">
-        <img src="images/endtablecircular.jpg" alt="Cicular End Table" loading="lazy">
-        <figcaption>
-          <h3>Circular End Table</h3>
-          <p class="tag">Furniture • 2025</p>
-        </figcaption>
-      </figure>
+  <main>
+    <div class="container">
+      <section id="gallery" class="gallery">
 
-      <figure class="card" data-category="furniture" data-caption="Bench">
-        <img src="images/bench.jpg" alt="Bench" loading="lazy">
-        <figcaption>
-          <h3>Bench</h3>
-          <p class="tag">Furniture • 2025</p>
-        </figcaption>
-      </figure>
+        <figure class="card" data-category="furniture" data-caption="Circular End Table">
+          <img src="images/endtablecircular.jpg" alt="Circular End Table" loading="lazy">
+          <figcaption>
+            <h3>Circular End Table</h3>
+            <p class="tag">Furniture &middot; 2025</p>
+          </figcaption>
+        </figure>
 
-      <figure class="card" data-category="furniture" data-caption="Wine Rack">
-        <img src="images/winerack.jpg" alt="Wine Rack" loading="lazy">
-        <figcaption>
-          <h3>Wine Rack</h3>
-          <p class="tag">Furniture • 2025</p>
-        </figcaption>
-      </figure>
+        <figure class="card" data-category="furniture" data-caption="Bench">
+          <img src="images/bench.jpg" alt="Bench" loading="lazy">
+          <figcaption>
+            <h3>Bench</h3>
+            <p class="tag">Furniture &middot; 2025</p>
+          </figcaption>
+        </figure>
 
-      <figure class="card" data-category="small-projects" data-caption="Counter Extension">
-        <img src="images/counterextension.jpg" alt="Counter Extension" loading="lazy">
-        <figcaption>
-          <h3>Counter Extension</h3>
-          <p class="tag">Small Projects • 2025</p>
-        </figcaption>
-      </figure>
+        <figure class="card" data-category="furniture" data-caption="Wine Rack">
+          <img src="images/winerack.jpg" alt="Wine Rack" loading="lazy">
+          <figcaption>
+            <h3>Wine Rack</h3>
+            <p class="tag">Furniture &middot; 2025</p>
+          </figcaption>
+        </figure>
 
-      <figure class="card" data-category="small-projects" data-caption="Reclaimed wood made into a soldering station">
-        <img src="images/sodleringstation.jpg" alt="Soldering Station" loading="lazy">
-        <figcaption>
-          <h3>Reclaimed Shelf</h3>
-          <p class="tag">Small Projects • 2025</p>
-        </figcaption>
-      </figure>
+        <figure class="card" data-category="small-projects" data-caption="Counter Extension">
+          <img src="images/counterextension.jpg" alt="Counter Extension" loading="lazy">
+          <figcaption>
+            <h3>Counter Extension</h3>
+            <p class="tag">Small Projects &middot; 2025</p>
+          </figcaption>
+        </figure>
 
-      <!-- Add as many <figure class="card"> blocks as you need. -->
-    </section>
+        <figure class="card" data-category="small-projects" data-caption="Reclaimed wood soldering station">
+          <img src="images/sodleringstation.jpg" alt="Soldering Station" loading="lazy">
+          <figcaption>
+            <h3>Reclaimed Shelf</h3>
+            <p class="tag">Small Projects &middot; 2025</p>
+          </figcaption>
+        </figure>
+
+      </section>
+    </div>
   </main>
+
+  <footer>
+    <p>&copy; 2026 Kelleher Innovations</p>
+  </footer>
 
   <!-- Lightbox Modal -->
   <div id="lightbox" class="lightbox" aria-hidden="true" role="dialog" aria-label="Image preview">
-    <button id="lbClose" class="lb-close" aria-label="Close">✕</button>
-    <button id="lbPrev" class="lb-nav lb-prev" aria-label="Previous">◀</button>
+    <button id="lbClose" class="lb-close" aria-label="Close">&#x2715;</button>
+    <button id="lbPrev" class="lb-nav lb-prev" aria-label="Previous">&#9664;</button>
     <div class="lb-stage">
       <img id="lbImage" src="" alt="">
       <div id="lbCaption" class="lb-caption"></div>
     </div>
-    <button id="lbNext" class="lb-nav lb-next" aria-label="Next">▶</button>
+    <button id="lbNext" class="lb-nav lb-next" aria-label="Next">&#9654;</button>
   </div>
 
 <script>
@@ -90,28 +103,24 @@
 const filterBtns = document.querySelectorAll('.filter-btn');
 const cards = document.querySelectorAll('.card');
 
-filterBtns.forEach(btn=>{
+filterBtns.forEach(btn => {
   btn.addEventListener('click', () => {
-    filterBtns.forEach(b=>b.classList.remove('active'));
+    filterBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const filter = btn.getAttribute('data-filter');
-    cards.forEach(card=>{
-      if (filter === '*' || card.dataset.category === filter) {
-        card.style.display = ''; // show (default)
-      } else {
-        card.style.display = 'none';
-      }
+    cards.forEach(card => {
+      card.style.display = (filter === '*' || card.dataset.category === filter) ? '' : 'none';
     });
   });
 });
 
 /* ----- LIGHTBOX ----- */
 const lightbox = document.getElementById('lightbox');
-const lbImage = document.getElementById('lbImage');
+const lbImage  = document.getElementById('lbImage');
 const lbCaption = document.getElementById('lbCaption');
-const lbClose = document.getElementById('lbClose');
-const lbPrev = document.getElementById('lbPrev');
-const lbNext = document.getElementById('lbNext');
+const lbClose  = document.getElementById('lbClose');
+const lbPrev   = document.getElementById('lbPrev');
+const lbNext   = document.getElementById('lbNext');
 
 let visibleIndex = -1;
 let visibleCards = Array.from(cards);
@@ -136,36 +145,26 @@ function closeLightbox() {
 }
 
 function updateVisibleCards() {
-  // Only include currently shown cards (after filtering)
   visibleCards = Array.from(document.querySelectorAll('.card')).filter(c => c.style.display !== 'none');
 }
 
-cards.forEach((card, i) => {
+cards.forEach(card => {
   card.addEventListener('click', () => {
     updateVisibleCards();
-    const idx = visibleCards.indexOf(card);
-    openLightbox(idx);
+    openLightbox(visibleCards.indexOf(card));
   });
 });
 
 lbClose.addEventListener('click', closeLightbox);
-lightbox.addEventListener('click', (e) => {
-  if (e.target === lightbox) closeLightbox(); // click backdrop to close
-});
+lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
+lbPrev.addEventListener('click', () => { if (visibleIndex > 0) openLightbox(visibleIndex - 1); });
+lbNext.addEventListener('click', () => { if (visibleIndex < visibleCards.length - 1) openLightbox(visibleIndex + 1); });
 
-lbPrev.addEventListener('click', () => {
-  if (visibleIndex > 0) openLightbox(visibleIndex - 1);
-});
-lbNext.addEventListener('click', () => {
-  if (visibleIndex < visibleCards.length - 1) openLightbox(visibleIndex + 1);
-});
-
-document.addEventListener('keydown', (e) => {
-  if (lightbox.classList.contains('open')) {
-    if (e.key === 'Escape') closeLightbox();
-    if (e.key === 'ArrowLeft') lbPrev.click();
-    if (e.key === 'ArrowRight') lbNext.click();
-  }
+document.addEventListener('keydown', e => {
+  if (!lightbox.classList.contains('open')) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') lbPrev.click();
+  if (e.key === 'ArrowRight') lbNext.click();
 });
 </script>
 </body>

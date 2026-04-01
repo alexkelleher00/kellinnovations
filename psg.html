@@ -1,330 +1,336 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Punk Squad Games - Kelleher Innovations</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Punk Squad Games — Kelleher Innovations</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>Kelleher Innovations</h1>
-    <p>Building Intelligent Systems</p>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
     <nav>
       <a href="index.html">Home</a>
       <a href="woodwork.html">Woodwork</a>
       <a href="psg.html" class="active">Punk Squad Games</a>
     </nav>
-  </header>
+  </div>
+</header>
 
-  <main>
-    <section class="psg">
-      <h2>Punk Squad Games</h2>
+<main>
 
-      <!-- Tab Navigation -->
-      <div class="tab-section">
-        <button onclick="showSection('psg2019', this)">PSG 2019</button>
-        <button onclick="showSection('psg2022', this)">PSG 2022</button>
-        <button onclick="showSection('psg2023', this)">PSG 2023</button>
-        <button onclick="showSection('psg2024', this)">PSG 2024</button>
-        <button onclick="showSection('psg2025', this)">PSG 2025</button>
-        <button onclick="showSection('psg2026', this)" class="active">PSG 2026</button>
+  <div class="psg-header">
+    <h2>Punk Squad Games</h2>
+    <p>The annual tournament — champions, highlights, and registration.</p>
+  </div>
+
+  <!-- Year tabs -->
+  <div class="tab-section">
+    <button onclick="showYear('psg2019', this)">PSG 2019</button>
+    <button onclick="showYear('psg2022', this)">PSG 2022</button>
+    <button onclick="showYear('psg2023', this)">PSG 2023</button>
+    <button onclick="showYear('psg2024', this)">PSG 2024</button>
+    <button onclick="showYear('psg2025', this)">PSG 2025</button>
+    <button onclick="showYear('psg2026', this)" class="active">PSG 2026</button>
+  </div>
+
+  <!-- ══════════ PSG 2019 ══════════ -->
+  <div id="psg2019" class="psg-section">
+
+    <div class="psg-col">
+      <h3>Highlights</h3>
+      <ul>
+        <li>Inaugural tournament begins</li>
+        <li>First-ever PSG trophy awarded</li>
+        <li>Akells and Teo sweep the competition</li>
+      </ul>
+      <img src="images/2019losers.jpg" alt="PSG 2019 losers bracket">
+    </div>
+
+    <div class="psg-col">
+      <h3>Champions</h3>
+      <div class="champion-name">Alex Kelleher</div>
+      <div class="champion-name">Mateo McDermott</div>
+      <img src="images/psg2019.jpg" alt="PSG 2019 champions">
+    </div>
+
+    <div class="psg-col">
+      <h3>News</h3>
+      <p class="news-item">First edition of Punk Squad Games launched!</p>
+    </div>
+
+  </div>
+
+  <!-- ══════════ PSG 2022 ══════════ -->
+  <div id="psg2022" class="psg-section">
+
+    <div class="psg-col">
+      <h3>Highlights</h3>
+      <ul>
+        <li>New competitors joined the league</li>
+        <li>OD makes his first appearance</li>
+      </ul>
+      <img src="images/jake2019.jpg" alt="PSG 2022 highlights">
+    </div>
+
+    <div class="psg-col">
+      <h3>Champions</h3>
+      <div class="champion-name">Isaiah Linscott</div>
+      <div class="champion-name">Chris O'Donnell</div>
+      <div class="champion-name">Neil Brennan</div>
+      <img src="images/psg2022.jpg" alt="PSG 2022 champions">
+    </div>
+
+    <div class="psg-col">
+      <h3>News</h3>
+      <p class="news-item">PSG returns after Covid — bigger and better.</p>
+    </div>
+
+  </div>
+
+  <!-- ══════════ PSG 2023 ══════════ -->
+  <div id="psg2023" class="psg-section">
+
+    <div class="psg-col">
+      <h3>Highlights</h3>
+      <ul>
+        <li>The emergence of Jack Kelleher</li>
+        <li>New event categories introduced</li>
+      </ul>
+    </div>
+
+    <div class="psg-col">
+      <h3>Champions</h3>
+      <div class="champion-name">Jack Kelleher</div>
+      <div class="champion-name">Eric Capri</div>
+      <img src="images/psg2024.jpg" alt="PSG 2023 champions">
+    </div>
+
+    <div class="psg-col">
+      <h3>News</h3>
+      <p class="news-item">Jack Kelleher claims his first PSG title.</p>
+    </div>
+
+  </div>
+
+  <!-- ══════════ PSG 2024 ══════════ -->
+  <div id="psg2024" class="psg-section">
+
+    <div class="psg-col">
+      <h3>Highlights</h3>
+      <ul>
+        <li>Record attendance — 18 competitors</li>
+        <li>Jesse gets his finger ripped</li>
+      </ul>
+      <img src="images/psgscoreold.jpg" alt="PSG 2024 scoreboard">
+    </div>
+
+    <div class="psg-col">
+      <h3>Champions</h3>
+      <div class="champion-name">Jack Kelleher</div>
+      <div class="champion-name">Jared Picciano</div>
+      <h4>Honorable Mention</h4>
+      <div class="hon-mention">Max "Wing Ding" Langis</div>
+      <img src="images/psg2024.jpg" alt="PSG 2024 champions">
+    </div>
+
+    <div class="psg-col">
+      <h3>News</h3>
+      <p class="news-item">Jack Kelleher completes the back-to-back — two titles in a row.</p>
+    </div>
+
+  </div>
+
+  <!-- ══════════ PSG 2025 ══════════ -->
+  <div id="psg2025" class="psg-section">
+
+    <div class="psg-col">
+      <h3>Highlights</h3>
+      <ul>
+        <li>Jack and Chris mount a comeback in the Gauntlet!</li>
+        <li>Strong performance from Han and Jesse</li>
+      </ul>
+      <a href="https://youtube.com/shorts/jA32_XaWRN0?si=oK2lgjDggKrb_uxZ" target="_blank" rel="noopener">
+        ▶ PSG 2025 Draft Video
+      </a>
+      <img src="images/psgscoreboard2025.png" alt="PSG 2025 scoreboard">
+    </div>
+
+    <div class="psg-col">
+      <h3>Champions</h3>
+
+      <details class="champion-entry">
+        <summary>Jack Kelleher</summary>
+        <p>Some say he may be the Tom Brady of PSG. Others say Tom Brady is the Jack Kelleher of football. He completes the three-peat — champion once again!</p>
+      </details>
+
+      <details class="champion-entry">
+        <summary>D'Blango Unchained</summary>
+        <p>Cblang has been putting in the work and grinding for his moment. After narrowly missing the podium despite the dedication, he finally breaks through to add PSG 2025 Champion to his resume.</p>
+      </details>
+
+      <img src="images/psg2025champs.jpg" alt="PSG 2025 champions">
+    </div>
+
+    <div class="psg-col">
+      <h3>Pictures</h3>
+      <img src="images/psgjake.jpg" alt="Jake at PSG 2025">
+      <p class="news-item">Jake is hurting big time!</p>
+    </div>
+
+  </div>
+
+  <!-- ══════════ PSG 2026 ══════════ -->
+  <div id="psg2026" class="psg-section active">
+
+    <div class="psg-col">
+      <h3>This Year's Events</h3>
+      <ul>
+        <li>Volleyball</li>
+        <li>3-Point Contest</li>
+        <li>Pickleball</li>
+        <li>Gauntlet</li>
+        <li>More to come!</li>
+      </ul>
+
+      <h3>Things to Watch</h3>
+      <ul>
+        <li>Watch out for Jack's team — surely he can't win four in a row.</li>
+        <li>Can Jake finally break through this year?</li>
+        <li>Is Akells a one-hit wonder, or is he making it back to the podium?</li>
+        <li>Will OD get reinstated after last year's dropout?</li>
+      </ul>
+    </div>
+
+    <div class="psg-col">
+      <h3>Event Date</h3>
+      <div class="event-date">
+        <h2>July 18, 2026</h2>
       </div>
 
-      <!-- ================== PSG YEAR SECTIONS ================== -->
-
-      <!-- 2019 -->
-      <div id="psg2019" class="psg-section">
-        <aside class="left">
-          <h3>Highlights</h3>
-          <ul>
-            <li>Inaugural tournament begins</li>
-            <li>First-ever PSG trophy awarded</li>
-            <li>Akells and teo sweep the competition</li>
-          </ul>
-          <img src="images/2019losers.jpg" alt="PSG 2019 Highlights" width="400">
-        </aside>
-
-        <section class="center">
-          <h3>Champions</h3>
-          <ul>
-            <li>Alex Kelleher</li>
-            <li>Mateo McDermott</li>
-          </ul>
-          <img src="images/psg2019.jpg" alt="PSG 2019 Highlights" width="400">
-        </section>
-
-        <aside class="right">
-          <h3>News</h3>
-          <p>First edition of Punk Squad Games launched!</p>
-        </aside>
+      <div class="psg-countdown">
+        <div class="countdown-title">Countdown to Punk Squad Games</div>
+        <div id="countdown">Loading…</div>
       </div>
 
-      <!-- 2022 -->
-      <div id="psg2022" class="psg-section">
-        <aside class="left">
-          <h3>Highlights</h3>
-          <ul>
-            <li>New competitors joined the league</li>
-            <li>OD makes an appearance</li>
-            <img src="images/jake2019.jpg" alt="PSG 2019 Highlights" width="400">
-          </ul>
-        </aside>
+      <h3>Registration</h3>
+      <form id="registerForm2026" class="register-form">
+        <div class="form-field">
+          <label for="reg-name">Name</label>
+          <input type="text" id="reg-name" name="name" placeholder="Your full name" required>
+        </div>
+        <div class="form-field">
+          <label for="reg-email">Email</label>
+          <input type="email" id="reg-email" name="email" placeholder="your@email.com" required>
+        </div>
+        <button type="submit" class="submit-btn">Register</button>
+      </form>
 
-        <section class="center">
-          <h3>Champions</h3>
-          <ul>
-            <li>Isaiah Linscott</li>
-            <li>Chris O'Donnell</li>
-            <li>Neil Brennan</li>
-          </ul>
-          <img src="images/psg2022.jpg" alt="PSG 2022 Highlights" width="400">
-        </section>
+      <details class="memorial-entry">
+        <summary>In Remembrance — The Beastydog Award</summary>
+        <p>In honor of the late great Buttercup, a new award has been created: The Beastydog Award.</p>
+        <img src="images/thebeast.jpg" alt="Buttercup — The Beast">
+      </details>
+    </div>
 
-        <aside class="right">
-          <h3>News</h3>
-          <p>PSG returns from Covid</p>
-        </aside>
-      </div>
+    <div class="psg-col">
+      <h3>News</h3>
+      <p class="news-item">🕹️ New PSG webpage launched!</p>
+      <p class="news-item">📅 PSG 2026 date confirmed: July 18th.</p>
+      <p class="news-item">📋 Draft date sometime in May or June.</p>
+      <p class="news-item">🏆 New games, trophies, awards, and more coming.</p>
+      <p class="news-item">📊 Scoreboard updates coming soon.</p>
 
-      <!-- 2023 -->
-      <div id="psg2023" class="psg-section">
-        <aside class="left">
-          <h3>Highlights</h3>
-          <ul>
-            <li>The emergence of Jack Kelleher</li>
-            <li>New event categories introduced</li>
-          </ul>
-        </aside>
+      <h3>Registered Players</h3>
+      <ul id="registrationsList">
+        <li style="color:var(--dim); font-style:italic; border:none; background:none; padding:0;">Loading…</li>
+      </ul>
+    </div>
 
-        <section class="center">
-          <h3>Champions</h3>
-          <ul>
-            <li>Jack Kelleher</li>
-            <li>Eric Capri</li>
-          </ul>
-          <img src="images/psg2024.jpg" alt="PSG 2023 Highlights" width="400">
-        </section>
-      </div>
+  </div>
 
-      <!-- 2024 -->
-      <div id="psg2024" class="psg-section">
-        <aside class="left">
-          <h3>Highlights</h3>
-          <ul>
-            <li>Record attendance with 18 people</li>
-            <li>Jesse gets his finger ripped</li>
-          </ul>
-          <img src="images/psgscoreold.jpg" alt="PSG 2024 Highlights" width="400">
-        </aside>
+</main>
 
-        <section class="center">
-          <h3>Champions</h3>
-          <ul>
-            <li>Jack Kelleher</li>
-            <li>Jared Picciano</li>
-          </ul>
-          <h4>Honorable Mention</h4>
-          <ul><li>Max "Wing Ding" Langis</li></ul>
-          <img src="images/psg2024.jpg" alt="PSG 2024 Highlights" width="400">
-        </section>
-      </div>
+<footer>
+  <p>&copy; 2026 Kelleher Innovations</p>
+</footer>
 
-      <!-- 2025 -->
-      <div id="psg2025" class="psg-section">
-        <aside class="left">
-          <h3>Highlights</h3>
-          <ul>
-            <li>Jack and Chirs mount a comback in the gauntlet!</li>
-            <a href="https://youtube.com/shorts/jA32_XaWRN0?si=oK2lgjDggKrb_uxZ"> PSG 2025 Draft Video</a>
-            <li>Strong performance from Han and Jesse!</li>
-            <img src="images/psgscoreboard2025.png" alt="PSG 2025 Highlights" width="400">
-          </ul>
-        </aside>
+<script>
+  /* ── Tab switching ── */
+  function showYear(id, btn) {
+    document.querySelectorAll('.psg-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab-section button').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+  }
 
-        <section class="center">
-          <h3>Champions</h3>
-          <ul>
-            <li>
-              <details>
-                <summary>Jack Kelleher</summary>
-                <p>Some people say he may be the Tom Brady of the Punk Squad Games. Others say Tom Brady is the Jack Kelleher of football. </p>
-                <p>Guy has completed the 3 peat and is champion once again!</p>
-              </details>
-            </li>
-            <li>
-              <details>
-                <summary>D'Blango Unchained</summary>
-                <p>Cblang has been putting in the work and grinding for his moment in the spotlight. </p>
-                <p>After not having cracked the top, 3 despite the dedication and work, he has finally broken through to add PSG 2025 Champion to his resume.</p>
-              </details>
-            </li>
-          </ul>
-          <img src="images/psg2025champs.jpg" alt="PSG 2025 Champs" width="400">
-        </section>
+  /* ── Countdown ── */
+  const psgTarget = new Date("2026-07-18T12:00:00").getTime();
 
-         <aside class="right">
-          <h3>Pictures</h3>
-          <ul>
-            <img src="images/psgjake.jpg" alt="PSG 2025 Highlights" width="400">
-            <li>Jake is hurting big time!</li>
-          </ul>
-        </aside>
-      </div>
+  function tickPSG() {
+    const diff = psgTarget - Date.now();
+    const el = document.getElementById("countdown");
+    if (!el) return;
+    if (diff <= 0) { el.textContent = "Let's go! 🎉"; return; }
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    el.textContent = `${d}d ${h}h ${m}m ${s}s`;
+  }
 
-      <!-- 2026 -->
-      <div id="psg2026" class="psg-section active">
-        <aside class="left">
-          <h3>This Years Games</h3>
-          <ul>
-            <li>Volleyball</li>
-            <li>3 Point Contest</li>
-            <li>Pickle Ball</li>
-            <li>Gauntlet</li>
-            <li>More to come!</li>
-          </ul>
-          <h3>Things To Look For:</h3>
-          <ul>
-            <li>Watrch out for Jack's team. Surely he can't win 4 in a row.</li>
-            <li>Can Jake break through this year?</li>
-            <li>Is Akells a one hit wonder or is he finally gonna make it back to the podium?</li>
-            <li>Will OD get reinstated after last years dropout?</li>
-          </ul>
-        </aside>
+  tickPSG();
+  setInterval(tickPSG, 1000);
 
-        <section class="center">
-          <!-- COUNTDOWN TIMER (added) -->
-          <h2>July 18th, 2026</h2>
-          <div class="countdown-container">
-            <div class="countdown-title">Countdown to Punk Squad Games!</div>
-            <div id="countdown">Days Remaining</div>
-          </div>
-          <h3>Champions (TBD)</h3>
-          <p>Stay tuned for this year’s results!</p>
+  /* ── Registration ── */
+  const API_BASE = "https://api.kellinnovations.com/psg";
 
-          <h3>Registration</h3>
-          <form id="registerForm2026">
-            <label>Name:</label>
-            <input type="text" name="name" required><br>
-            <label>Email:</label>
-            <input type="email" name="email" required><br>
-            <button type="submit">Register</button>
-          </form>
-          <ul>
-            <li>
-              <details>
-                <summary>In Remembrance</summary>
-                <p>in honor of the late great Buttercup, there is a new award known as The Beastydog Award</p>
-                <img src="images/thebeast.jpg" alt="PSG 2025 Champs" width="400">
-              </details>
-            </li>
-          </ul>
-        </section>
+  document.getElementById("registerForm2026").addEventListener("submit", async e => {
+    e.preventDefault();
+    const form = e.target;
+    const payload = {
+      name:  form.name.value.trim(),
+      email: form.email.value.trim()
+    };
 
-        <aside class="right">
-          <h3>News</h3>
-          <p>🕹️ New PSG Webpage!</p>
-          <p>🏆 PSG 2026 date will be announced on January 1st at 1am.</p>
-          <p>🏆 Scoredboard updates coming soon!</p>
-          <p>🏆 PSG draft date sometime in May/June.</p>
-          <p>🏆 New games, trophies, awards and more!</p>
-          <h3>Registered Players</h3>
-          <ul id="registrationsList"></ul>
-        </aside>
-      </div>
-
-    </section>
-  </main>
-
-  <footer>
-    <p>&copy; 2025 Kelleher Innovations</p>
-  </footer>
-
-  <script>
-    function showSection(id, link) {
-      // Hide all
-      const sections = document.querySelectorAll('.psg-section');
-      sections.forEach(sec => sec.classList.remove('active'));
-
-      // Remove highlight from tabs
-      const tabs = document.querySelectorAll('.tab-links a');
-      tabs.forEach(tab => tab.classList.remove('active'));
-
-      // Show clicked section
-      document.getElementById(id).classList.add('active');
-      link.classList.add('active');
-    }
-  </script>
-  <script>
-    // Set your target date here
-    const targetDate = new Date("2026-07-18T12:00:00").getTime(); // ✔ change date here
-
-    function updateCountdown() {
-      const now = new Date().getTime();
-      const diff = targetDate - now;
-
-      if (diff <= 0) {
-        document.getElementById("countdown").textContent = "Event Started!";
-        return;
-      }
-
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      document.getElementById("countdown").textContent =
-        `${days}d ${hours}h ${minutes}m ${seconds}s`;
-    }
-
-    updateCountdown();
-    setInterval(updateCountdown, 1000);
-  </script>
-  <script>
-    
-    const API_BASE = "https://api.kellinnovations.com/psg";
-
-    document.getElementById("registerForm2026").addEventListener("submit", async e => {
-      e.preventDefault();
-
-      const form = e.target;
-      const payload = {
-        name: form.name.value,
-        email: form.email.value
-      };
-
-      const res = await fetch(`${API_BASE}/api/register`, {
+    try {
+      const res  = await fetch(`${API_BASE}/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || "Registration failed");
-        return;
-      }
-
+      if (!res.ok) { alert(data.error || "Registration failed."); return; }
       alert("Registered successfully!");
       form.reset();
       loadRegistrations();
-    });
-
-    async function loadRegistrations() {
-      const res = await fetch(`${API_BASE}/api/registrations`);
-      const regs = await res.json();
-
-      const container = document.getElementById("registrationsList");
-      if (!container) return;
-
-      container.innerHTML = regs.map(r =>
-        `<li>${r.name}</li>`
-      ).join("");
+    } catch {
+      alert("Network error. Please try again.");
     }
+  });
 
-    loadRegistrations();
-    </script>
+  async function loadRegistrations() {
+    const list = document.getElementById("registrationsList");
+    try {
+      const res  = await fetch(`${API_BASE}/api/registrations`);
+      const regs = await res.json();
+      if (!regs || regs.length === 0) {
+        list.innerHTML = "<li style='color:var(--dim);font-style:italic;border:none;background:none;padding:0'>No registrations yet — be the first!</li>";
+        return;
+      }
+      list.innerHTML = regs.map(r => `<li>${r.name}</li>`).join("");
+    } catch {
+      list.innerHTML = "<li style='color:var(--dim);font-style:italic;border:none;background:none;padding:0'>Could not load registrations.</li>";
+    }
+  }
+
+  loadRegistrations();
+</script>
 
 </body>
 </html>

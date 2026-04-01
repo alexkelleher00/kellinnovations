@@ -1,123 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kelleher Innovations</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kelleher Innovations</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
 <header>
-  <h1>Kelleher Innovations</h1>
-  <p>Building Intelligent Systems</p>
-  <nav>
-    <a href="index.html" class="active">Home</a>
-    <a href="woodwork.html">Woodwork</a>
-    <a href="psg.html">Punk Squad Games</a>
-  </nav>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html" class="active">Home</a>
+      <a href="woodwork.html">Woodwork</a>
+      <a href="psg.html">Punk Squad Games</a>
+    </nav>
+  </div>
 </header>
+
 <main>
 
-  <!-- HERO SECTION (unchanged) -->
+  <!-- Hero -->
   <section class="hero">
     <h2>Welcome to Kelleher Innovations</h2>
-    <p>Automation • Smart Home • Games • Dashboards</p>
+    <p>Automation &nbsp;·&nbsp; Smart Home &nbsp;·&nbsp; Games &nbsp;·&nbsp; Dashboards</p>
     <button onclick="location.href='portfolio.html'">Explore Projects</button>
   </section>
 
-  <!-- PROJECT CARDS (NEW!) -->
+  <!-- Project Cards -->
+  <p class="cards-label">Projects &amp; Links</p>
   <section class="project-cards">
 
     <a href="https://api.kellinnovations.com/credit" class="project-card">
       <img src="images/creditcard.png" alt="Credit Card Parser">
-      <h3>Credit Card Parser</h3>
-      <p>Upload statements, analyze finances, export clean CSVs.</p>
+      <div class="project-card-body">
+        <h3>Credit Card Parser</h3>
+        <p>Upload statements, analyze finances, and export clean CSVs.</p>
+      </div>
     </a>
 
     <a href="woodwork.html" class="project-card">
       <img src="images/woodworking.png" alt="Woodworking Projects">
-      <h3>Woodworking</h3>
-      <p>Hand-built projects, crafts, and custom creations.</p>
+      <div class="project-card-body">
+        <h3>Woodworking</h3>
+        <p>Hand-built projects, crafts, and custom creations.</p>
+      </div>
     </a>
 
     <a href="https://www.youtube.com/@planterboy18/playlists" class="project-card">
       <img src="images/jalapenoguy.png" alt="Planter Boy">
-      <h3>Planter Boy Content</h3>
-      <p>Videos, edits, and creative content.</p>
+      <div class="project-card-body">
+        <h3>Planter Boy Content</h3>
+        <p>Videos, edits, and creative content on YouTube.</p>
+      </div>
     </a>
 
     <a href="psg.html" class="project-card">
       <img src="images/psg2019.jpg" alt="Punk Squad Games">
-      <h3>Punk Squad Games</h3>
-      <p>Annual competition — winners, highlights, registration.</p>
+      <div class="project-card-body">
+        <h3>Punk Squad Games</h3>
+        <p>Annual competition — winners, highlights, and registration.</p>
+      </div>
     </a>
 
     <a href="blog.html" class="project-card">
-      <img src="images/blog.png" alt="Blogs">
-      <h3>The Kells Blog</h3>
-      <p>Drop anything you want in the blog - maybe even how much you enjoy The Wire</p>
+      <img src="images/blog.png" alt="The Kells Blog">
+      <div class="project-card-body">
+        <h3>The Kells Blog</h3>
+        <p>Drop anything you want — maybe how much you enjoy The Wire.</p>
+      </div>
     </a>
 
     <a href="https://www.zola.com/wedding/evaandscott2026" class="project-card">
-      <img src="images/WeddingPic.jpg" alt="Wedding">
-      <h3>Eva And Scott</h3>
-      <p>Link to their Wedding Website</p>
+      <img src="images/WeddingPic.jpg" alt="Eva and Scott's Wedding">
+      <div class="project-card-body">
+        <h3>Eva &amp; Scott</h3>
+        <p>Link to their wedding website.</p>
+      </div>
     </a>
 
     <a href="3man.html" class="project-card">
-      <img src="images/dice.jpg" alt="3 Man">
-      <h3>3 Man!</h3>
-      <p> Dice Drinking Game!</p>
+      <img src="images/dice.jpg" alt="3 Man Dice Game">
+      <div class="project-card-body">
+        <h3>3 Man!</h3>
+        <p>The classic dice drinking game, digitized.</p>
+      </div>
     </a>
 
     <a href="letterfall.html" class="project-card">
       <img src="images/boggle.jpg" alt="Boggle">
-      <h3>Boggle!!</h3>
+      <div class="project-card-body">
+        <h3>Boggle!</h3>
+        <p>Find as many words as you can before time runs out.</p>
+      </div>
     </a>
 
     <a href="portfolio.html" class="project-card">
-      <img src="images/portfolio.jpg" alt="Portfolio">
-      <h3>Portfolio</h3>
+      <img src="images/thebeast.jpg" alt="Portfolio">
+      <div class="project-card-body">
+        <h3>Portfolio</h3>
+        <p>Skills, experience, and featured technical projects.</p>
+      </div>
     </a>
+
   </section>
 
-  <!-- COUNTDOWN TIMER (added) -->
+  <!-- Wedding Countdown -->
   <div class="countdown-container">
-    <div class="countdown-title">Countdown to Eva and Scott's Wedding!</div>
-    <div id="countdown">Days Remaining</div>
+    <div class="countdown-title">Countdown to Eva &amp; Scott's Wedding</div>
+    <div id="countdown">Loading…</div>
   </div>
 
 </main>
 
-
 <footer>
-  <p>&copy; 2025 Kelleher Innovations</p>
+  <p>&copy; 2026 Kelleher Innovations</p>
 </footer>
 
 <script>
-  // Set your target date here
-  const targetDate = new Date("2026-11-07T00:00:00").getTime(); // ✔ change date here
+  const target = new Date("2026-11-07T00:00:00").getTime();
 
-  function updateCountdown() {
-    const now = new Date().getTime();
-    const diff = targetDate - now;
-
+  function tick() {
+    const diff = target - Date.now();
     if (diff <= 0) {
-      document.getElementById("countdown").textContent = "Event Started!";
+      document.getElementById("countdown").textContent = "Today's the day! 🎉";
       return;
     }
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-    document.getElementById("countdown").textContent =
-      `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    document.getElementById("countdown").textContent = `${d}d ${h}h ${m}m ${s}s`;
   }
 
-  updateCountdown();
-  setInterval(updateCountdown, 1000);
+  tick();
+  setInterval(tick, 1000);
 </script>
+
 </body>
 </html>
