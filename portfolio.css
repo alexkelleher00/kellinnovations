@@ -190,6 +190,19 @@ nav {
     color: var(--gold);
     transform: translateY(-2px);
 }
+.btn-hero {
+    background: rgba(180, 60, 60, 0.25);
+    color: #f0b8b8;
+    border: 2px solid rgba(220, 100, 100, 0.55);
+    box-shadow: 0 4px 20px rgba(180,40,40,0.25);
+}
+.btn-hero:hover {
+    background: rgba(200, 70, 70, 0.4);
+    border-color: rgba(240, 140, 140, 0.8);
+    color: #ffe0e0;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(180,40,40,0.4);
+}
 
 /* ── Sections ──────────────────────────────────────────── */
 section { padding: 7rem 4rem; position: relative; }
