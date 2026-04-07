@@ -191,18 +191,17 @@ nav {
     transform: translateY(-2px);
 }
 .btn-hero {
-    background: linear-gradient(135deg, rgba(200, 80, 80, 0.65), rgba(160, 50, 50, 0.75));
-    color: #ffe4e4;
-    border: 2px solid rgba(240, 150, 150, 0.6);
-    box-shadow: 0 6px 24px rgba(180,40,40,0.45);
-    backdrop-filter: blur(8px);
+    background: linear-gradient(135deg, #c47a2a, #a85e18);
+    color: #fff5e6;
+    border: 2px solid rgba(220, 160, 80, 0.6);
+    box-shadow: 0 6px 24px rgba(180, 100, 20, 0.45);
 }
 .btn-hero:hover {
-    background: linear-gradient(135deg, rgba(220, 100, 100, 0.8), rgba(180, 60, 60, 0.9));
-    border-color: rgba(255, 180, 180, 0.85);
-    color: #fff0f0;
+    background: linear-gradient(135deg, #d4893a, #b86e24);
+    border-color: rgba(240, 190, 110, 0.85);
+    color: #fff8f0;
     transform: translateY(-3px);
-    box-shadow: 0 12px 36px rgba(180,40,40,0.6);
+    box-shadow: 0 12px 36px rgba(180, 100, 20, 0.6);
 }
 
 /* ── Sections ──────────────────────────────────────────── */
