@@ -76,8 +76,8 @@
                 every layer of the stack.
             </p>
             <p>
-                Outside of work I'm building an offline voice AI assistant in C++, running a woodworking
-                and landscaping side business, playing sports, and experimenting with solar power systems.
+                Outside of work I'm building an offline voice AI assistant in C++, woodworking personal
+                projects, gardening, playing sports, and experimenting with solar power systems.
             </p>
             <div class="stats-row">
                 <div class="stat-box">
@@ -240,7 +240,11 @@
 
         <!-- AI Assistant -->
         <div class="project-card">
-            <div class="project-banner banner-ai">🤖</div>
+            <div class="project-banner banner-ai">
+                <div class="img-strip" data-empty-icon="🤖">
+                    <!-- <img src="photos/assistant/1.jpg" alt="AI Assistant"> -->
+                </div>
+            </div>
             <div class="project-body">
                 <div class="project-category">AI / C++ / Embedded</div>
                 <h3 class="project-title">Offline Voice AI Assistant</h3>
@@ -269,7 +273,11 @@
 
         <!-- Credit Card Scraper -->
         <div class="project-card">
-            <div class="project-banner banner-web">💳</div>
+            <div class="project-banner banner-web">
+                <div class="img-strip" data-empty-icon="💳">
+                    <!-- <img src="photos/credit/1.jpg" alt="Credit Analyzer"> -->
+                </div>
+            </div>
             <div class="project-body">
                 <div class="project-category">Python / Flask / Web</div>
                 <h3 class="project-title">Credit Card Statement Analyzer</h3>
@@ -295,7 +303,11 @@
 
         <!-- Letterfall -->
         <div class="project-card">
-            <div class="project-banner banner-web">🔤</div>
+            <div class="project-banner banner-web">
+                <div class="img-strip" data-empty-icon="🔤">
+                    <!-- <img src="photos/letterfall/1.jpg" alt="Letterfall"> -->
+                </div>
+            </div>
             <div class="project-body">
                 <div class="project-category">JavaScript / Flask / Multiplayer</div>
                 <h3 class="project-title">Letterfall — Multiplayer Word Game</h3>
@@ -319,14 +331,18 @@
 
         <!-- Kell Innovations Platform -->
         <div class="project-card">
-            <div class="project-banner banner-web">🌐</div>
+            <div class="project-banner banner-web">
+                <div class="img-strip" data-empty-icon="🌐">
+                    <!-- <img src="photos/platform/1.jpg" alt="Platform"> -->
+                </div>
+            </div>
             <div class="project-body">
                 <div class="project-category">Full Stack / Server / Python</div>
                 <h3 class="project-title">KellInnovations Web Platform</h3>
                 <p class="project-desc">
                     A multi-purpose web platform hosted on a VPS running multiple Flask Blueprint apps
                     under one server. Includes a public-facing site, a PSG registration API,
-                    a woodworking and landscaping portfolio sub-site, a blog, and the multiplayer game backend.
+                    a woodworking portfolio sub-site, a blog, and the multiplayer game backend.
                     The server is managed with systemd, nginx reverse proxy, and HTTPS via Let's Encrypt.
                     Backend services are written in Python with shared data stores and session management.
                 </p>
@@ -344,7 +360,11 @@
 
         <!-- Solar Power Box -->
         <div class="project-card">
-            <div class="project-banner banner-solar">☀️</div>
+            <div class="project-banner banner-solar">
+                <div class="img-strip" data-empty-icon="☀️">
+                    <!-- <img src="photos/solar/1.jpg" alt="Solar Box"> -->
+                </div>
+            </div>
             <div class="project-body">
                 <div class="project-category">Hardware / Power Systems</div>
                 <h3 class="project-title">Portable Solar Generator Enclosure</h3>
@@ -368,7 +388,11 @@
 
         <!-- PoE RPi Box -->
         <div class="project-card">
-            <div class="project-banner banner-hardware">📷</div>
+            <div class="project-banner banner-hardware">
+                <div class="img-strip" data-empty-icon="📷">
+                    <!-- <img src="photos/poe/1.jpg" alt="PoE Box"> -->
+                </div>
+            </div>
             <div class="project-body">
                 <div class="project-category">Hardware / Embedded / Networking</div>
                 <h3 class="project-title">Outdoor PoE Camera &amp; RPi Control Box</h3>
@@ -393,7 +417,11 @@
 
         <!-- RDM Project -->
         <div class="project-card">
-            <div class="project-banner banner-software">📡</div>
+            <div class="project-banner banner-software">
+                <div class="img-strip" data-empty-icon="📡">
+                    <!-- <img src="photos/rdm/1.jpg" alt="RDM"> -->
+                </div>
+            </div>
             <div class="project-body">
                 <div class="project-category">C++ / CUDA / Signal Processing</div>
                 <h3 class="project-title">Real-Time Range Doppler Map Engine</h3>
@@ -416,7 +444,11 @@
 
         <!-- Underwater Systems -->
         <div class="project-card">
-            <div class="project-banner banner-hardware">🌊</div>
+            <div class="project-banner banner-hardware">
+                <div class="img-strip" data-empty-icon="🌊">
+                    <!-- <img src="photos/underwater/1.jpg" alt="Underwater Systems"> -->
+                </div>
+            </div>
             <div class="project-body">
                 <div class="project-category">Hardware / EE / Defense</div>
                 <h3 class="project-title">Underwater Electrical System Development</h3>
@@ -526,6 +558,44 @@
     }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
 
     document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+    // Image strips — show emoji fallback when no images, build dot indicators when images exist
+    document.querySelectorAll('.img-strip').forEach(strip => {
+        const imgs = strip.querySelectorAll('img');
+        const banner = strip.closest('.project-banner');
+        const icon = strip.dataset.emptyIcon || '📁';
+
+        if (imgs.length === 0) {
+            // No photos yet — render the emoji placeholder
+            strip.style.alignItems = 'center';
+            strip.style.justifyContent = 'center';
+            strip.style.fontSize = '3.5rem';
+            strip.textContent = icon;
+            return;
+        }
+
+        // Build dot indicators
+        const dotsEl = document.createElement('div');
+        dotsEl.className = 'strip-dots';
+        imgs.forEach((_, i) => {
+            const dot = document.createElement('div');
+            dot.className = 'strip-dot' + (i === 0 ? ' active' : '');
+            dot.addEventListener('click', () => {
+                strip.scrollTo({ left: strip.clientWidth * i, behavior: 'smooth' });
+            });
+            dotsEl.appendChild(dot);
+        });
+        banner.style.position = 'relative';
+        banner.appendChild(dotsEl);
+
+        // Update active dot on scroll
+        strip.addEventListener('scroll', () => {
+            const idx = Math.round(strip.scrollLeft / strip.clientWidth);
+            dotsEl.querySelectorAll('.strip-dot').forEach((d, i) => {
+                d.classList.toggle('active', i === idx);
+            });
+        });
+    });
 
     // Contact form submission
     document.getElementById('contactForm').addEventListener('submit', async function(e) {

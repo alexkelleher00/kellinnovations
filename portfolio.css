@@ -379,7 +379,7 @@ section:nth-child(even) { background: var(--bg2); }
     font-size: 1.5rem; font-weight: 900; margin-bottom: 0.7rem; line-height: 1.2;
 }
 .project-desc {
-    font-size: 1rem; color: var(--text-dim);
+    font-size: 1rem; color: #d4b8b8;
     line-height: 1.7; margin-bottom: 1.5rem; flex: 1;
 }
 .project-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.2rem; }
@@ -388,8 +388,44 @@ section:nth-child(even) { background: var(--bg2); }
     background: rgba(139,0,0,0.2);
     border: 1px solid rgba(139,0,0,0.4);
     border-radius: 50px;
-    font-size: 0.8rem; font-weight: 600; color: var(--text-dim);
+    font-size: 0.8rem; font-weight: 600; color: #c8a8a8;
 }
+/* ── Project image strip ───────────────────────────────── */
+.img-strip {
+    display: flex;
+    width: 100%; height: 100%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    position: relative; z-index: 1;
+}
+.img-strip::-webkit-scrollbar { display: none; }
+.img-strip img {
+    flex-shrink: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    scroll-snap-align: start;
+    pointer-events: none;
+    user-select: none;
+}
+/* When strip has images, show dot indicators */
+.project-banner:has(.img-strip img) .strip-dots {
+    display: flex;
+}
+.strip-dots {
+    display: none;
+    position: absolute; bottom: 10px; left: 50%;
+    transform: translateX(-50%);
+    gap: 6px; z-index: 10;
+}
+.strip-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: rgba(255,255,255,0.4);
+    transition: background 0.2s;
+    cursor: pointer;
+}
+.strip-dot.active { background: white; }
+
 .project-link {
     font-size: 0.9rem; font-weight: 700;
     color: var(--gold); text-decoration: none;
