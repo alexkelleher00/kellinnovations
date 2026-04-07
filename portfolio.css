@@ -168,7 +168,8 @@ nav {
     text-decoration: none; border-radius: 50px;
     transition: all 0.3s; display: inline-block;
     font-family: 'Darker Grotesque', sans-serif;
-    cursor: pointer; border: none;
+    cursor: pointer; border: 2px solid transparent;
+    color: var(--text);
 }
 .btn-primary {
     background: linear-gradient(135deg, var(--maroon), var(--maroon-light));
