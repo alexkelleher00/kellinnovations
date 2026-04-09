@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sliding Tile Puzzle</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f5f5f3;
+      color: #1a1a1a;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .puzzle-wrap {
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid #e0e0d8;
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 440px;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 1.25rem;
+      color: #1a1a1a;
+    }
+
+    .puzzle-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .puzzle-stats {
+      display: flex;
+      gap: 10px;
+    }
+
+    .stat {
+      background: #f5f5f3;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 13px;
+      color: #666;
+    }
+
+    .stat span {
+      font-weight: 500;
+      color: #1a1a1a;
+      margin-left: 4px;
+    }
+
+    .size-select {
+      display: flex;
+      gap: 6px;
+    }
+
+    .size-btn {
+      padding: 5px 13px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      background: transparent;
+      color: #888;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .size-btn.active {
+      border-color: #aaa;
+      color: #1a1a1a;
+      background: #f5f5f3;
+    }
+
+    #puzzle-board {
+      display: grid;
+      gap: 5px;
+      width: 100%;
+      aspect-ratio: 1;
+      margin: 0 auto;
+    }
+
+    .tile {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 20px;
+      font-weight: 500;
+      color: #1a1a1a;
+      background: #f0f0ec;
+      border: 1px solid #ddd;
+      transition: transform 0.1s ease, background 0.1s;
+      user-select: none;
+    }
+
+    .tile:hover:not(.empty) {
+      background: #fff;
+      border-color: #bbb;
+      transform: scale(0.96);
+    }
+
+    .tile.empty {
+      background: transparent;
+      border: 1.5px dashed #ddd;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .tile.image-tile {
+      background-size: cover;
+      background-position: center;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 1.25rem;
+    }
+
+    .controls button {
+      padding: 9px 22px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      background: transparent;
+      color: #1a1a1a;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .controls button:hover {
+      background: #f5f5f3;
+    }
+
+    #win-msg {
+      display: none;
+      text-align: center;
+      margin-top: 1rem;
+      font-size: 15px;
+      color: #666;
+      padding: 10px;
+      background: #f5f5f3;
+      border-radius: 8px;
+    }
+
+    #win-msg strong {
+      color: #1a1a1a;
+    }
+
+    /* -------------------------------------------------------
+       TO USE YOUR OWN IMAGE:
+       1. Set useImage = true  (line ~180 in the script)
+       2. Set imgSrc to your image path or URL  (line ~181)
+       Example:
+         let useImage = true;
+         let imgSrc = 'my-photo.jpg';
+    ------------------------------------------------------- */
+  </style>
+</head>
+<body>
+  <div class="puzzle-wrap">
+    <h1>Sliding Puzzle</h1>
+
+    <div class="puzzle-header">
+      <div class="puzzle-stats">
+        <div class="stat">Moves<span id="moves">0</span></div>
+        <div class="stat">Time<span id="timer">0s</span></div>
+      </div>
+      <div class="size-select">
+        <button class="size-btn active" onclick="setSize(3, this)">3×3</button>
+        <button class="size-btn" onclick="setSize(4, this)">4×4</button>
+        <button class="size-btn" onclick="setSize(5, this)">5×5</button>
+      </div>
+    </div>
+
+    <div id="puzzle-board"></div>
+    <div id="win-msg"></div>
+
+    <div class="controls">
+      <button onclick="shuffle()">Shuffle</button>
+      <button onclick="solve()">Solve (cheat)</button>
+    </div>
+  </div>
+
+  <script>
+    /* -------------------------------------------------------
+       CONFIGURATION — edit these two lines to use your image
+    ------------------------------------------------------- */
+    let useImage = false;
+    let imgSrc = null;
+    /* ------------------------------------------------------- */
+
+    const COLORS = [
+      '#B5D4F455','#9FE1CB55','#F5C4B355','#C0DD9755','#FAC77555',
+      '#F4C0D155','#CECBF655','#F7C1C155','#D3D1C755','#5DCAA555',
+      '#85B7EB55','#97C45955','#EF9F2755','#D85A3055','#D4537E55',
+      '#7F77DD55','#E24B4A55','#1D9E7555','#BA751755','#99355655',
+      '#378ADD55','#63992255','#D85A3055','#533AB755','#0F6E5655'
+    ];
+
+    const BORDERS = [
+      '#B5D4F4','#9FE1CB','#F5C4B3','#C0DD97','#FAC775',
+      '#F4C0D1','#CECBF6','#F7C1C1','#D3D1C7','#5DCAA5',
+      '#85B7EB','#97C459','#EF9F27','#D85A30','#D4537E',
+      '#7F77DD','#E24B4A','#1D9E75','#BA7517','#993556',
+      '#378ADD','#639922','#D85A30','#533AB7','#0F6E56'
+    ];
+
+    let size = 3;
+    let tiles = [];
+    let emptyIdx = 0;
+    let moves = 0;
+    let seconds = 0;
+    let timerInterval = null;
+    let started = false;
+
+    function setSize(n, btn) {
+      size = n;
+      document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      init();
+      shuffle();
+    }
+
+    function init() {
+      tiles = Array.from({ length: size * size }, (_, i) => i);
+      emptyIdx = size * size - 1;
+      moves = 0;
+      seconds = 0;
+      started = false;
+      clearInterval(timerInterval);
+      document.getElementById('moves').textContent = '0';
+      document.getElementById('timer').textContent = '0s';
+      document.getElementById('win-msg').style.display = 'none';
+    }
+
+    function shuffle() {
+      init();
+      let blank = emptyIdx;
+      for (let i = 0; i < 400; i++) {
+        const neighbors = getNeighbors(blank);
+        const pick = neighbors[Math.floor(Math.random() * neighbors.length)];
+        [tiles[blank], tiles[pick]] = [tiles[pick], tiles[blank]];
+        blank = pick;
+      }
+      emptyIdx = blank;
+      render();
+    }
+
+    function getNeighbors(idx) {
+      const row = Math.floor(idx / size), col = idx % size;
+      const n = [];
+      if (row > 0) n.push(idx - size);
+      if (row < size - 1) n.push(idx + size);
+      if (col > 0) n.push(idx - 1);
+      if (col < size - 1) n.push(idx + 1);
+      return n;
+    }
+
+    function canMove(idx) {
+      return getNeighbors(emptyIdx).includes(idx);
+    }
+
+    function moveTile(idx) {
+      if (!canMove(idx)) return;
+      if (!started) {
+        started = true;
+        timerInterval = setInterval(() => {
+          seconds++;
+          document.getElementById('timer').textContent = seconds + 's';
+        }, 1000);
+      }
+      [tiles[emptyIdx], tiles[idx]] = [tiles[idx], tiles[emptyIdx]];
+      emptyIdx = idx;
+      moves++;
+      document.getElementById('moves').textContent = moves;
+      render();
+      checkWin();
+    }
+
+    function checkWin() {
+      for (let i = 0; i < size * size - 1; i++) {
+        if (tiles[i] !== i) return;
+      }
+      clearInterval(timerInterval);
+      const msg = document.getElementById('win-msg');
+      msg.innerHTML = `<strong>Solved!</strong> ${moves} moves in ${seconds}s`;
+      msg.style.display = 'block';
+    }
+
+    function render() {
+      const board = document.getElementById('puzzle-board');
+      board.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+      board.innerHTML = '';
+
+      tiles.forEach((val, idx) => {
+        const div = document.createElement('div');
+        div.className = 'tile';
+
+        if (val === size * size - 1) {
+          div.classList.add('empty');
+        } else if (useImage && imgSrc) {
+          div.classList.add('image-tile');
+          const row = Math.floor(val / size), col = val % size;
+          const pct = 100 / (size - 1);
+          div.style.backgroundImage = `url(${imgSrc})`;
+          div.style.backgroundSize = `${size * 100}%`;
+          div.style.backgroundPosition = `${col * pct}% ${row * pct}%`;
+        } else {
+          div.style.background = COLORS[val % COLORS.length];
+          div.style.borderColor = BORDERS[val % BORDERS.length];
+          div.textContent = val + 1;
+        }
+
+        div.addEventListener('click', () => moveTile(idx));
+        board.appendChild(div);
+      });
+    }
+
+    function solve() {
+      tiles = Array.from({ length: size * size }, (_, i) => i);
+      emptyIdx = size * size - 1;
+      clearInterval(timerInterval);
+      started = false;
+      render();
+      const msg = document.getElementById('win-msg');
+      msg.innerHTML = '<strong>Cheater!</strong> Board reset to solved state.';
+      msg.style.display = 'block';
+    }
+
+    shuffle();
+  </script>
+</body>
+</html>
