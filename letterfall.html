@@ -652,21 +652,22 @@ function cacheCellRects() {
 }
 function cellUnder(x, y) {
   if (!_cellRects) return -1;
-  const PAD = 22;
-  // First pass: expanded hit box
+  // First pass: exact hit — no expansion so adjacent cells never steal the touch
   for (let i=0; i<_cellRects.length; i++) {
     const r = _cellRects[i];
-    if (x >= r.left - PAD && x <= r.right + PAD && y >= r.top - PAD && y <= r.bottom + PAD) return i;
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return i;
   }
-  // Second pass: cardinal + diagonal probes for swipe paths between cells
-  const probes = [[0,0],[PAD,0],[-PAD,0],[0,PAD],[0,-PAD],[PAD,PAD],[PAD,-PAD],[-PAD,PAD],[-PAD,-PAD]];
-  for (const [dx,dy] of probes) {
-    for (let i=0; i<_cellRects.length; i++) {
-      const r = _cellRects[i];
-      if (x+dx >= r.left && x+dx <= r.right && y+dy >= r.top && y+dy <= r.bottom) return i;
-    }
+  // Second pass: nearest cell center within MAX_DIST px (handles gaps between cells and diagonal swipes)
+  const MAX_DIST = 38;
+  let best = -1, bestD = Infinity;
+  for (let i=0; i<_cellRects.length; i++) {
+    const r = _cellRects[i];
+    const cx = (r.left + r.right) / 2;
+    const cy = (r.top + r.bottom) / 2;
+    const d = Math.hypot(x - cx, y - cy);
+    if (d < bestD) { bestD = d; best = i; }
   }
-  return -1;
+  return bestD <= MAX_DIST ? best : -1;
 }
 
 function buildGrid(board) {
@@ -809,7 +810,7 @@ function submitWord() {
       document.body.appendChild(fl);
       setTimeout(()=>fl.remove(),700);
     }
-    setTimeout(()=>{sel=[];hilite();redraw();document.getElementById('wdisp').classList.remove('wordgot');},312);
+    setTimeout(()=>{sel=[];hilite();redraw();document.getElementById('wdisp').classList.remove('wordgot');},180);
   } else {
     if(w.length>=minLen && !isWordValid && !roundSet.has(wUp)) {
       const el=document.getElementById('wdisp');
