@@ -2695,6 +2695,77 @@ var _mTracks=[
      }
      _mhat(now,beat%2===0?0.02:0.01);
    }},
+
+  // 7. GD Electro — Geometry Dash style fast synth, 175 bpm
+  {name:'GD Electro', bpm:175,
+   chords:[[523.3,659.3,783.9,1046.5],[440,554.4,659.3,880],[493.9,622.3,740,987.8],[415.3,523.3,622.3,830.6]],
+   beatFn:function(beat,ch,now,sec){
+     // Driving 4-on-floor kick every beat
+     _mkick(now);
+     // Hard synth bass with sharp attack
+     var bass=_mAc.createOscillator(),bg=_mAc.createGain();
+     bass.connect(bg);bg.connect(_mAc.destination);
+     bass.type='sawtooth';bass.frequency.setValueAtTime(ch[0]/2,now);
+     bg.gain.setValueAtTime(0.3,now);bg.gain.exponentialRampToValueAtTime(0.001,now+sec*0.5);
+     bass.start(now);bass.stop(now+sec*0.55);_mNodes.push(bass);
+     // Fast arpeggiated lead — runs up the chord in sixteenth notes
+     var steps=[0,1,2,3,2,1,3,0];
+     steps.forEach(function(s,i){
+       var t=now+i*(sec*0.125);
+       var osc=_mAc.createOscillator(),g=_mAc.createGain();
+       osc.connect(g);g.connect(_mAc.destination);
+       osc.type='square';osc.frequency.setValueAtTime(ch[s]*2,t);
+       g.gain.setValueAtTime(0.08,t);g.gain.linearRampToValueAtTime(0,t+sec*0.1);
+       osc.start(t);osc.stop(t+sec*0.12);_mNodes.push(osc);
+     });
+     // Snare on 2 and 6
+     if(beat===2||beat===6) _msnare(now);
+     // Crisp hi-hat every 16th
+     _mhat(now,0.025);
+     _mhat(now+sec*0.5,0.015);
+   }},
+
+  // 8. GD Stereo Madness — pounding drive, 180 bpm
+  {name:'GD Stereo', bpm:180,
+   chords:[[349.2,440,523.3,698.5],[293.7,369.9,440,587.3],[329.6,415.3,493.9,659.3],[261.6,329.6,392,523.3]],
+   beatFn:function(beat,ch,now,sec){
+     // Thunderous kick on every beat
+     _mkick(now);
+     _mkick(now+sec*0.25); // double-kick feel
+     // Pulsing square bass with pitch lock
+     _mn(ch[0]/2,now,sec*0.4,0.28,'square');
+     // GD-style staccato chord stabs
+     if(beat%2===0){
+       ch.forEach(function(f,i){
+         _mn(f,now+i*0.005,sec*0.12,0.07,'sawtooth');
+       });
+     }
+     // Climbing lead melody
+     var melNotes=[0,1,2,3,3,2,1,0];
+     _mn(ch[melNotes[beat]]*4,now+sec*0.05,sec*0.2,0.1,'square');
+     // Snare backbeat
+     if(beat===1||beat===3||beat===5||beat===7) _msnare(now);
+     _mhat(now,0.03);
+   }},
+
+  // 9. GD Base After Base — pumping electro 168 bpm
+  {name:'GD Base', bpm:168,
+   chords:[[392,493.9,587.3,783.9],[349.2,440,523.3,698.5],[329.6,415.3,493.9,659.3],[369.9,466.2,554.4,739.9]],
+   beatFn:function(beat,ch,now,sec){
+     // Four-on-floor with sub kick
+     _mkick(now);
+     _mn(ch[0]/4,now,sec*0.7,0.2,'sine'); // sub bass
+     // Pulsing saw synth stab every half beat
+     _mn(ch[0]/2,now,sec*0.3,0.22,'sawtooth');
+     _mn(ch[beat%4===0?1:2],now+sec*0.5,sec*0.25,0.1,'sawtooth');
+     // Electro lead riff — alternating high notes
+     var arpPat=[3,2,1,3,0,2,3,1];
+     _mn(ch[arpPat[beat]]*2,now+sec*0.1,sec*0.35,0.12,'square');
+     // Snare + hi-hat
+     if(beat===2||beat===6) _msnare(now);
+     _mhat(now,0.028);
+     if(beat%2===1) _mhat(now+sec*0.5,0.015);
+   }},
 ];
 
 // ── Shared percussions ─────────────────────────────────────────────────────

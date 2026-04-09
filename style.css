@@ -255,8 +255,8 @@ footer {
   content: '';
   position: absolute;
   left: 0; right: 0;
-  top: 108px;
-  height: 62px;
+  top: 170px;
+  height: 38px;
   background: linear-gradient(to bottom, transparent, var(--surface));
   pointer-events: none;
   z-index: 1;
