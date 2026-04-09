@@ -2582,72 +2582,168 @@ renderHome();
 
 // ======= MUSIC ENGINE =======
 var _mAc=null, _mPlaying=false, _mNodes=[], _mScheduled=null;
-var _mNotes=[
-  // Jazz/lounge chord progression in Eb — played as layered arpeggios
-  // Ebmaj7: Eb G Bb D  |  Cm7: C Eb G Bb  |  Fm7: F Ab C Eb  |  Bb7: Bb D F Ab
-  [311.1,392.0,466.2,587.3],
-  [261.6,311.1,392.0,466.2],
-  [349.2,415.3,523.3,622.3],
-  [233.1,293.7,349.2,415.3]
+var _mBeat=0, _mChord=0, _mTrackIdx=0;
+
+// ── Track definitions ──────────────────────────────────────────────────────
+// Each track: { name, bpm, chords[][], beatFn(beat,chord,now,sec) }
+var _mTracks=[
+
+  // 1. Lounge Jazz — mellow Eb jazz, 88 bpm
+  {name:'Lounge Jazz', bpm:88,
+   chords:[[311.1,392.0,466.2,587.3],[261.6,311.1,392.0,466.2],[349.2,415.3,523.3,622.3],[233.1,293.7,349.2,415.3]],
+   beatFn:function(beat,ch,now,sec){
+     if(beat===0||beat===4) _mn(ch[0]/2,now,sec*1.8,0.18,'triangle');
+     if(beat%2===0) ch.forEach(function(f,i){setTimeout(function(){if(_mPlaying)_mn(f,_mAc.currentTime,sec*0.45,0.06,'sine');},i*28);});
+     _mn(ch[[0,2,1,3,2,1,0,3][beat]]*2,now+sec*0.12,sec*0.55,0.09,'triangle');
+     _mhat(now,0.012);
+   }},
+
+  // 2. Bar Blues — slow 12-bar A blues shuffle, 72 bpm
+  {name:'Bar Blues', bpm:72,
+   chords:[[110,138.6,164.8,220],[146.8,185,220,277.2],[164.8,207.7,246.9,329.6]],
+   beatFn:function(beat,ch,now,sec){
+     // Walking bass: root alternates with fifth
+     var root=ch[0], fifth=ch[0]*1.5;
+     _mn(beat%2===0?root:fifth,now,sec*0.9,0.22,'sawtooth');
+     // Chord on 2 and 4 (backbeat)
+     if(beat===2||beat===6){
+       ch.forEach(function(f){_mn(f,now,sec*0.4,0.05,'sine');});
+     }
+     // Bluesy melody bend on beat 1
+     if(beat===1||beat===5){
+       var osc=_mAc.createOscillator(),g=_mAc.createGain();
+       osc.connect(g);g.connect(_mAc.destination);
+       osc.type='triangle';osc.frequency.setValueAtTime(ch[2]*2,now);
+       osc.frequency.linearRampToValueAtTime(ch[2]*2*1.06,now+sec*0.3);
+       g.gain.setValueAtTime(0.11,now);g.gain.linearRampToValueAtTime(0,now+sec*0.6);
+       osc.start(now);osc.stop(now+sec*0.7);_mNodes.push(osc);
+     }
+     _mhat(now,beat%2===0?0.018:0.008);
+   }},
+
+  // 3. Honky Tonk — upbeat saloon piano feel, 116 bpm
+  {name:'Honky Tonk', bpm:116,
+   chords:[[196,246.9,293.7,392],[220,277.2,329.6,440],[174.6,220,261.6,349.2],[164.8,207.7,246.9,329.6]],
+   beatFn:function(beat,ch,now,sec){
+     // Oom-pah bass: root on 0,2,4,6 — pah chord on 1,3,5,7
+     if(beat%2===0){
+       _mn(ch[0]/2,now,sec*0.5,0.2,'square');
+       _mn(ch[0]/4,now,sec*0.5,0.1,'triangle');
+     } else {
+       ch.slice(1).forEach(function(f,i){_mn(f,now+i*0.01,sec*0.35,0.07,'square');});
+     }
+     // Choppy melody
+     if(beat===1||beat===3||beat===5){
+       _mn(ch[[2,3,1,2,3,1,2,0][beat]]*2,now+sec*0.05,sec*0.28,0.1,'triangle');
+     }
+     _mhat(now,0.02);
+     if(beat===0||beat===4) _mkick(now);
+   }},
+
+  // 4. Irish Pub — fast jig energy, 148 bpm
+  {name:'Irish Pub', bpm:148,
+   chords:[[261.6,329.6,392,523.3],[220,261.6,329.6,440],[196,246.9,293.7,392],[174.6,220,261.6,349.2]],
+   beatFn:function(beat,ch,now,sec){
+     // Strong bass thump every beat
+     _mn(ch[0]/2,now,sec*0.6,0.2,'triangle');
+     // Fast arpeggiated melody — runs up and down the chord
+     var arp=[0,1,2,3,2,1,0,2][beat];
+     _mn(ch[arp]*2,now,sec*0.45,0.12,'square');
+     // Off-beat high note for jig feel
+     _mn(ch[3]*2,now+sec*0.5,sec*0.25,0.08,'triangle');
+     // Crisp hi-hat on every beat
+     _mhat(now,0.025);
+     if(beat===0||beat===4) _mkick(now);
+     if(beat===2||beat===6) _msnare(now);
+   }},
+
+  // 5. Party Pump — driving 4-on-floor dance energy, 128 bpm
+  {name:'Party Pump', bpm:128,
+   chords:[[130.8,164.8,196,261.6],[146.8,185,220,293.7],[164.8,207.7,246.9,329.6],[174.6,220,261.6,349.2]],
+   beatFn:function(beat,ch,now,sec){
+     // Four-on-floor kick
+     _mkick(now);
+     // Pumping bass synth
+     _mn(ch[0]/2,now,sec*0.8,0.25,'sawtooth');
+     // Chord stab off-beat (beat 2,4,6)
+     if(beat%2!==0){
+       ch.forEach(function(f,i){_mn(f,now,sec*0.15,0.06,'sawtooth');});
+     }
+     // Lead synth riff
+     if(beat===1||beat===3||beat===5||beat===7){
+       _mn(ch[beat%4===1?2:1]*4,now,sec*0.35,0.1,'square');
+     }
+     _mhat(now,0.03);
+     if(beat===2||beat===6) _msnare(now);
+   }},
+
+  // 6. Ragtime — jaunty syncopated saloon, 104 bpm
+  {name:'Ragtime', bpm:104,
+   chords:[[261.6,329.6,392,493.9],[220,277.2,329.6,415.3],[174.6,220,261.6,349.2],[196,246.9,293.7,369.9]],
+   beatFn:function(beat,ch,now,sec){
+     // Bass: root on 0,4 — fifth on 2,6
+     if(beat%4===0) _mn(ch[0]/2,now,sec*1.0,0.2,'triangle');
+     if(beat%4===2) _mn(ch[0]*0.75,now,sec*1.0,0.15,'triangle');
+     // Syncopated chord hits (ragtime off-beats)
+     if(beat===1||beat===3||beat===4||beat===6){
+       ch.slice(0,3).forEach(function(f,i){setTimeout(function(){if(_mPlaying)_mn(f,_mAc.currentTime,sec*0.25,0.07,'square');},i*18);});
+     }
+     // Melody trill
+     if(beat===0||beat===2||beat===5){
+       _mn(ch[2]*2,now+sec*0.1,sec*0.3,0.1,'triangle');
+       _mn(ch[3]*2,now+sec*0.35,sec*0.2,0.08,'triangle');
+     }
+     _mhat(now,beat%2===0?0.02:0.01);
+   }},
 ];
-var _mChord=0, _mBeat=0, _mBpm=88;
+
+// ── Shared percussions ─────────────────────────────────────────────────────
+function _mn(freq,t,dur,vol,type){
+  var osc=_mAc.createOscillator(),g=_mAc.createGain(),c=_mAc.createDynamicsCompressor();
+  osc.connect(g);g.connect(c);c.connect(_mAc.destination);
+  osc.type=type||'sine';osc.frequency.setValueAtTime(freq,t);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.03);
+  g.gain.setValueAtTime(vol,t+dur*0.55);g.gain.linearRampToValueAtTime(0,t+dur);
+  osc.start(t);osc.stop(t+dur+0.04);_mNodes.push(osc);
+}
+function _mhat(t,vol){
+  var o=_mAc.createOscillator(),g=_mAc.createGain();
+  o.connect(g);g.connect(_mAc.destination);
+  o.type='square';o.frequency.setValueAtTime(9000+Math.random()*3000,t);
+  g.gain.setValueAtTime(vol,t);g.gain.linearRampToValueAtTime(0,t+0.04);
+  o.start(t);o.stop(t+0.05);_mNodes.push(o);
+}
+function _mkick(t){
+  var o=_mAc.createOscillator(),g=_mAc.createGain();
+  o.connect(g);g.connect(_mAc.destination);
+  o.type='sine';o.frequency.setValueAtTime(160,t);o.frequency.exponentialRampToValueAtTime(40,t+0.12);
+  g.gain.setValueAtTime(0.35,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+  o.start(t);o.stop(t+0.2);_mNodes.push(o);
+}
+function _msnare(t){
+  var o=_mAc.createOscillator(),g=_mAc.createGain();
+  o.connect(g);g.connect(_mAc.destination);
+  o.type='square';o.frequency.setValueAtTime(200+Math.random()*80,t);
+  g.gain.setValueAtTime(0.15,t);g.gain.linearRampToValueAtTime(0,t+0.08);
+  o.start(t);o.stop(t+0.09);_mNodes.push(o);
+}
 
 function _mInit(){
   if(_mAc)return;
   _mAc=new(window.AudioContext||window.webkitAudioContext)();
 }
 
-function _mMakeNote(freq,startTime,dur,vol,type){
-  var osc=_mAc.createOscillator();
-  var gain=_mAc.createGain();
-  var comp=_mAc.createDynamicsCompressor();
-  osc.connect(gain);gain.connect(comp);comp.connect(_mAc.destination);
-  osc.type=type||'sine';
-  osc.frequency.setValueAtTime(freq,startTime);
-  gain.gain.setValueAtTime(0,startTime);
-  gain.gain.linearRampToValueAtTime(vol,startTime+0.04);
-  gain.gain.setValueAtTime(vol,startTime+dur*0.6);
-  gain.gain.linearRampToValueAtTime(0,startTime+dur);
-  osc.start(startTime);osc.stop(startTime+dur+0.05);
-  _mNodes.push(osc);
-}
-
 function _mScheduleBeat(){
   if(!_mPlaying||!_mAc)return;
+  var track=_mTracks[_mTrackIdx];
   var beat=_mBeat%8;
-  var chord=_mNotes[_mChord%_mNotes.length];
+  var chord=track.chords[_mChord%track.chords.length];
   var now=_mAc.currentTime;
-  var sec=60/_mBpm;
-
-  // Bass note (root of chord, 1 octave down) on beats 0 and 4
-  if(beat===0||beat===4){
-    _mMakeNote(chord[0]/2,now,sec*1.8,0.18,'triangle');
-  }
-  // Chord stab on beats 0 2 4 6
-  if(beat%2===0){
-    chord.forEach(function(f,i){
-      setTimeout(function(){
-        if(_mPlaying&&_mAc)_mMakeNote(f,_mAc.currentTime,sec*0.45,0.06+i*0.01,'sine');
-      },i*28);
-    });
-  }
-  // Arpeggiated melody note
-  var arpIdx=[0,2,1,3,2,1,0,3][beat];
-  _mMakeNote(chord[arpIdx]*2,now+sec*0.12,sec*0.55,0.09,'triangle');
-
-  // Soft high hat (noise burst)
-  var bNode=_mAc.createOscillator();
-  var bGain=_mAc.createGain();
-  bNode.connect(bGain);bGain.connect(_mAc.destination);
-  bNode.type='square';bNode.frequency.setValueAtTime(8000+Math.random()*4000,now);
-  bGain.gain.setValueAtTime(0.012,now);bGain.gain.linearRampToValueAtTime(0,now+0.04);
-  bNode.start(now);bNode.stop(now+0.05);
-  _mNodes.push(bNode);
-
+  var sec=60/track.bpm;
+  track.beatFn(beat,chord,now,sec);
   _mBeat++;
-  if(_mBeat%8===0) _mChord++;
-
-  _mScheduled=setTimeout(_mScheduleBeat,(60/_mBpm)*1000);
+  if(_mBeat%8===0)_mChord++;
+  _mScheduled=setTimeout(_mScheduleBeat,sec*1000);
 }
 
 function _mStop(){
@@ -2665,11 +2761,21 @@ function toggleMusic(){
     _mStop();
     if(btn){btn.textContent='♪';btn.classList.remove('playing');}
   } else {
-    _mPlaying=true;
-    _mBeat=0;_mChord=0;
+    _mPlaying=true;_mBeat=0;_mChord=0;
     _mScheduleBeat();
     if(btn){btn.textContent='♫';btn.classList.add('playing');}
   }
+}
+
+function cycleTrack(){
+  _mTrackIdx=(_mTrackIdx+1)%_mTracks.length;
+  var tBtn=document.getElementById('track-btn');
+  if(tBtn) tBtn.title=_mTracks[_mTrackIdx].name;
+  // Show track name as a brief toast
+  var t=document.getElementById('toast');
+  if(t){t.textContent='♫ '+_mTracks[_mTrackIdx].name;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},2000);}
+  // Restart if already playing
+  if(_mPlaying){_mStop();_mPlaying=true;_mBeat=0;_mChord=0;_mScheduleBeat();}
 }
 
 // Music auto-stops when endGame is called (injected into endGame below)
