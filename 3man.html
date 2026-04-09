@@ -120,6 +120,9 @@ input[type=text]::placeholder{color:#282855}
 .hdr-btn-3man:active{background:rgba(255,45,120,.2)}
 .hdr-btn-settings{background:rgba(0,207,255,.08);border:1px solid rgba(0,207,255,.25);color:var(--nb);font-size:14px;padding:5px 9px}
 .hdr-btn-settings:active{background:rgba(0,207,255,.2)}
+.hdr-btn-music{background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.25);color:var(--gold);font-size:14px;padding:5px 9px}
+.hdr-btn-music:active{background:rgba(255,215,0,.2)}
+.hdr-btn-music.playing{background:rgba(255,215,0,.18);border-color:var(--gold);box-shadow:0 0 10px rgba(255,215,0,.3)}
 .turn-banner{width:100%;padding:2px 16px 2px;text-align:center;flex-shrink:0;position:relative;z-index:5}
 .turn-lbl{font-size:10px;letter-spacing:4px;color:rgba(255,255,255,.3);text-transform:uppercase}
 .cur-player{font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,11vw,62px);letter-spacing:3px;color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,.45);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92vw;display:inline-block}
@@ -466,6 +469,7 @@ input[type=text]::placeholder{color:#282855}
       <div class="round-badge" id="round-badge">ROUND 1</div>
     </div>
     <div class="game-header-right">
+      <button class="hdr-btn hdr-btn-music" id="music-btn" onclick="toggleMusic()" title="Toggle Music">♪</button>
       <button class="hdr-btn hdr-btn-3man" onclick="open3ManPicker()" title="Change 3 Man">crown</button>
       <button class="hdr-btn hdr-btn-settings" onclick="openPicker('game')" title="Settings">set</button>
       <button class="hdr-btn hdr-btn-end" onclick="endGame()">END</button>
@@ -793,6 +797,63 @@ function buildBarScene(bgId){
     var lbl=new THREE.Mesh(new THREE.BoxGeometry(0.16,btall*0.45,0.02),lblMat);
     lbl.position.set(bx,sy+btall*0.5,-3.55);barSceneGroup.add(lbl);
   });
+
+  // --- MORE BOTTLES (second row, tighter spacing) ---
+  var bottlePositions2=[-7.5,-6.0,-4.4,-2.8,-1.2,0.4,1.8,3.4,5.0,6.6,7.8];
+  bottlePositions2.forEach(function(bx,bi){
+    // Place on top two shelves alternating
+    var shelf=bi%2===0?1:2;
+    var sy=shelfYs[shelf];
+    var bColor=bc.bottleColors[(bi+2)%bc.bottleColors.length];
+    var btall=0.55+Math.sin(bi*1.3)*0.15;
+    var fat=bi%3===0;
+    var bMat2=new THREE.MeshStandardMaterial({color:new THREE.Color(bColor),roughness:0.12,metalness:0.05,transparent:true,opacity:0.78});
+    var bBody=new THREE.Mesh(new THREE.CylinderGeometry(fat?0.13:0.085,fat?0.14:0.1,btall,8),bMat2);
+    bBody.position.set(bx,sy+btall/2+0.06,-3.63);barSceneGroup.add(bBody);
+    var bNeck=new THREE.Mesh(new THREE.CylinderGeometry(0.035,fat?0.1:0.075,0.18,8),bMat2);
+    bNeck.position.set(bx,sy+btall+0.15,-3.63);barSceneGroup.add(bNeck);
+    var bCapMat=new THREE.MeshStandardMaterial({color:new THREE.Color(bi%2===0?'#aaaaaa':'#cc9900'),roughness:0.4,metalness:0.6});
+    var bCap=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.05,8),bCapMat);
+    bCap.position.set(bx,sy+btall+0.25,-3.63);barSceneGroup.add(bCap);
+  });
+
+  // --- BARTENDER FIGURE ---
+  // Body (torso - vest)
+  var skinCol=new THREE.Color('#c8956c');
+  var vestCol=new THREE.Color(bc.barColor).multiplyScalar(3.5);
+  var shirtCol=new THREE.Color('#f0f0ee');
+  var bartX=-8.0, bartY=2.1, bartZ=-2.85;
+  // Torso
+  var torso=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.72,0.28),new THREE.MeshStandardMaterial({color:shirtCol,roughness:0.8}));
+  torso.position.set(bartX,bartY+0.45,bartZ);barSceneGroup.add(torso);
+  // Vest overlay
+  var vest=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.68,0.1),new THREE.MeshStandardMaterial({color:new THREE.Color('#1a0800'),roughness:0.7}));
+  vest.position.set(bartX,bartY+0.45,bartZ-0.1);barSceneGroup.add(vest);
+  // Shoulders / arms
+  var armMat=new THREE.MeshStandardMaterial({color:shirtCol,roughness:0.8});
+  // Left arm down at side (holding rag)
+  var lArm=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.55,0.16),armMat);
+  lArm.rotation.z=0.2;lArm.position.set(bartX-0.34,bartY+0.3,bartZ);barSceneGroup.add(lArm);
+  // Right arm raised slightly (polishing glass)
+  var rArm=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.55,0.16),armMat);
+  rArm.rotation.z=-0.55;rArm.position.set(bartX+0.38,bartY+0.52,bartZ);barSceneGroup.add(rArm);
+  // Head
+  var head=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.38,0.32),new THREE.MeshStandardMaterial({color:skinCol,roughness:0.7}));
+  head.position.set(bartX,bartY+1.02,bartZ);barSceneGroup.add(head);
+  // Hair
+  var hair=new THREE.Mesh(new THREE.BoxGeometry(0.37,0.14,0.34),new THREE.MeshStandardMaterial({color:new THREE.Color('#2a1800'),roughness:0.9}));
+  hair.position.set(bartX,bartY+1.24,bartZ);barSceneGroup.add(hair);
+  // Bartender hat (flat cap)
+  var hatBrim=new THREE.Mesh(new THREE.BoxGeometry(0.46,0.04,0.42),new THREE.MeshStandardMaterial({color:new THREE.Color('#111111'),roughness:0.7}));
+  hatBrim.position.set(bartX,bartY+1.37,bartZ);barSceneGroup.add(hatBrim);
+  var hatTop=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.15,0.34),new THREE.MeshStandardMaterial({color:new THREE.Color('#111111'),roughness:0.7}));
+  hatTop.position.set(bartX,bartY+1.46,bartZ);barSceneGroup.add(hatTop);
+  // Right hand holding glass (small cylinder)
+  var hGlass=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.055,0.22,10),new THREE.MeshStandardMaterial({color:new THREE.Color('#ccddff'),roughness:0.1,metalness:0,transparent:true,opacity:0.4}));
+  hGlass.position.set(bartX+0.7,bartY+0.88,bartZ);barSceneGroup.add(hGlass);
+  // Bow tie
+  var tie=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.08,0.05),new THREE.MeshStandardMaterial({color:new THREE.Color('#cc0000'),roughness:0.5}));
+  tie.position.set(bartX,bartY+0.82,bartZ-0.13);barSceneGroup.add(tie);
 
   // --- BEER TAPS ---
   [-2.5,0,2.5].forEach(function(tx){
@@ -2373,6 +2434,10 @@ diceCanvas.addEventListener('click',function(){
 
 // ======= END GAME =======
 function endGame(){
+  // Stop music if playing
+  if(typeof _mPlaying!=='undefined'&&_mPlaying)_mStop();
+  var mBtn=document.getElementById('music-btn');
+  if(mBtn){mBtn.textContent='♪';mBtn.classList.remove('playing');}
   ['turn-trans','ceremony','threeman-popup','rule-popup','player-select','doubles-roll-screen','waterfall-screen','roll3-screen'].forEach(function(id){
     document.getElementById(id).classList.remove('show');
   });
@@ -2513,6 +2578,100 @@ function rollPlain(){
 
 // ======= INIT =======
 renderHome();
+
+// ======= MUSIC ENGINE =======
+var _mAc=null, _mPlaying=false, _mNodes=[], _mScheduled=null;
+var _mNotes=[
+  // Jazz/lounge chord progression in Eb — played as layered arpeggios
+  // Ebmaj7: Eb G Bb D  |  Cm7: C Eb G Bb  |  Fm7: F Ab C Eb  |  Bb7: Bb D F Ab
+  [311.1,392.0,466.2,587.3],
+  [261.6,311.1,392.0,466.2],
+  [349.2,415.3,523.3,622.3],
+  [233.1,293.7,349.2,415.3]
+];
+var _mChord=0, _mBeat=0, _mBpm=88;
+
+function _mInit(){
+  if(_mAc)return;
+  _mAc=new(window.AudioContext||window.webkitAudioContext)();
+}
+
+function _mMakeNote(freq,startTime,dur,vol,type){
+  var osc=_mAc.createOscillator();
+  var gain=_mAc.createGain();
+  var comp=_mAc.createDynamicsCompressor();
+  osc.connect(gain);gain.connect(comp);comp.connect(_mAc.destination);
+  osc.type=type||'sine';
+  osc.frequency.setValueAtTime(freq,startTime);
+  gain.gain.setValueAtTime(0,startTime);
+  gain.gain.linearRampToValueAtTime(vol,startTime+0.04);
+  gain.gain.setValueAtTime(vol,startTime+dur*0.6);
+  gain.gain.linearRampToValueAtTime(0,startTime+dur);
+  osc.start(startTime);osc.stop(startTime+dur+0.05);
+  _mNodes.push(osc);
+}
+
+function _mScheduleBeat(){
+  if(!_mPlaying||!_mAc)return;
+  var beat=_mBeat%8;
+  var chord=_mNotes[_mChord%_mNotes.length];
+  var now=_mAc.currentTime;
+  var sec=60/_mBpm;
+
+  // Bass note (root of chord, 1 octave down) on beats 0 and 4
+  if(beat===0||beat===4){
+    _mMakeNote(chord[0]/2,now,sec*1.8,0.18,'triangle');
+  }
+  // Chord stab on beats 0 2 4 6
+  if(beat%2===0){
+    chord.forEach(function(f,i){
+      setTimeout(function(){
+        if(_mPlaying&&_mAc)_mMakeNote(f,_mAc.currentTime,sec*0.45,0.06+i*0.01,'sine');
+      },i*28);
+    });
+  }
+  // Arpeggiated melody note
+  var arpIdx=[0,2,1,3,2,1,0,3][beat];
+  _mMakeNote(chord[arpIdx]*2,now+sec*0.12,sec*0.55,0.09,'triangle');
+
+  // Soft high hat (noise burst)
+  var bNode=_mAc.createOscillator();
+  var bGain=_mAc.createGain();
+  bNode.connect(bGain);bGain.connect(_mAc.destination);
+  bNode.type='square';bNode.frequency.setValueAtTime(8000+Math.random()*4000,now);
+  bGain.gain.setValueAtTime(0.012,now);bGain.gain.linearRampToValueAtTime(0,now+0.04);
+  bNode.start(now);bNode.stop(now+0.05);
+  _mNodes.push(bNode);
+
+  _mBeat++;
+  if(_mBeat%8===0) _mChord++;
+
+  _mScheduled=setTimeout(_mScheduleBeat,(60/_mBpm)*1000);
+}
+
+function _mStop(){
+  _mPlaying=false;
+  clearTimeout(_mScheduled);
+  _mNodes.forEach(function(n){try{n.stop();}catch(e){}});
+  _mNodes=[];
+}
+
+function toggleMusic(){
+  _mInit();
+  if(_mAc.state==='suspended')_mAc.resume();
+  var btn=document.getElementById('music-btn');
+  if(_mPlaying){
+    _mStop();
+    if(btn){btn.textContent='♪';btn.classList.remove('playing');}
+  } else {
+    _mPlaying=true;
+    _mBeat=0;_mChord=0;
+    _mScheduleBeat();
+    if(btn){btn.textContent='♫';btn.classList.add('playing');}
+  }
+}
+
+// Music auto-stops when endGame is called (injected into endGame below)
 </script>
 </body>
 </html>
