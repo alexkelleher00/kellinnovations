@@ -652,16 +652,15 @@ function cacheCellRects() {
 }
 function cellUnder(x, y) {
   if (!_cellRects) return -1;
-  const PAD = 30;
-  // First pass: expanded hit boxes — generous tolerance for diagonal swipes
-  for (let i = 0; i < _cellRects.length; i++) {
+  // First pass: exact hit (with 8px outward expansion for easier touch)
+  for (let i=0; i<_cellRects.length; i++) {
     const r = _cellRects[i];
-    if (x >= r.left - PAD && x <= r.right + PAD && y >= r.top - PAD && y <= r.bottom + PAD) return i;
+    if (x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8) return i;
   }
-  // Second pass: probe in 8 directions to catch gaps between cells
-  const probes = [[PAD,0],[-PAD,0],[0,PAD],[0,-PAD],[PAD,PAD],[PAD,-PAD],[-PAD,PAD],[-PAD,-PAD]];
-  for (const [dx, dy] of probes) {
-    for (let i = 0; i < _cellRects.length; i++) {
+  // Second pass: try 8px cardinal offsets if center point missed
+  const offsets = [[0,0],[8,0],[-8,0],[0,8],[0,-8]];
+  for (const [dx,dy] of offsets) {
+    for (let i=0; i<_cellRects.length; i++) {
       const r = _cellRects[i];
       if (x+dx >= r.left && x+dx <= r.right && y+dy >= r.top && y+dy <= r.bottom) return i;
     }
