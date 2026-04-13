@@ -160,7 +160,16 @@ input[type=range]{width:100%;accent-color:var(--acc);cursor:pointer;}
   <p>Find words in a 4×4 grid. Play rounds against friends — same board, own phones, any time.</p>
   <button class="btn btn-acc" onclick="goCreate()">Create a game</button>
   <button class="btn btn-out" onclick="goJoin()">Join with a code</button>
+  <button class="btn btn-out" onclick="goSolo()">Play Solo</button>
   <button class="btn btn-ghost" onclick="show('s-settings')">⚙ Settings</button>
+</div>
+
+<!-- SOLO SETUP -->
+<div class="screen" id="s-solo">
+  <div><div class="eye">solo play</div><h2>Play Solo</h2></div>
+  <div><label>Your name</label><input type="text" id="solo-name" placeholder="e.g. Alex" maxlength="20"></div>
+  <button class="btn btn-acc" id="btn-solo" onclick="startSolo()">Start →</button>
+  <button class="btn btn-ghost" onclick="show('s-home')">Back</button>
 </div>
 
 <!-- SETTINGS -->
@@ -302,6 +311,7 @@ input[type=range]{width:100%;accent-color:var(--acc);cursor:pointer;}
 <script>
 // ─── Server ──────────────────────────────────────────────────────────────────
 const SERVER = 'https://api.kellinnovations.com/letterfall';
+let isSolo = false;
 async function api(method, path, body) {
   const opts = {method, headers:{'Content-Type':'application/json'}};
   if (body) opts.body = JSON.stringify(body);
@@ -327,6 +337,7 @@ function setSeg(key, val) {
 
 // ─── Session persistence — survive page reload ────────────────────────────────
 function saveSession() {
+  if (isSolo) return;
   try {
     localStorage.setItem('lf_sess', JSON.stringify({
       gameCode, myRole, oppRole, curRound, myIndex,
@@ -477,15 +488,41 @@ function nr() { return G.numRounds||CFG.rounds||3; }
 function goHome() {
   clearInterval(pollIv); clearInterval(timerIv);
   localStorage.removeItem('lf_sess');
+  isSolo = false;
   show('s-home');
 }
 function leaveBoard() {
   clearInterval(timerIv); clearInterval(pollIv);
   localStorage.removeItem('lf_sess');
+  isSolo = false;
   show('s-home');
 }
 function goCreate() { show('s-create'); }
 function goJoin()   { show('s-join');   }
+function goSolo()   { show('s-solo');   }
+
+function startSolo() {
+  const name = document.getElementById('solo-name').value.trim();
+  if (!name) { toast('Enter your name first'); return; }
+  isSolo = true;
+  const numR = CFG.rounds;
+  const boards = Array.from({length: numR}, () => rollBoard());
+  G = {
+    code: 'SOLO',
+    players: [{name, scores: [], words: [], done: [], totalAvail: [], longestAvail: []}],
+    timerMins: CFG.timer,
+    minLen: CFG.minlen,
+    numRounds: numR,
+    maxPlayers: 1,
+    boards,
+    hostStarted: true
+  };
+  gameCode = 'SOLO';
+  myIndex = 0;
+  myRole = 'p1';
+  curRound = 0;
+  goReady(0);
+}
 
 async function createGame() {
   const name=document.getElementById('c-name').value.trim();
@@ -944,15 +981,24 @@ async function endRound() {
   const longestAvail=allArr.reduce((a,b)=>b.length>a.length?b:a,'');
   const totalAvail=allArr.length;
   try {
-    const body={playerIndex:myIndex, player:myRole, score, words, totalAvail, longestAvail};
-    G=await api('POST',`/game/${gameCode}/round/${curRound}`,body);
+    if (isSolo) {
+      const p = G.players[0];
+      p.scores[curRound] = score;
+      p.words[curRound] = words;
+      p.done[curRound] = true;
+      p.totalAvail[curRound] = totalAvail;
+      p.longestAvail[curRound] = longestAvail;
+    } else {
+      const body={playerIndex:myIndex, player:myRole, score, words, totalAvail, longestAvail};
+      G=await api('POST',`/game/${gameCode}/round/${curRound}`,body);
+    }
   } catch(e) { toast('Could not save round — check connection'); }
   saveSession();
   showRoundResult(score, words.length, totalAvail, longestAvail);
 }
 
 async function showRoundResult(myScoreVal, myWordCount, totalAvail, longestAvail) {
-  try { G=await api('GET','/game/'+gameCode); } catch(e) {}
+  if (!isSolo) { try { G=await api('GET','/game/'+gameCode); } catch(e) {} }
   const r=curRound;
   document.getElementById('rr-eye').textContent=`Round ${r+1} of ${nr()} complete`;
   mkDots('rr-dots',r);
@@ -1004,8 +1050,10 @@ function afterRound() {
 }
 
 async function showFinal() {
-  try { G=await api('GET','/game/'+gameCode); } catch(e) {
-    toast('Could not load results — check connection'); return;
+  if (!isSolo) {
+    try { G=await api('GET','/game/'+gameCode); } catch(e) {
+      toast('Could not load results — check connection'); return;
+    }
   }
   const players=G.players||[
     {name:G.p1?.name||'Player 1', scores:G.p1?.scores||[], words:G.p1?.words||[], done:G.p1?.done||[], totalAvail:G.p1?.totalAvail||[], longestAvail:G.p1?.longestAvail||[]},
@@ -1088,6 +1136,24 @@ async function showFinal() {
 }
 
 async function playAgain() {
+  if (isSolo) {
+    const name = G.players[0]?.name || 'You';
+    const numR = CFG.rounds;
+    const boards = Array.from({length: numR}, () => rollBoard());
+    G = {
+      code: 'SOLO',
+      players: [{name, scores: [], words: [], done: [], totalAvail: [], longestAvail: []}],
+      timerMins: CFG.timer,
+      minLen: CFG.minlen,
+      numRounds: numR,
+      maxPlayers: 1,
+      boards,
+      hostStarted: true
+    };
+    curRound = 0;
+    goReady(0);
+    return;
+  }
   if(!gameCode||!G) { goHome(); return; }
   const numR=nr();
   try {
