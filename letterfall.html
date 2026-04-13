@@ -300,29 +300,6 @@ input[type=range]{width:100%;accent-color:var(--acc);cursor:pointer;}
 <div id="toast"></div>
 
 <script>
-// ─── Sound Effects ───────────────────────────────────────────────────────────
-const _ac = new (window.AudioContext || window.webkitAudioContext)();
-function playCoinDing() {
-  try {
-    // Unlock audio context on first interaction (browsers require user gesture)
-    if (_ac.state === 'suspended') _ac.resume();
-    const now = _ac.currentTime;
-    // Layer two tones for a bright coin-like ding
-    [[1046, 0, 0.07], [1567, 0.04, 0.07], [2093, 0.08, 0.1]].forEach(([freq, delay, dur]) => {
-      const osc = _ac.createOscillator();
-      const gain = _ac.createGain();
-      osc.connect(gain); gain.connect(_ac.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + delay);
-      osc.frequency.exponentialRampToValueAtTime(freq * 0.9, now + delay + dur);
-      gain.gain.setValueAtTime(0.18, now + delay);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + delay + dur + 0.12);
-      osc.start(now + delay);
-      osc.stop(now + delay + dur + 0.15);
-    });
-  } catch(e) {}
-}
-
 // ─── Server ──────────────────────────────────────────────────────────────────
 const SERVER = 'https://api.kellinnovations.com/letterfall';
 async function api(method, path, body) {
@@ -646,98 +623,195 @@ function startRound() {
   timerIv=setInterval(()=>{timeLeft--;tickTimer();if(timeLeft<=0)endRound();},1000);
 }
 
-let _cellRects = null;
-function cacheCellRects() {
-  _cellRects = Array.from(document.querySelectorAll('.cell')).map(c=>c.getBoundingClientRect());
+// ─── Sound Engine (Web Audio API) ────────────────────────────────────────────
+const SFX = (() => {
+  let ctx = null;
+  function getCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  function tone(freq, type, vol, attack, hold, decay) {
+    try {
+      const c = getCtx();
+      const g = c.createGain();
+      const o = c.createOscillator();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, c.currentTime);
+      g.gain.linearRampToValueAtTime(vol, c.currentTime + attack);
+      g.gain.setValueAtTime(vol, c.currentTime + attack + hold);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + attack + hold + decay);
+      o.connect(g); g.connect(c.destination);
+      o.start(c.currentTime); o.stop(c.currentTime + attack + hold + decay + 0.01);
+    } catch(e) {}
+  }
+  function noise(vol, dur) {
+    try {
+      const c = getCtx();
+      const buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1);
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const g = c.createGain();
+      g.gain.setValueAtTime(vol, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
+      src.connect(g); g.connect(c.destination);
+      src.start(); src.stop(c.currentTime + dur);
+    } catch(e) {}
+  }
+  return {
+    // Soft click when a new letter is added to selection
+    tap() { tone(520, 'sine', 0.09, 0.004, 0.01, 0.06); },
+    // Backtrack: lower pitch soft blip
+    back() { tone(320, 'sine', 0.07, 0.004, 0.005, 0.05); },
+    // Valid word submitted — rising two-tone chime
+    wordFound(pts) {
+      const base = 440 + (pts - 1) * 80;
+      tone(base,        'sine', 0.18, 0.005, 0.04, 0.18);
+      setTimeout(() => tone(base * 1.5, 'sine', 0.14, 0.005, 0.03, 0.22), 80);
+    },
+    // Invalid / not-a-word — low buzz
+    invalid() {
+      tone(140, 'sawtooth', 0.12, 0.005, 0.04, 0.14);
+      noise(0.04, 0.08);
+    },
+    // Already found — gentle low thud
+    alreadyFound() { tone(200, 'triangle', 0.08, 0.005, 0.02, 0.12); },
+    // Timer warning (last 20 s) — ticking pulse
+    timerWarn() { tone(880, 'square', 0.06, 0.003, 0.01, 0.05); },
+    // Round end — descending sweep
+    roundEnd() {
+      [600, 480, 360, 260].forEach((f, i) =>
+        setTimeout(() => tone(f, 'sine', 0.15, 0.01, 0.05, 0.18), i * 90));
+    },
+  };
+})();
+
+// ─── Haptics helper ──────────────────────────────────────────────────────────
+function vibrate(pattern) {
+  try { navigator.vibrate && navigator.vibrate(pattern); } catch(e) {}
 }
+
+// ─── Cell rect cache + hit detection ─────────────────────────────────────────
+let _cellRects = null;
+let _cellCenters = null;
+
+function cacheCellRects() {
+  const cells = Array.from(document.querySelectorAll('.cell'));
+  _cellRects = cells.map(c => c.getBoundingClientRect());
+  // Pre-compute centres for fast distance-based fallback
+  _cellCenters = _cellRects.map(r => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 }));
+}
+
 function cellUnder(x, y) {
   if (!_cellRects) return -1;
-  // First pass: exact hit (with 8px outward expansion for easier touch)
-  for (let i=0; i<_cellRects.length; i++) {
+
+  // Pass 1 — exact hit with a generous 10 px outward expansion
+  for (let i = 0; i < _cellRects.length; i++) {
     const r = _cellRects[i];
-    if (x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8) return i;
+    if (x >= r.left - 10 && x <= r.right + 10 && y >= r.top - 10 && y <= r.bottom + 10) return i;
   }
-  // Second pass: try 8px cardinal offsets if center point missed
-  const offsets = [[0,0],[8,0],[-8,0],[0,8],[0,-8]];
-  for (const [dx,dy] of offsets) {
-    for (let i=0; i<_cellRects.length; i++) {
-      const r = _cellRects[i];
-      if (x+dx >= r.left && x+dx <= r.right && y+dy >= r.top && y+dy <= r.bottom) return i;
-    }
+
+  // Pass 2 — nearest-centre fallback (within 60 px) for fast diagonal drags
+  let best = -1, bestDist = 60 * 60;
+  for (let i = 0; i < _cellCenters.length; i++) {
+    const dx = x - _cellCenters[i].x, dy = y - _cellCenters[i].y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestDist) { bestDist = d2; best = i; }
   }
-  return -1;
+  return best;
 }
 
 function buildGrid(board) {
-  // Replace the grid element entirely to clear all old event listeners and inline styles
-  const oldG=document.getElementById('grid');
-  const g=document.createElement('div');
-  g.id='grid';
-  g.className=oldG.className;
+  // Replace grid element entirely to clear all old listeners & inline styles
+  const oldG = document.getElementById('grid');
+  const g = document.createElement('div');
+  g.id = 'grid'; g.className = oldG.className;
   oldG.replaceWith(g);
 
-  board.forEach((L,i)=>{
-    const d=document.createElement('div');
-    // Explicitly clear any inline style so CSS animation fires fresh
+  board.forEach((L, i) => {
+    const d = document.createElement('div');
     d.removeAttribute('style');
-    d.className='cell'; d.textContent=L==='Q'?'Qu':L; d.dataset.i=i;
+    d.className = 'cell'; d.textContent = L === 'Q' ? 'Qu' : L; d.dataset.i = i;
     g.appendChild(d);
   });
 
-  g.addEventListener('touchstart', e=>{
+  // ── Touch events ──────────────────────────────────────────────────────────
+  g.addEventListener('touchstart', e => {
     e.preventDefault();
     cacheCellRects();
-    isDragging=true;
-    const t=e.touches[0];
-    const idx=cellUnder(t.clientX, t.clientY);
-    if (idx>=0) { sel=[idx]; redraw(); hilite(); }
-  },{passive:false});
+    isDragging = true;
+    const t = e.touches[0];
+    const idx = cellUnder(t.clientX, t.clientY);
+    if (idx >= 0) {
+      sel = [idx];
+      SFX.tap();
+      vibrate(8);
+      redraw(); hilite();
+    }
+  }, { passive: false });
 
-  g.addEventListener('touchmove', e=>{
+  g.addEventListener('touchmove', e => {
     e.preventDefault();
-    if (!isDragging||!sel.length) return;
-    const t=e.touches[0];
-    const idx=cellUnder(t.clientX, t.clientY);
-    if (idx<0) return;
+    if (!isDragging || !sel.length) return;
+    const t = e.touches[0];
+    const idx = cellUnder(t.clientX, t.clientY);
+    if (idx < 0) return;
     handleMove(idx);
-  },{passive:false});
+  }, { passive: false });
 
-  g.addEventListener('touchend', e=>{
+  g.addEventListener('touchend', e => {
     e.preventDefault();
-    isDragging=false;
+    isDragging = false;
     submitWord();
-  },{passive:false});
+  }, { passive: false });
 
-  g.addEventListener('touchcancel', e=>{
+  g.addEventListener('touchcancel', e => {
     e.preventDefault();
-    isDragging=false;
-    sel=[]; hilite(); redraw();
-  },{passive:false});
+    isDragging = false;
+    sel = []; hilite(); redraw();
+  }, { passive: false });
 
-  g.addEventListener('mousedown', e=>{
+  // ── Mouse events (desktop) ────────────────────────────────────────────────
+  g.addEventListener('mousedown', e => {
     cacheCellRects();
-    isDragging=true;
-    const idx=parseInt(e.target.closest('.cell')?.dataset.i??-1);
-    if (idx>=0) { sel=[idx]; redraw(); hilite(); }
+    isDragging = true;
+    const idx = parseInt(e.target.closest('.cell')?.dataset.i ?? -1);
+    if (idx >= 0) {
+      sel = [idx];
+      SFX.tap();
+      redraw(); hilite();
+    }
   });
-  g.addEventListener('mousemove', e=>{
-    if (!isDragging||!sel.length) return;
-    const idx=parseInt(e.target.closest('.cell')?.dataset.i??-1);
-    if (idx>=0) handleMove(idx);
+
+  g.addEventListener('mousemove', e => {
+    if (!isDragging || !sel.length) return;
+    const idx = parseInt(e.target.closest('.cell')?.dataset.i ?? -1);
+    if (idx >= 0) handleMove(idx);
   });
-  const endMouse=()=>{ if(isDragging){ isDragging=false; submitWord(); } };
+
+  const endMouse = () => { if (isDragging) { isDragging = false; submitWord(); } };
   g.addEventListener('mouseup', endMouse);
   g.addEventListener('mouseleave', endMouse);
 }
 
 function handleMove(idx) {
-  const last=sel[sel.length-1];
-  if (idx===last) return;
-  if (sel.length>=2 && idx===sel[sel.length-2]) {
-    sel.pop(); redraw(); hilite(); return;
+  const last = sel[sel.length - 1];
+  if (idx === last) return;
+  // Backtrack: going back to the second-to-last cell undoes the last pick
+  if (sel.length >= 2 && idx === sel[sel.length - 2]) {
+    sel.pop();
+    SFX.back();
+    vibrate(4);
+    redraw(); hilite();
+    return;
   }
   if (!sel.includes(idx) && ADJ[last].includes(idx)) {
-    sel.push(idx); redraw(); hilite();
+    sel.push(idx);
+    SFX.tap();
+    vibrate(6);
+    redraw(); hilite();
   }
 }
 
@@ -755,7 +829,7 @@ function redraw() {
   el.textContent=w||'tap a letter to start';
   if(!w){ el.className='wdisp'; pp.textContent=''; return; }
   const already=roundSet.has(w.toUpperCase());
-  const isWV = isValidWord(w);
+  const isWV = roundAllWords.size>0 ? roundAllWords.has(w.toUpperCase()) : isValidWord(w);
   const valid=w.length>=minLen && isWV && !already;
   el.className='wdisp'+(valid?' ok':already?' bad':'');
   if(valid){ const pts=wordPts(w); pp.textContent=`+${pts} pt${pts!==1?'s':''}`; }
@@ -764,10 +838,20 @@ function redraw() {
 }
 
 function hilite() {
+  const n=sel.length;
   document.querySelectorAll('.cell').forEach((c,i)=>{
-    c.style.removeProperty('--cell-shade');
-    if(sel.includes(i)) c.className='cell sel';
-    else c.className='cell';
+    const pos=sel.indexOf(i);
+    if(pos<0){ c.className='cell'; c.style.removeProperty('--cell-shade'); return; }
+    if(i===sel[n-1]){ c.className='cell sel'; c.style.removeProperty('--cell-shade'); }
+    else {
+      // Gradient: first cell darkest, last before tip lightest
+      const t=n<=1?0:pos/(n-1);
+      const rv=Math.round(50+t*(195-50));
+      const gv=Math.round(50+t*(195-50));
+      const bv=Math.round(62+t*(208-62));
+      c.style.setProperty('--cell-shade',`rgb(${rv},${gv},${bv})`);
+      c.className='cell path';
+    }
   });
 }
 
@@ -777,9 +861,7 @@ function submitWord() {
   const w=sel.map(i=>board[i]==='Q'?'QU':board[i]).join('');
   const wUp=w.toUpperCase();
   const minLen=G.minLen||CFG.minlen;
-  // Use roundAllWords (computed once from the board at round start) for consistent validation
-  // across all players; fall back to isValidWord if roundAllWords not yet populated
-  const isWordValid = isValidWord(w);
+  const isWordValid = roundAllWords.size>0 ? roundAllWords.has(wUp) : isValidWord(w);
   if(w.length>=minLen && isWordValid && !roundSet.has(wUp)) {
     roundSet.add(wUp);
     const pts=wordPts(w);
@@ -787,14 +869,16 @@ function submitWord() {
     document.getElementById('b-score').textContent=cur;
     document.getElementById('b-words').textContent=roundSet.size;
     addChip(w);
+    // Sound + haptic
+    SFX.wordFound(pts);
+    vibrate([10, 30, 20]);
     // Flash cells
     const snap=[...sel];
     snap.forEach(i=>{const c=document.querySelector(`.cell[data-i="${i}"]`);if(c)c.className='cell flash';});
-    playCoinDing();
     // Bounce the word display
     const wd=document.getElementById('wdisp');
     wd.classList.remove('wordgot');
-    void wd.offsetWidth; // reflow
+    void wd.offsetWidth;
     wd.classList.add('wordgot');
     // Floating score popup
     const lastCell=document.querySelector(`.cell[data-i="${snap[snap.length-1]}"]`);
@@ -808,12 +892,20 @@ function submitWord() {
       document.body.appendChild(fl);
       setTimeout(()=>fl.remove(),700);
     }
-    setTimeout(()=>{sel=[];hilite();redraw();document.getElementById('wdisp').classList.remove('wordgot');},180);
+    setTimeout(()=>{sel=[];hilite();redraw();document.getElementById('wdisp').classList.remove('wordgot');},312);
   } else {
-    if(w.length>=minLen && !isWordValid && !roundSet.has(wUp)) {
-      const el=document.getElementById('wdisp');
-      el.className='wdisp bad shake';
-      setTimeout(()=>el.className='wdisp',360);
+    const already=roundSet.has(wUp);
+    if(w.length>=minLen) {
+      if(already) {
+        SFX.alreadyFound();
+        vibrate(15);
+      } else if(!isWordValid) {
+        SFX.invalid();
+        vibrate([20, 10, 20]);
+        const el=document.getElementById('wdisp');
+        el.className='wdisp bad shake';
+        setTimeout(()=>el.className='wdisp',360);
+      }
     }
     sel=[]; hilite(); redraw();
     document.getElementById('pts-preview').textContent='';
@@ -838,10 +930,14 @@ function tickTimer() {
   ring.style.stroke=timeLeft<=20?'var(--red)':timeLeft<=60?'var(--gold)':'var(--acc)';
   const m=Math.floor(timeLeft/60), s=timeLeft%60;
   document.getElementById('t-txt').textContent=`${m}:${s.toString().padStart(2,'0')}`;
+  // Ticking sound in final 20 seconds
+  if(timeLeft>0 && timeLeft<=20) { SFX.timerWarn(); vibrate(5); }
 }
 
 async function endRound() {
   clearInterval(timerIv);
+  SFX.roundEnd();
+  vibrate([30, 20, 30, 20, 60]);
   const score=parseInt(document.getElementById('b-score').textContent);
   const words=Array.from(roundSet);
   const allArr=Array.from(roundAllWords);
