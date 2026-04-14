@@ -32,91 +32,179 @@
     <button onclick="location.href='portfolio.html'">Explore Projects</button>
   </section>
 
-  <!-- Project Cards -->
-  <p class="cards-label">Projects &amp; Links</p>
-  <section class="project-cards">
+  <!-- ── What's New ─────────────────────────────────────────── -->
+  <div class="section-hdr">
+    <span class="section-hdr-icon">📋</span>
+    <span class="section-hdr-label">What's New</span>
+  </div>
 
-    <a href="https://api.kellinnovations.com/credit" class="project-card">
-      <img src="images/creditcard.png" alt="Credit Card Parser">
-      <div class="project-card-body">
-        <h3>Credit Card Parser</h3>
-        <p>Upload statements, analyze finances, and export clean CSVs.</p>
+  <div class="updates-feed">
+    <!-- Date header — update this when you add new entries -->
+    <div class="update-date-row">Week of Apr 7 – Apr 13, 2026</div>
+
+    <!-- ── ADD NEW ENTRIES HERE — copy an .update-item block ── -->
+
+    <div class="update-item">
+      <div class="update-item-top">
+        <span class="update-tag tag-games">Games</span>
+        <span class="update-title">Letterfall — Solo Player Mode</span>
       </div>
-    </a>
+      <div class="update-desc">You can now play Boggle alone — no game code or friends required. Hit "Play Solo" on the home screen, enter your name, and jump straight in. Full rounds, timer, scoring, and word review all work exactly like multiplayer.</div>
+      <a class="update-link" href="letterfall.html">Play now →</a>
+    </div>
 
-    <a href="woodwork.html" class="project-card card-pos-top">
-      <img src="images/woodworking.png" alt="Woodworking Projects">
-      <div class="project-card-body">
-        <h3>Woodworking</h3>
-        <p>Hand-built projects, crafts, and custom creations.</p>
+    <div class="update-item">
+      <div class="update-item-top">
+        <span class="update-tag tag-games">Games</span>
+        <span class="update-title">Slide Puzzle — Image Mode Fixed</span>
       </div>
-    </a>
+      <div class="update-desc">The image tile puzzle was broken (missing quotes in the source path). It's fixed — the jalapeño guy image now slices correctly across all three grid sizes (3×3, 4×4, 5×5). Drag tiles to solve the puzzle.</div>
+      <a class="update-link" href="slide.html">Play now →</a>
+    </div>
 
-    <a href="https://www.youtube.com/@planterboy18/playlists" class="project-card card-pos-top">
-      <img src="images/jalapenoguy.png" alt="Planter Boy">
-      <div class="project-card-body">
-        <h3>Planter Boy Content</h3>
-        <p>Videos, edits, and creative content on YouTube.</p>
+    <div class="update-item">
+      <div class="update-item-top">
+        <span class="update-tag tag-wood">Woodworking</span>
+        <span class="update-title">Gallery Updates — New Photos &amp; Lightbox</span>
       </div>
-    </a>
+      <div class="update-desc">Added the Plant Stand to the gallery. The photo viewer now opens full-size images in a lightbox with left/right navigation — click any card to open it. Wine rack, bench, and circular end table thumbnails re-centered to show more of the piece.</div>
+      <a class="update-link" href="woodwork.html">See gallery →</a>
+    </div>
 
-    <a href="psg.html" class="project-card">
-      <img src="images/psg2019.jpg" alt="Punk Squad Games">
-      <div class="project-card-body">
-        <h3>Punk Squad Games</h3>
-        <p>Annual competition — winners, highlights, and registration.</p>
+    <div class="update-item">
+      <div class="update-item-top">
+        <span class="update-tag tag-psg">PSG</span>
+        <span class="update-title">PSG 2026 — Registration Open</span>
       </div>
-    </a>
+      <div class="update-desc">Punk Squad Games 2026 is on the calendar. Registration is live on the PSG page — sign up early. Event details, past champions, and highlights from previous years are all there too.</div>
+      <a class="update-link" href="psg.html">Register →</a>
+    </div>
 
-    <a href="blog.html" class="project-card">
-      <img src="images/blog.png" alt="The Kells Blog">
-      <div class="project-card-body">
-        <h3>The Kells Blog</h3>
-        <p>Drop anything you want — maybe how much you enjoy The Wire.</p>
+    <!-- Uncomment and fill in when new Planter Boy videos drop:
+    <div class="update-item">
+      <div class="update-item-top">
+        <span class="update-tag tag-content">Content</span>
+        <span class="update-title">Planter Boy — New Videos Posted</span>
       </div>
-    </a>
+      <div class="update-desc">New videos just dropped on the Planter Boy channel. [Add a quick description of what's in the videos here.]</div>
+      <a class="update-link" href="https://www.youtube.com/@planterboy18/playlists">Watch on YouTube →</a>
+    </div>
+    -->
 
-    <a href="https://www.zola.com/wedding/evaandscott2026" class="project-card">
-      <img src="images/WeddingPic.jpg" alt="Eva and Scott's Wedding">
-      <div class="project-card-body">
-        <h3>Eva &amp; Scott</h3>
-        <p>Link to their wedding website.</p>
-      </div>
-    </a>
+  </div>
 
-    <a href="3man.html" class="project-card">
-      <img src="images/dice.jpg" alt="3 Man Dice Game">
-      <div class="project-card-body">
-        <h3>3 Man!</h3>
-        <p>The classic dice drinking game, digitized.</p>
-      </div>
-    </a>
+  <!-- ── Games ──────────────────────────────────────────────── -->
+  <div class="section-group">
+    <div class="section-hdr">
+      <span class="section-hdr-icon">🎮</span>
+      <span class="section-hdr-label">Games</span>
+    </div>
+    <section class="project-cards">
 
-    <a href="letterfall.html" class="project-card">
-      <img src="images/boggle.jpg" alt="Boggle">
-      <div class="project-card-body">
-        <h3>Boggle!</h3>
-        <p>Find as many words as you can before time runs out.</p>
-      </div>
-    </a>
+      <a href="letterfall.html" class="project-card">
+        <img src="images/boggle.jpg" alt="Letterfall">
+        <div class="project-card-body">
+          <h3>Letterfall</h3>
+          <p>Find words in a 4×4 grid. Solo or multiplayer — same board, race to score.</p>
+        </div>
+      </a>
 
-    <a href="portfolio.html" class="project-card card-pos-top">
-      <img src="images/portfolio.jpg" alt="Portfolio">
-      <div class="project-card-body">
-        <h3>Portfolio</h3>
-        <p>Skills, experience, and featured technical projects.</p>
-      </div>
-    </a>
+      <a href="slide.html" class="project-card card-img-contain">
+        <img src="images/slidetile.jpg" alt="Slide Puzzle">
+        <div class="project-card-body">
+          <h3>Slide Puzzle</h3>
+          <p>Slide the tiles back into order. Image mode included — jalapeño guy edition.</p>
+        </div>
+      </a>
 
-    <a href="slide.html" class="project-card card-img-contain">
-      <img src="images/slidetile.jpg" alt="Slide">
-      <div class="project-card-body">
-        <h3>Slide</h3>
-        <p>Skills, experience, and featured technical projects.</p>
-      </div>
-    </a>
+      <a href="3man.html" class="project-card">
+        <img src="images/dice.jpg" alt="3 Man Dice Game">
+        <div class="project-card-body">
+          <h3>3 Man!</h3>
+          <p>The classic dice drinking game, digitized.</p>
+        </div>
+      </a>
 
-  </section>
+    </section>
+  </div>
+
+  <!-- ── Projects & Tools ───────────────────────────────────── -->
+  <div class="section-group">
+    <div class="section-hdr">
+      <span class="section-hdr-icon">🔧</span>
+      <span class="section-hdr-label">Projects &amp; Tools</span>
+    </div>
+    <section class="project-cards">
+
+      <a href="https://api.kellinnovations.com/credit" class="project-card">
+        <img src="images/creditcard.png" alt="Credit Card Parser">
+        <div class="project-card-body">
+          <h3>Credit Card Parser</h3>
+          <p>Upload statements, analyze finances, and export clean CSVs.</p>
+        </div>
+      </a>
+
+      <a href="portfolio.html" class="project-card card-pos-top">
+        <img src="images/portfolio.jpg" alt="Portfolio">
+        <div class="project-card-body">
+          <h3>Portfolio</h3>
+          <p>Skills, experience, and featured technical projects.</p>
+        </div>
+      </a>
+
+      <a href="blog.html" class="project-card">
+        <img src="images/blog.png" alt="The Kells Blog">
+        <div class="project-card-body">
+          <h3>The Kells Blog</h3>
+          <p>Drop anything you want — maybe how much you enjoy The Wire.</p>
+        </div>
+      </a>
+
+    </section>
+  </div>
+
+  <!-- ── Links & People ─────────────────────────────────────── -->
+  <div class="section-group">
+    <div class="section-hdr">
+      <span class="section-hdr-icon">🔗</span>
+      <span class="section-hdr-label">Links &amp; People</span>
+    </div>
+    <section class="project-cards">
+
+      <a href="woodwork.html" class="project-card card-pos-top">
+        <img src="images/woodworking.png" alt="Woodworking Projects">
+        <div class="project-card-body">
+          <h3>Woodworking</h3>
+          <p>Hand-built projects, crafts, and custom creations.</p>
+        </div>
+      </a>
+
+      <a href="https://www.youtube.com/@planterboy18/playlists" class="project-card card-pos-top">
+        <img src="images/jalapenoguy.png" alt="Planter Boy">
+        <div class="project-card-body">
+          <h3>Planter Boy Content</h3>
+          <p>Videos, edits, and creative content on YouTube.</p>
+        </div>
+      </a>
+
+      <a href="psg.html" class="project-card">
+        <img src="images/psg2019.jpg" alt="Punk Squad Games">
+        <div class="project-card-body">
+          <h3>Punk Squad Games</h3>
+          <p>Annual competition — winners, highlights, and registration.</p>
+        </div>
+      </a>
+
+      <a href="https://www.zola.com/wedding/evaandscott2026" class="project-card">
+        <img src="images/WeddingPic.jpg" alt="Eva and Scott's Wedding">
+        <div class="project-card-body">
+          <h3>Eva &amp; Scott</h3>
+          <p>Link to their wedding website.</p>
+        </div>
+      </a>
+
+    </section>
+  </div>
 
   <!-- Wedding Countdown -->
   <div class="countdown-container">

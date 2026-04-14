@@ -744,20 +744,57 @@ function cacheCellRects() {
 function cellUnder(x, y) {
   if (!_cellRects) return -1;
 
-  // Pass 1 — exact hit with a generous 10 px outward expansion
+  // Pass 1 — exact hit with a small outward expansion
   for (let i = 0; i < _cellRects.length; i++) {
     const r = _cellRects[i];
-    if (x >= r.left - 10 && x <= r.right + 10 && y >= r.top - 10 && y <= r.bottom + 10) return i;
+    if (x >= r.left - 6 && x <= r.right + 6 && y >= r.top - 6 && y <= r.bottom + 6) return i;
   }
 
-  // Pass 2 — nearest-centre fallback (within 60 px) for fast diagonal drags
-  let best = -1, bestDist = 60 * 60;
+  // Pass 2 — nearest-centre fallback (within 50 px) for touchstart only
+  let best = -1, bestDist = 50 * 50;
   for (let i = 0; i < _cellCenters.length; i++) {
     const dx = x - _cellCenters[i].x, dy = y - _cellCenters[i].y;
     const d2 = dx * dx + dy * dy;
     if (d2 < bestDist) { bestDist = d2; best = i; }
   }
   return best;
+}
+
+// Direction-based cell lookup for touchmove — fixes diagonal dragging.
+// Instead of "what's geometrically under my finger", asks "which adjacent cell
+// is most aligned with the direction I'm dragging from the last selected cell".
+// A dead-zone prevents the selection changing until the finger has actually
+// moved away from the current cell.
+function bestAdjacentForTouch(x, y) {
+  if (!_cellCenters || !sel.length) return cellUnder(x, y);
+
+  const lastIdx = sel[sel.length - 1];
+  const lc = _cellCenters[lastIdx];
+  const w = _cellRects ? _cellRects[lastIdx].width : 70;
+  const dx = x - lc.x, dy = y - lc.y;
+  const distSq = dx * dx + dy * dy;
+
+  // Dead zone: finger hasn't moved far enough from the current cell yet
+  if (distSq < (w * 0.46) * (w * 0.46)) return lastIdx;
+
+  const dist = Math.sqrt(distSq);
+  const nx = dx / dist, ny = dy / dist; // normalised movement direction
+
+  // Candidates: unselected neighbours + previous cell (for backtracking)
+  const prev = sel.length >= 2 ? sel[sel.length - 2] : -1;
+  const candidates = ADJ[lastIdx].filter(i => !sel.includes(i) || i === prev);
+
+  // Pick the candidate whose centre direction best matches the finger direction
+  let best = -1, bestDot = 0.4; // cos(~66°) — must be in the general direction
+  for (const ai of candidates) {
+    const ac = _cellCenters[ai];
+    const cdx = ac.x - lc.x, cdy = ac.y - lc.y;
+    const clen = Math.sqrt(cdx * cdx + cdy * cdy);
+    const dot = (nx * cdx + ny * cdy) / clen;
+    if (dot > bestDot) { bestDot = dot; best = ai; }
+  }
+
+  return best >= 0 ? best : lastIdx;
 }
 
 function buildGrid(board) {
@@ -793,8 +830,9 @@ function buildGrid(board) {
     e.preventDefault();
     if (!isDragging || !sel.length) return;
     const t = e.touches[0];
-    const idx = cellUnder(t.clientX, t.clientY);
-    if (idx < 0) return;
+    const idx = bestAdjacentForTouch(t.clientX, t.clientY);
+    // Skip if direction logic says we're still on the same cell
+    if (idx === sel[sel.length - 1]) return;
     handleMove(idx);
   }, { passive: false });
 

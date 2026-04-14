@@ -219,6 +219,133 @@ footer {
   background: linear-gradient(to right, var(--border), transparent);
 }
 
+/* ── Section grouping ── */
+.section-group {
+  margin-bottom: 48px;
+}
+
+.section-hdr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.section-hdr-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.section-hdr-icon {
+  font-size: 0.9rem;
+  margin-right: -4px;
+}
+
+.section-hdr::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, rgba(0,200,200,0.3), transparent);
+}
+
+/* ══════════════════════════════════════
+   WHAT'S NEW FEED
+══════════════════════════════════════ */
+.updates-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+  margin-bottom: 48px;
+}
+
+.update-date-row {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 18px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.update-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.18s;
+}
+
+.update-item:last-child {
+  border-bottom: none;
+}
+
+.update-item:hover {
+  background: var(--surface2);
+}
+
+.update-item-top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.update-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0,200,200,0.12);
+  color: var(--accent);
+  border: 1px solid rgba(0,200,200,0.25);
+  flex-shrink: 0;
+}
+
+.update-tag.tag-games   { background: rgba(61,220,132,0.1);  color: #3ddc84; border-color: rgba(61,220,132,0.25); }
+.update-tag.tag-wood    { background: rgba(200,121,26,0.12); color: #e09620; border-color: rgba(200,121,26,0.25); }
+.update-tag.tag-psg     { background: rgba(94,197,255,0.1);  color: #5ec5ff; border-color: rgba(94,197,255,0.25); }
+.update-tag.tag-content { background: rgba(255,107,107,0.1); color: #ff6b6b; border-color: rgba(255,107,107,0.25); }
+.update-tag.tag-site    { background: rgba(0,200,200,0.12);  color: var(--accent); border-color: rgba(0,200,200,0.25); }
+
+.update-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.update-desc {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.55;
+  padding-left: 2px;
+}
+
+.update-link {
+  font-size: 0.78rem;
+  color: var(--accent);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding-left: 2px;
+}
+
+.update-link:hover { text-decoration: underline; }
+
 .project-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
