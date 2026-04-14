@@ -240,7 +240,7 @@ main {
 
 /* Cards where the subject sits lower in the image */
 .card-lower img {
-  object-position: center 65%;
+  object-position: center 25%;
 }
 
 .card:hover img {

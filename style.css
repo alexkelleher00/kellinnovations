@@ -321,10 +321,7 @@ footer {
   color: var(--text);
   text-decoration: none;
   white-space: nowrap;
-  transition: color 0.15s;
 }
-
-.ticker-item:hover { color: var(--accent); }
 
 /* Diamond separator between items */
 .ticker-sep {
