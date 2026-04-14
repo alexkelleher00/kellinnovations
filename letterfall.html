@@ -76,9 +76,9 @@ input[type=range]{width:100%;accent-color:var(--acc);cursor:pointer;}
   position:relative;
 }
 .cell.path{
-  background:var(--cell-shade,#3a3a46);
-  border-color:rgba(255,255,255,0.38);
-  color:#fff;
+  background:#fff;
+  border-color:#fff;
+  color:#0e0e12;
 }
 .cell.sel{
   background:#fff;color:#0e0e12;border-color:#fff;transform:scale(1.1);z-index:2;
@@ -918,15 +918,7 @@ function hilite() {
     const pos=sel.indexOf(i);
     if(pos<0){ c.className='cell'; c.style.removeProperty('--cell-shade'); return; }
     if(i===sel[n-1]){ c.className='cell sel'; c.style.removeProperty('--cell-shade'); }
-    else {
-      // Gradient: first cell darkest, last before tip lightest
-      const t=n<=1?0:pos/(n-1);
-      const rv=Math.round(50+t*(195-50));
-      const gv=Math.round(50+t*(195-50));
-      const bv=Math.round(62+t*(208-62));
-      c.style.setProperty('--cell-shade',`rgb(${rv},${gv},${bv})`);
-      c.className='cell path';
-    }
+    else { c.className='cell path'; c.style.removeProperty('--cell-shade'); }
   });
 }
 
