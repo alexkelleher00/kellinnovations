@@ -32,72 +32,67 @@
     <button onclick="location.href='portfolio.html'">Explore Projects</button>
   </section>
 
-  <!-- ── What's New (collapsible) ───────────────────────────── -->
-  <details class="updates-details">
-    <summary class="updates-summary">
-      <span class="updates-summary-left">
-        <span style="font-size:0.9rem">📋</span>
-        <span class="updates-summary-title">What's New</span>
-        <span class="updates-badge">4 updates</span>
-      </span>
-      <span class="updates-chevron">▼</span>
-    </summary>
-
-    <div class="updates-feed">
-      <!-- Date header — update this when you add new entries -->
-      <div class="update-date-row">Week of Apr 7 – Apr 13, 2026</div>
-
-      <!-- ── ADD NEW ENTRIES HERE — copy an .update-item block ── -->
-
-      <div class="update-item">
-        <div class="update-item-top">
-          <span class="update-tag tag-games">Games</span>
-          <span class="update-title">Letterfall — Solo Player Mode</span>
-        </div>
-        <div class="update-desc">You can now play Boggle alone — no game code or friends required. Hit "Play Solo" on the home screen, enter your name, and jump straight in. Full rounds, timer, scoring, and word review all work exactly like multiplayer.</div>
-        <a class="update-link" href="letterfall.html">Play now →</a>
-      </div>
-
-      <div class="update-item">
-        <div class="update-item-top">
-          <span class="update-tag tag-games">Games</span>
-          <span class="update-title">Slide Puzzle — Image Mode Fixed</span>
-        </div>
-        <div class="update-desc">The image tile puzzle was broken (missing quotes in the source path). It's fixed — the jalapeño guy image now slices correctly across all three grid sizes (3×3, 4×4, 5×5). Drag tiles to solve the puzzle.</div>
-        <a class="update-link" href="slide.html">Play now →</a>
-      </div>
-
-      <div class="update-item">
-        <div class="update-item-top">
-          <span class="update-tag tag-wood">Woodworking</span>
-          <span class="update-title">Gallery Updates — New Photos &amp; Lightbox</span>
-        </div>
-        <div class="update-desc">Added the Plant Stand to the gallery. The photo viewer now opens full-size images in a lightbox with left/right navigation — click any card to open it. Wine rack, bench, and circular end table thumbnails re-centered.</div>
-        <a class="update-link" href="woodwork.html">See gallery →</a>
-      </div>
-
-      <div class="update-item">
-        <div class="update-item-top">
-          <span class="update-tag tag-psg">PSG</span>
-          <span class="update-title">PSG 2026 — Registration Open</span>
-        </div>
-        <div class="update-desc">Punk Squad Games 2026 is on the calendar. Registration is live on the PSG page — sign up early. Event details, past champions, and highlights from previous years are all there too.</div>
-        <a class="update-link" href="psg.html">Register →</a>
-      </div>
-
-      <!-- Uncomment and fill in when new Planter Boy videos drop:
-      <div class="update-item">
-        <div class="update-item-top">
-          <span class="update-tag tag-content">Content</span>
-          <span class="update-title">Planter Boy — New Videos Posted</span>
-        </div>
-        <div class="update-desc">New videos just dropped on the Planter Boy channel. [Add a quick description of what's in the videos here.]</div>
-        <a class="update-link" href="https://www.youtube.com/@planterboy18/playlists">Watch on YouTube →</a>
-      </div>
-      -->
-
+  <!-- ── What's New ticker ─────────────────────────────────── -->
+  <!--
+    TO ADD A NEW UPDATE: copy one <a class="ticker-item">…</a> + the following
+    <span class="ticker-sep"> and paste it in BOTH the first and second copy
+    of the items below (the second copy starts after the "loop copy" comment).
+  -->
+  <div class="news-ticker" role="marquee" aria-label="What's new">
+    <div class="ticker-label">
+      <span class="ticker-label-icon">📋</span>
+      <span>What's&nbsp;New</span>
     </div>
-  </details>
+    <div class="ticker-track">
+      <!-- ticker-inner is duplicated by the script below for a seamless loop -->
+      <div class="ticker-inner" id="ticker-src">
+
+        <a class="ticker-item" href="letterfall.html">
+          <span class="ticker-tag tag-games">Games</span>
+          Letterfall — Solo Player Mode Added
+        </a>
+        <span class="ticker-sep">✦</span>
+
+        <a class="ticker-item" href="slide.html">
+          <span class="ticker-tag tag-games">Games</span>
+          Slide Puzzle — Image Mode Fixed
+        </a>
+        <span class="ticker-sep">✦</span>
+
+        <a class="ticker-item" href="woodwork.html">
+          <span class="ticker-tag tag-wood">Woodworking</span>
+          Gallery Updates — New Photos &amp; Lightbox
+        </a>
+        <span class="ticker-sep">✦</span>
+
+        <a class="ticker-item" href="psg.html">
+          <span class="ticker-tag tag-psg">PSG</span>
+          PSG 2026 — Registration Now Open
+        </a>
+        <span class="ticker-sep">✦</span>
+
+        <!-- Uncomment when Planter Boy videos drop:
+        <a class="ticker-item" href="https://www.youtube.com/@planterboy18/playlists">
+          <span class="ticker-tag tag-content">Content</span>
+          Planter Boy — New Videos Posted
+        </a>
+        <span class="ticker-sep">✦</span>
+        -->
+
+      </div>
+    </div>
+  </div>
+  <script>
+    // Duplicate ticker items for a seamless infinite loop
+    (function() {
+      const src = document.getElementById('ticker-src');
+      if (!src) return;
+      const clone = src.cloneNode(true);
+      clone.removeAttribute('id');
+      clone.setAttribute('aria-hidden', 'true');
+      src.parentNode.appendChild(clone);
+    })();
+  </script>
 
   <!-- ── Projects & Tools ───────────────────────────────────── -->
   <div class="section-group">
