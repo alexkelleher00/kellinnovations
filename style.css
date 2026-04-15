@@ -286,15 +286,36 @@ footer {
 
 .ticker-label-icon { font-size: 0.88rem; }
 
-/* Scrolling track — edges fade to transparent */
+/* Scrolling track — edges fade via pseudo-element overlays
+   (mask-image breaks overflow:hidden on iOS Safari, so we use
+   ::before / ::after gradient overlays instead) */
 .ticker-track {
   flex: 1;
   overflow: hidden;
   position: relative;
   display: flex;
   align-items: center;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 5%, #000 95%, transparent 100%);
-  mask-image:         linear-gradient(to right, transparent 0%, #000 5%, #000 95%, transparent 100%);
+}
+
+.ticker-track::before,
+.ticker-track::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.ticker-track::before {
+  left: 0;
+  background: linear-gradient(to right, var(--surface), transparent);
+}
+
+.ticker-track::after {
+  right: 0;
+  background: linear-gradient(to left, var(--surface), transparent);
 }
 
 /* Both copies of items sit inside this row */
