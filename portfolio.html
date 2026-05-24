@@ -505,20 +505,20 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="cf-name">Name</label>
-                    <input type="text" id="cf-name" placeholder="Your name" required>
+                    <input type="text" id="cf-name" name="name" placeholder="Your name" required>
                 </div>
                 <div class="form-group">
                     <label for="cf-email">Email</label>
-                    <input type="email" id="cf-email" placeholder="your@email.com" required>
+                    <input type="email" id="cf-email" name="email" placeholder="your@email.com" required>
                 </div>
             </div>
             <div class="form-group">
                 <label for="cf-subject">Subject</label>
-                <input type="text" id="cf-subject" placeholder="What's this about?">
+                <input type="text" id="cf-subject" name="subject" placeholder="What's this about?">
             </div>
             <div class="form-group">
                 <label for="cf-message">Message</label>
-                <textarea id="cf-message" rows="6" placeholder="Tell me about your project or question..." required></textarea>
+                <textarea id="cf-message" name="message" rows="6" placeholder="Tell me about your project or question..." required></textarea>
             </div>
             <button type="submit" class="btn btn-primary" id="cf-submit">Send Message</button>
             <div id="cf-status" class="form-status" style="display:none;"></div>
@@ -598,18 +598,11 @@
         status.style.display = 'none';
         status.className = 'form-status';
 
-        const payload = {
-            name:    document.getElementById('cf-name').value.trim(),
-            email:   document.getElementById('cf-email').value.trim(),
-            subject: document.getElementById('cf-subject').value.trim(),
-            message: document.getElementById('cf-message').value.trim(),
-        };
-
         try {
-            const res = await fetch('https://api.kellinnovations.com/contact/send', {
+            const res = await fetch('https://formspree.io/f/mykovwqk', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                headers: { 'Accept': 'application/json' },
+                body: new FormData(this),
             });
             const data = await res.json();
             if (res.ok) {
@@ -617,7 +610,8 @@
                 status.classList.add('success');
                 this.reset();
             } else {
-                status.textContent = 'Error: ' + (data.error || 'Something went wrong.');
+                const msg = data.errors ? data.errors.map(e => e.message).join(', ') : 'Something went wrong.';
+                status.textContent = 'Error: ' + msg;
                 status.classList.add('error');
             }
         } catch (err) {
