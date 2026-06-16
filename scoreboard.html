@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PSG 2026 — Live Scoreboard</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+
+    /* ── Admin bar ─────────────────────────────────────────────────────────── */
+    .admin-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px var(--pad);
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem;
+    }
+    .spacer { flex: 1; }
+    .live-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      background: #3f3;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .refresh-label { color: var(--dim); }
+    .admin-badge { color: var(--accent); font-weight: 600; }
+
+    /* ── Shared button style ────────────────────────────────────────────────── */
+    .sb-btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      font-family: inherit;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .sb-btn-ghost  { background: none; color: var(--muted); }
+    .sb-btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .sb-btn-primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+    .sb-btn-primary:hover { background: #00e0e0; }
+    .sb-btn-danger  { background: none; color: #e55; border-color: #e55; }
+    .sb-btn-danger:hover  { background: rgba(238,85,85,0.1); }
+    .sb-btn-green   { background: #1a3a1a; color: #5f5; border-color: #2a5a2a; font-weight: 600; }
+    .sb-btn-green:hover { background: #1f4a1f; }
+
+    /* ── Tab navigation ─────────────────────────────────────────────────────── */
+    .sb-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 14px var(--pad) 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .sb-tab {
+      padding: 7px 18px;
+      background: none;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 7px 7px 0 0;
+      font-size: 0.85rem;
+      font-family: inherit;
+      transition: color 0.15s, background 0.15s;
+    }
+    .sb-tab.active {
+      background: var(--surface);
+      color: var(--accent);
+      border-color: var(--border);
+    }
+    .sb-tab:not(.active):hover { color: var(--text); }
+
+    /* ── Panels ─────────────────────────────────────────────────────────────── */
+    .sb-panel { display: none; padding: 28px var(--pad) 60px; }
+    .sb-panel.active { display: block; }
+
+    /* ── Action row (save / init bracket etc.) ──────────────────────────────── */
+    .action-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .action-msg { font-size: 0.8rem; color: var(--dim); }
+    .action-msg.ok   { color: #5f5; }
+    .action-msg.warn { color: #fa0; }
+
+    /* ── Scoreboard grid ────────────────────────────────────────────────────── */
+    .grid-wrap { overflow-x: auto; }
+    .sb-grid {
+      border-collapse: collapse;
+      min-width: 100%;
+      font-size: 0.85rem;
+    }
+    .sb-grid th, .sb-grid td {
+      border: 1px solid var(--border);
+      padding: 7px 10px;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .sb-grid thead th {
+      background: var(--surface);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.8rem;
+    }
+    .sb-grid thead th.rank-1 { color: gold; }
+    .sb-grid thead th.rank-2 { color: silver; }
+    .sb-grid thead th.rank-3 { color: #cd7f32; }
+    .sb-grid td.ev-label {
+      text-align: left;
+      color: var(--dim);
+      font-size: 0.78rem;
+      min-width: 140px;
+    }
+    .sb-grid tr.total-row td {
+      border-top: 2px solid var(--accent);
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(0,200,200,0.04);
+    }
+    .sb-grid tr.total-row td.ev-label { color: var(--accent); }
+    .score-input {
+      width: 50px;
+      background: var(--bg);
+      border: 1px solid var(--accent);
+      color: var(--text);
+      text-align: center;
+      padding: 3px 5px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-family: inherit;
+    }
+    .score-input:focus { outline: 2px solid rgba(0,200,200,0.4); }
+
+    /* ── Standings sidebar ──────────────────────────────────────────────────── */
+    .sb-lower { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 24px; align-items: flex-start; }
+    .standings-col { flex: 1; min-width: 200px; max-width: 320px; }
+    .standings-col h3 {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .standings-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 5px;
+    }
+    .s-rank { font-weight: 700; min-width: 22px; text-align: center; font-size: 0.85rem; }
+    .s-name { flex: 1; font-size: 0.88rem; color: var(--text); }
+    .s-score { font-size: 0.82rem; color: var(--dim); }
+    .standings-row.gold   .s-rank { color: gold; }
+    .standings-row.silver .s-rank { color: silver; }
+    .standings-row.bronze .s-rank { color: #cd7f32; }
+
+    /* ── Point reference ────────────────────────────────────────────────────── */
+    .pts-col { min-width: 280px; }
+    .pts-col h3 {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .pts-tables { display: flex; gap: 16px; flex-wrap: wrap; }
+    .pts-table { min-width: 120px; }
+    .pts-table h4 { font-size: 0.72rem; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+    .pts-table table { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
+    .pts-table td { padding: 3px 8px; border: 1px solid var(--border); color: var(--text); }
+    .pts-table td:last-child { color: var(--accent); text-align: right; }
+
+    /* ── Bracket ─────────────────────────────────────────────────────────────── */
+    .bracket-wrap { overflow-x: auto; padding: 10px 0 20px; }
+    .bracket { display: flex; gap: 0; align-items: stretch; min-width: fit-content; }
+
+    .br-round { display: flex; flex-direction: column; min-width: 200px; }
+    .br-round-title {
+      text-align: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+    }
+    .br-matches {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      flex: 1;
+      gap: 14px;
+      padding: 8px 14px;
+    }
+    .br-match {
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .br-team {
+      padding: 9px 12px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+      min-height: 38px;
+    }
+    .br-team:last-child { border-bottom: none; }
+    .br-seed { color: var(--dim); font-size: 0.72rem; min-width: 22px; }
+    .br-team.winner { background: rgba(0,200,200,0.12); font-weight: 600; }
+    .br-team.loser  { opacity: 0.4; text-decoration: line-through; }
+    .br-team.bye    { color: var(--dim); font-style: italic; }
+    .br-team.tbd    { color: var(--dim); font-style: italic; }
+    .br-team.clickable { cursor: pointer; }
+    .br-team.clickable:hover { background: rgba(255,255,255,0.06); }
+
+    .br-connector {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      width: 28px;
+      padding: 8px 0;
+      flex-shrink: 0;
+    }
+    .br-connector-line {
+      flex: 1;
+      position: relative;
+    }
+    .br-connector-line::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      top: 50%;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .bracket-notice {
+      text-align: center;
+      color: var(--dim);
+      padding: 50px 20px;
+      font-size: 0.9rem;
+    }
+
+    /* ── Setup panel ─────────────────────────────────────────────────────────── */
+    .setup-grid { display: flex; flex-direction: column; gap: 8px; max-width: 500px; }
+    .team-input-row { display: flex; gap: 8px; }
+    .team-input-row input {
+      flex: 1;
+      padding: 8px 10px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-family: inherit;
+    }
+    .team-input-row input:focus { outline: none; border-color: var(--accent); }
+    .setup-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--dim);
+      margin-bottom: 6px;
+    }
+
+    /* ── Modal ───────────────────────────────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--accent);
+      border-radius: 12px;
+      padding: 32px 28px;
+      min-width: 300px;
+      text-align: center;
+    }
+    .modal-box h3 { margin-bottom: 18px; color: var(--text); }
+    .modal-box input {
+      width: 100%;
+      padding: 11px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 1.1rem;
+      text-align: center;
+      letter-spacing: 0.15em;
+      font-family: inherit;
+      margin-bottom: 10px;
+    }
+    .modal-box input:focus { outline: 2px solid rgba(0,200,200,0.4); border-color: var(--accent); }
+    .modal-err { color: #e55; font-size: 0.82rem; margin-bottom: 10px; min-height: 18px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: center; margin-top: 4px; }
+
+    /* ── TV / full-screen mode ───────────────────────────────────────────────── */
+    body.tv-mode header,
+    body.tv-mode .admin-bar,
+    body.tv-mode .sb-tabs,
+    body.tv-mode footer { display: none !important; }
+    body.tv-mode .sb-panel { padding: 14px; }
+    body.tv-mode .sb-grid { font-size: 1.05rem; }
+    body.tv-mode .s-name  { font-size: 1.05rem; }
+    body.tv-mode .s-score { font-size: 1rem; }
+    body.tv-mode .standings-row { padding: 10px 14px; }
+    body.tv-mode .action-row { display: none; }
+
+    /* ── Responsive ──────────────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .sb-tabs { padding: 10px 12px 0; gap: 4px; }
+      .sb-tab  { padding: 5px 12px; font-size: 0.8rem; }
+      .sb-panel { padding: 16px 12px 40px; }
+      .admin-bar { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="psg.html">Punk Squad Games</a>
+      <a href="scoreboard.html" class="active">Scoreboard</a>
+    </nav>
+  </div>
+</header>
+
+<!-- Admin bar -->
+<div class="admin-bar">
+  <span class="live-dot"></span>
+  <span class="refresh-label" id="refreshLabel">Live</span>
+  <span class="spacer"></span>
+  <span class="admin-badge" id="adminBadge" style="display:none">&#9889; Admin</span>
+  <button class="sb-btn sb-btn-ghost" onclick="toggleTV()" id="tvBtn">&#128250; TV Mode</button>
+  <button class="sb-btn sb-btn-ghost" id="loginBtn"  onclick="openLogin()">Admin Login</button>
+  <button class="sb-btn sb-btn-danger" id="logoutBtn" onclick="logout()" style="display:none">Logout</button>
+</div>
+
+<!-- Tabs -->
+<div class="sb-tabs">
+  <button class="sb-tab active" id="tab-scores"  onclick="showTab('scores',  this)">Scoreboard</button>
+  <button class="sb-tab"        id="tab-bracket" onclick="showTab('bracket', this)">Tournament Bracket</button>
+  <button class="sb-tab"        id="tab-setup"   onclick="showTab('setup',   this)" style="display:none">Setup</button>
+</div>
+
+<main style="max-width:none; padding-top:20px;">
+
+  <!-- ══ Scoreboard panel ══ -->
+  <div class="sb-panel active" id="panel-scores">
+    <div class="action-row" id="scoreAdminRow" style="display:none">
+      <button class="sb-btn sb-btn-green"  onclick="saveAllScores()">Save Scores</button>
+      <span class="action-msg" id="saveMsg"></span>
+    </div>
+    <div class="grid-wrap">
+      <table class="sb-grid" id="scoreGrid">
+        <tbody><tr><td style="color:var(--dim);padding:20px">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="sb-lower">
+      <div class="standings-col">
+        <h3>Standings</h3>
+        <div id="standingsList"></div>
+      </div>
+      <div class="pts-col">
+        <h3>Point Values</h3>
+        <div class="pts-tables">
+          <div class="pts-table">
+            <h4>Tournament</h4>
+            <table>
+              <tr><td>1st</td><td>10</td></tr>
+              <tr><td>2nd</td><td>8</td></tr>
+              <tr><td>3rd / 4th</td><td>5</td></tr>
+              <tr><td>5th–7th</td><td>3</td></tr>
+            </table>
+          </div>
+          <div class="pts-table">
+            <h4>Round Robin</h4>
+            <table>
+              <tr><td>1st</td><td>10</td></tr>
+              <tr><td>2nd</td><td>8</td></tr>
+              <tr><td>3rd</td><td>6</td></tr>
+              <tr><td>4th</td><td>5</td></tr>
+              <tr><td>5th</td><td>4</td></tr>
+              <tr><td>6th</td><td>3</td></tr>
+              <tr><td>7th</td><td>2</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Bracket panel ══ -->
+  <div class="sb-panel" id="panel-bracket">
+    <div class="action-row" id="bracketAdminRow" style="display:none">
+      <button class="sb-btn sb-btn-primary" onclick="initBracket()">Generate Bracket from Standings</button>
+      <button class="sb-btn sb-btn-danger"  onclick="resetBracket()">Reset</button>
+      <span class="action-msg" id="bracketMsg"></span>
+    </div>
+    <div class="bracket-wrap">
+      <div id="bracketContainer">
+        <div class="bracket-notice">Bracket not yet initialized.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Setup panel (admin only) ══ -->
+  <div class="sb-panel" id="panel-setup">
+    <p style="color:var(--muted); font-size:0.88rem; margin-bottom:18px">
+      Add team names and member lists. Existing scores are preserved when adding new teams.
+    </p>
+    <div class="setup-label">Team Name &nbsp;·&nbsp; Members (optional)</div>
+    <div class="setup-grid" id="teamRows"></div>
+    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="sb-btn sb-btn-ghost" onclick="addTeamRow()">+ Add Team</button>
+      <button class="sb-btn sb-btn-primary" onclick="saveTeams()">Save Teams</button>
+      <span class="action-msg" id="setupMsg"></span>
+    </div>
+  </div>
+
+</main>
+
+<!-- Admin login modal -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal-box">
+    <h3>Admin Login</h3>
+    <input type="password" id="pinInput" placeholder="PIN" autocomplete="current-password"
+           onkeydown="if(event.key==='Enter') submitLogin()">
+    <div class="modal-err" id="loginErr"></div>
+    <div class="modal-actions">
+      <button class="sb-btn sb-btn-primary" onclick="submitLogin()">Login</button>
+      <button class="sb-btn sb-btn-ghost"   onclick="closeLogin()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>&copy; 2026 Kelleher Innovations &nbsp;·&nbsp; <a href="psg.html">PSG 2026</a></p>
+</footer>
+
+<script>
+"use strict";
+
+const API = "https://api.kellinnovations.com/psg";
+let isAdmin   = false;
+let scoreData = null;
+let bkData    = null;
+let refreshTimer = null;
+
+// ══ Bootstrap ══════════════════════════════════════════════════════════════════
+async function init() {
+  await checkAdmin();
+  await Promise.all([fetchScores(), fetchBracket()]);
+  startAutoRefresh();
+}
+
+function startAutoRefresh() {
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(async () => {
+    await Promise.all([fetchScores(), fetchBracket()]);
+    const t = new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+    document.getElementById("refreshLabel").textContent = "Updated " + t;
+  }, 10000);
+}
+
+// ══ Auth ═══════════════════════════════════════════════════════════════════════
+async function checkAdmin() {
+  try {
+    const r = await fetch(`${API}/auth/check`, {credentials: "include"});
+    const d = await r.json();
+    isAdmin = !!d.admin;
+  } catch { isAdmin = false; }
+  applyAdminUI();
+}
+
+function applyAdminUI() {
+  const show = (id, v) => { document.getElementById(id).style.display = v ? "" : "none"; };
+  show("adminBadge",      isAdmin);
+  show("loginBtn",        !isAdmin);
+  show("logoutBtn",       isAdmin);
+  show("scoreAdminRow",   isAdmin);
+  show("bracketAdminRow", isAdmin);
+  show("tab-setup",       isAdmin);
+  renderScores();
+  renderBracket();
+}
+
+function openLogin() {
+  document.getElementById("pinInput").value = "";
+  document.getElementById("loginErr").textContent  = "";
+  document.getElementById("loginModal").classList.add("open");
+  setTimeout(() => document.getElementById("pinInput").focus(), 60);
+}
+
+function closeLogin() {
+  document.getElementById("loginModal").classList.remove("open");
+}
+
+async function submitLogin() {
+  const pin = document.getElementById("pinInput").value;
+  document.getElementById("loginErr").textContent = "";
+  try {
+    const r = await fetch(`${API}/auth/login`, {
+      method: "POST", credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({pin})
+    });
+    if (r.ok) {
+      isAdmin = true;
+      closeLogin();
+      applyAdminUI();
+    } else {
+      document.getElementById("loginErr").textContent = "Incorrect PIN.";
+    }
+  } catch {
+    document.getElementById("loginErr").textContent = "Network error.";
+  }
+}
+
+async function logout() {
+  try { await fetch(`${API}/auth/logout`, {method: "POST", credentials: "include"}); } catch {}
+  isAdmin = false;
+  applyAdminUI();
+}
+
+// ══ Scoreboard ════════════════════════════════════════════════════════════════
+async function fetchScores() {
+  try {
+    const r = await fetch(`${API}/scoreboard`, {credentials: "include"});
+    scoreData = await r.json();
+    renderScores();
+  } catch (e) { console.error("Scores fetch failed:", e); }
+}
+
+function sortedTeams(data) {
+  return [...(data.teams || [])].sort((a, b) =>
+    (data.totals[b.name] || 0) - (data.totals[a.name] || 0));
+}
+
+function renderScores() {
+  const grid = document.getElementById("scoreGrid");
+  if (!scoreData) return;
+
+  const data    = scoreData;
+  const events  = data.events || [];
+  const scores  = data.scores || {};
+  const totals  = data.totals || {};
+  const ordered = sortedTeams(data);
+
+  if (!ordered.length) {
+    grid.innerHTML = `<tbody><tr><td colspan="2" style="color:var(--dim);padding:30px;text-align:center">
+      No teams yet.${isAdmin ? " Go to <strong>Setup</strong> to add teams." : ""}
+    </td></tr></tbody>`;
+    renderStandings(ordered, totals);
+    return;
+  }
+
+  const medalClass = ["rank-1", "rank-2", "rank-3"];
+
+  // Header
+  let html = "<thead><tr><th style='text-align:left'>Event</th>";
+  ordered.forEach((t, i) => {
+    const cls = medalClass[i] || "";
+    html += `<th class="${cls}">${t.name}${t.members ? `<br><small style="color:var(--dim);font-weight:400;font-size:0.72rem">${t.members}</small>` : ""}</th>`;
+  });
+  html += "</tr></thead><tbody>";
+
+  // Event rows
+  events.forEach((ev, ei) => {
+    html += `<tr><td class="ev-label">${ev}</td>`;
+    ordered.forEach(t => {
+      const v = (scores[t.name] || [])[ei] || 0;
+      if (isAdmin) {
+        html += `<td><input class="score-input" type="number" min="0" max="99"
+                   data-team="${encodeURIComponent(t.name)}" data-ei="${ei}"
+                   value="${v}" oninput="markDirty()"></td>`;
+      } else {
+        html += `<td>${v || ""}</td>`;
+      }
+    });
+    html += "</tr>";
+  });
+
+  // Totals
+  html += '<tr class="total-row"><td class="ev-label">Total</td>';
+  ordered.forEach(t => { html += `<td>${totals[t.name] || 0}</td>`; });
+  html += "</tr></tbody>";
+  grid.innerHTML = html;
+
+  renderStandings(ordered, totals);
+}
+
+function markDirty() {
+  const el = document.getElementById("saveMsg");
+  el.className = "action-msg warn";
+  el.textContent = "Unsaved changes";
+}
+
+async function saveAllScores() {
+  const data = scoreData;
+  if (!data) return;
+
+  const all_scores = {};
+  data.teams.forEach(t => { all_scores[t.name] = [...(data.scores[t.name] || [])]; });
+
+  document.querySelectorAll(".score-input").forEach(inp => {
+    const team = decodeURIComponent(inp.dataset.team);
+    const ei   = parseInt(inp.dataset.ei);
+    const val  = parseInt(inp.value) || 0;
+    if (all_scores[team]) all_scores[team][ei] = val;
+  });
+
+  const msgEl = document.getElementById("saveMsg");
+  try {
+    const r = await fetch(`${API}/scoreboard/update`, {
+      method: "POST", credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({all_scores})
+    });
+    if (r.ok) {
+      scoreData = await r.json();
+      renderScores();
+      msgEl.className = "action-msg ok";
+      msgEl.textContent = "Saved";
+      setTimeout(() => { msgEl.textContent = ""; }, 3000);
+    } else {
+      msgEl.className = "action-msg warn";
+      msgEl.textContent = "Save failed";
+    }
+  } catch {
+    msgEl.className = "action-msg warn";
+    msgEl.textContent = "Network error";
+  }
+}
+
+function renderStandings(ordered, totals) {
+  const medals = ["gold", "silver", "bronze"];
+  const list   = document.getElementById("standingsList");
+  if (!ordered.length) { list.innerHTML = "<p style='color:var(--dim);font-size:0.85rem'>No teams yet.</p>"; return; }
+  list.innerHTML = ordered.map((t, i) => {
+    const cls = medals[i] || "";
+    return `<div class="standings-row ${cls}">
+      <span class="s-rank">${i + 1}</span>
+      <span class="s-name">${t.name}</span>
+      <span class="s-score">${totals[t.name] || 0} pts</span>
+    </div>`;
+  }).join("");
+}
+
+// ══ Bracket ═══════════════════════════════════════════════════════════════════
+async function fetchBracket() {
+  try {
+    const r = await fetch(`${API}/bracket`, {credentials: "include"});
+    bkData = await r.json();
+    renderBracket();
+  } catch (e) { console.error("Bracket fetch failed:", e); }
+}
+
+function renderBracket() {
+  const container = document.getElementById("bracketContainer");
+  if (!bkData || !bkData.initialized) {
+    container.innerHTML = `<div class="bracket-notice">
+      ${isAdmin
+        ? "Click <strong>Generate Bracket from Standings</strong> to seed teams."
+        : "Bracket has not been initialized yet — check back later!"}
+    </div>`;
+    return;
+  }
+
+  const {matches, round_names} = bkData;
+  const numRounds = round_names.length;
+  const byRound   = Array.from({length: numRounds}, (_, r) => matches.filter(m => m.round === r));
+
+  // Seed lookup from current standings
+  const seedOf = {};
+  if (scoreData) {
+    sortedTeams(scoreData).forEach((t, i) => { seedOf[t.name] = i + 1; });
+  }
+
+  let html = '<div class="bracket">';
+  for (let r = 0; r < numRounds; r++) {
+    html += `<div class="br-round">
+      <div class="br-round-title">${round_names[r]}</div>
+      <div class="br-matches">`;
+    byRound[r].forEach(m => { html += renderMatch(m, seedOf); });
+    html += `</div></div>`;
+
+    if (r < numRounds - 1) {
+      // Simple visual spacer/connector column
+      const matchCount = byRound[r].length;
+      html += `<div class="br-connector">`;
+      for (let i = 0; i < matchCount; i++) {
+        html += `<div class="br-connector-line"></div>`;
+      }
+      html += `</div>`;
+    }
+  }
+  html += "</div>";
+  container.innerHTML = html;
+}
+
+function renderMatch(m, seedOf) {
+  const teamEl = (name) => {
+    if (!name)               return `<div class="br-team tbd"><span class="br-seed"></span>TBD</div>`;
+    if (name === "BYE")      return `<div class="br-team bye"><span class="br-seed"></span>— BYE —</div>`;
+
+    const won  = m.winner === name;
+    const lost = m.winner && !won;
+    const seed = seedOf[name] ? `<span class="br-seed">#${seedOf[name]}</span>` : `<span class="br-seed"></span>`;
+    const canClick = isAdmin && !m.winner && m.team1 && m.team2 && m.team2 !== "BYE";
+
+    let cls = "br-team";
+    if (won)       cls += " winner";
+    if (lost)      cls += " loser";
+    if (canClick)  cls += " clickable";
+
+    const click = canClick
+      ? `onclick="advanceBracket(${m.id}, '${name.replace(/\\/g,"\\\\").replace(/'/g,"\\'")}')"`
+      : "";
+
+    return `<div class="${cls}" ${click}>${seed}${name}</div>`;
+  };
+
+  return `<div class="br-match">${teamEl(m.team1)}${teamEl(m.team2)}</div>`;
+}
+
+async function initBracket() {
+  if (!confirm("Generate bracket from current standings? This will replace any existing bracket.")) return;
+  const msg = document.getElementById("bracketMsg");
+  try {
+    const r = await fetch(`${API}/bracket/init`, {method: "POST", credentials: "include"});
+    if (r.ok) {
+      bkData = await r.json();
+      renderBracket();
+      msg.className = "action-msg ok";
+      msg.textContent = "Bracket created";
+      setTimeout(() => { msg.textContent = ""; }, 3000);
+    } else {
+      const d = await r.json().catch(() => ({}));
+      msg.className = "action-msg warn";
+      msg.textContent = d.error || "Failed";
+    }
+  } catch {
+    document.getElementById("bracketMsg").textContent = "Network error";
+  }
+}
+
+async function advanceBracket(matchId, winner) {
+  if (!confirm(`Mark "${winner}" as the winner?`)) return;
+  try {
+    const r = await fetch(`${API}/bracket/advance`, {
+      method: "POST", credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({match_id: matchId, winner})
+    });
+    if (r.ok) { bkData = await r.json(); renderBracket(); }
+    else { const d = await r.json().catch(()=>({})); alert(d.error || "Failed to advance"); }
+  } catch { alert("Network error"); }
+}
+
+async function resetBracket() {
+  if (!confirm("Reset the entire bracket? This cannot be undone.")) return;
+  try {
+    const r = await fetch(`${API}/bracket/reset`, {method: "POST", credentials: "include"});
+    if (r.ok) { bkData = await r.json(); renderBracket(); }
+  } catch { alert("Network error"); }
+}
+
+// ══ Setup ══════════════════════════════════════════════════════════════════════
+function renderSetupRows() {
+  const container = document.getElementById("teamRows");
+  container.innerHTML = "";
+  if (scoreData) {
+    scoreData.teams.forEach(t => addTeamRow(t.name, t.members || ""));
+  }
+  if (!container.children.length) addTeamRow();
+}
+
+function addTeamRow(name = "", members = "") {
+  const div = document.createElement("div");
+  div.className = "team-input-row";
+  div.innerHTML = `
+    <input type="text" placeholder="Team name (e.g. The Killers)" value="${escHtml(name)}" class="t-name">
+    <input type="text" placeholder="Members (e.g. JP / Teo)"      value="${escHtml(members)}" class="t-members">
+  `;
+  document.getElementById("teamRows").appendChild(div);
+}
+
+async function saveTeams() {
+  const rows   = document.querySelectorAll(".team-input-row");
+  const teams  = [];
+  rows.forEach(row => {
+    const name    = row.querySelector(".t-name").value.trim();
+    const members = row.querySelector(".t-members").value.trim();
+    if (name) teams.push({name, members});
+  });
+
+  const msg = document.getElementById("setupMsg");
+  try {
+    const r = await fetch(`${API}/scoreboard/teams`, {
+      method: "POST", credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({teams})
+    });
+    if (r.ok) {
+      scoreData = await r.json();
+      renderScores();
+      msg.className = "action-msg ok";
+      msg.textContent = "Saved";
+      setTimeout(() => { msg.textContent = ""; }, 3000);
+    } else {
+      msg.className = "action-msg warn";
+      msg.textContent = "Save failed";
+    }
+  } catch {
+    msg.className = "action-msg warn";
+    msg.textContent = "Network error";
+  }
+}
+
+// ══ UI helpers ═════════════════════════════════════════════════════════════════
+function showTab(id, btn) {
+  document.querySelectorAll(".sb-panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".sb-tab").forEach(b => b.classList.remove("active"));
+  document.getElementById("panel-" + id).classList.add("active");
+  btn.classList.add("active");
+  if (id === "setup") renderSetupRows();
+}
+
+let tvMode = false;
+function toggleTV() {
+  tvMode = !tvMode;
+  document.body.classList.toggle("tv-mode", tvMode);
+  if (tvMode) {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    // Switch to scoreboard view in TV mode
+    showTab("scores", document.getElementById("tab-scores"));
+  } else {
+    document.exitFullscreen?.().catch(() => {});
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    if (document.getElementById("loginModal").classList.contains("open")) closeLogin();
+    if (tvMode) { tvMode = false; document.body.classList.remove("tv-mode"); }
+  }
+});
+
+// Start
+init();
+</script>
+
+</body>
+</html>

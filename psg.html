@@ -251,7 +251,7 @@
       <p class="news-item">📅 PSG 2026 date confirmed: July 18th.</p>
       <p class="news-item">📋 Draft date sometime in June.</p>
       <p class="news-item">🏆 New games, trophies, awards, and more coming.</p>
-      <p class="news-item">📊 Scoreboard updates coming soon.</p>
+      <p class="news-item">📊 <a href="scoreboard.html">Live Scoreboard</a> — scores &amp; tournament bracket.</p>
       <p class="news-item">It's official, OD has been reinstated!</p>
 
       <h3>Registered Players</h3>
@@ -327,12 +327,17 @@
     try {
       const res  = await fetch(`${API_BASE}/api/registrations`);
       const regs = await res.json();
+      console.log("[PSG] registrations raw:", regs);
       if (!regs || regs.length === 0) {
         list.innerHTML = "<li style='color:var(--dim);font-style:italic;border:none;background:none;padding:0'>No registrations yet — be the first!</li>";
         return;
       }
-      list.innerHTML = regs.map(r => `<li>${r.name}</li>`).join("");
-    } catch {
+      list.innerHTML = regs.map(r => {
+        const displayName = r.name || r.fullName || r.playerName || r.player || Object.values(r)[0] || "Unknown";
+        return `<li>${displayName}</li>`;
+      }).join("");
+    } catch (err) {
+      console.error("[PSG] failed to load registrations:", err);
       list.innerHTML = "<li style='color:var(--dim);font-style:italic;border:none;background:none;padding:0'>Could not load registrations.</li>";
     }
   }
