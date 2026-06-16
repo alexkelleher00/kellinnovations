@@ -49,6 +49,16 @@
     .sb-btn-danger:hover  { background: rgba(238,85,85,0.1); }
     .sb-btn-green   { background: #1a3a1a; color: #5f5; border-color: #2a5a2a; font-weight: 600; }
     .sb-btn-green:hover { background: #1f4a1f; }
+    .sb-select {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.82rem;
+    }
+    .sb-select:focus { outline: none; border-color: var(--accent); }
 
     /* ── Tab navigation ─────────────────────────────────────────────────────── */
     .sb-tabs {
@@ -431,7 +441,9 @@
   <!-- ══ Bracket panel ══ -->
   <div class="sb-panel" id="panel-bracket">
     <div class="action-row" id="bracketAdminRow" style="display:none">
+      <select class="sb-select" id="bracketEventSelect"></select>
       <button class="sb-btn sb-btn-primary" onclick="initBracket()">Generate Bracket from Standings</button>
+      <button class="sb-btn sb-btn-green" id="applyScoresBtn" onclick="applyBracketScores()" style="display:none">Apply Scores to Scoreboard</button>
       <button class="sb-btn sb-btn-danger"  onclick="resetBracket()">Reset</button>
       <span class="action-msg" id="bracketMsg"></span>
     </div>
@@ -635,6 +647,7 @@ function renderScores() {
   grid.innerHTML = html;
 
   renderStandings(ordered, totals);
+  populateEventSelect();
 }
 
 function markDirty() {
@@ -705,14 +718,27 @@ async function fetchBracket() {
   } catch (e) { console.error("Bracket fetch failed:", e); }
 }
 
+function populateEventSelect() {
+  const sel = document.getElementById("bracketEventSelect");
+  if (!sel || !scoreData) return;
+  const events = scoreData.events || [];
+  const prev = sel.value;
+  sel.innerHTML = events.map(e => `<option value="${escHtml(e)}">${e}</option>`).join("");
+  if (bkData && bkData.event && events.includes(bkData.event)) sel.value = bkData.event;
+  else if (events.includes(prev)) sel.value = prev;
+}
+
 function renderBracket() {
   const container = document.getElementById("bracketContainer");
+  populateEventSelect();
+
   if (!bkData || !bkData.initialized) {
     container.innerHTML = `<div class="bracket-notice">
       ${isAdmin
-        ? "Click <strong>Generate Bracket from Standings</strong> to seed teams."
+        ? "Pick an event above and click <strong>Generate Bracket from Standings</strong> to seed teams."
         : "Bracket has not been initialized yet — check back later!"}
     </div>`;
+    document.getElementById("applyScoresBtn").style.display = "none";
     return;
   }
 
@@ -726,7 +752,15 @@ function renderBracket() {
     sortedTeams(scoreData).forEach((t, i) => { seedOf[t.name] = i + 1; });
   }
 
-  let html = '<div class="bracket">';
+  let html = "";
+  if (bkData.event) {
+    html += `<div style="margin-bottom:14px;color:var(--muted);font-size:0.85rem">
+      Bracket event: <strong style="color:var(--accent)">${escHtml(bkData.event)}</strong>
+      ${bkData.scores_applied ? '<span style="color:#5f5;margin-left:8px">&#10003; scores applied</span>' : ""}
+    </div>`;
+  }
+
+  html += '<div class="bracket">';
   for (let r = 0; r < numRounds; r++) {
     html += `<div class="br-round">
       <div class="br-round-title">${round_names[r]}</div>
@@ -746,6 +780,17 @@ function renderBracket() {
   }
   html += "</div>";
   container.innerHTML = html;
+
+  // Show "Apply Scores" once the final has a winner
+  const finalMatch = matches.find(m => m.round === numRounds - 1);
+  const complete   = !!(finalMatch && finalMatch.winner);
+  const applyBtn   = document.getElementById("applyScoresBtn");
+  if (isAdmin && complete) {
+    applyBtn.style.display = "";
+    applyBtn.textContent = bkData.scores_applied ? "Re-apply Scores to Scoreboard" : "Apply Scores to Scoreboard";
+  } else {
+    applyBtn.style.display = "none";
+  }
 }
 
 function renderMatch(m, seedOf) {
@@ -774,10 +819,16 @@ function renderMatch(m, seedOf) {
 }
 
 async function initBracket() {
-  if (!confirm("Generate bracket from current standings? This will replace any existing bracket.")) return;
+  const sel   = document.getElementById("bracketEventSelect");
+  const event = sel ? sel.value : null;
+  if (!confirm(`Generate bracket for "${event}" from current standings? This will replace any existing bracket.`)) return;
   const msg = document.getElementById("bracketMsg");
   try {
-    const r = await fetch(`${API}/bracket/init`, {method: "POST", credentials: "include"});
+    const r = await fetch(`${API}/bracket/init`, {
+      method: "POST", credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({event})
+    });
     if (r.ok) {
       bkData = await r.json();
       renderBracket();
@@ -791,6 +842,32 @@ async function initBracket() {
     }
   } catch {
     document.getElementById("bracketMsg").textContent = "Network error";
+  }
+}
+
+async function applyBracketScores() {
+  if (!confirm(`Apply final placements to the "${bkData.event}" column on the scoreboard? This overwrites any existing scores for that event.`)) return;
+  const msg = document.getElementById("bracketMsg");
+  try {
+    const r = await fetch(`${API}/bracket/apply_scores`, {method: "POST", credentials: "include"});
+    if (r.ok) {
+      const d = await r.json();
+      scoreData = d.scoreboard;
+      scoresDirty = false;
+      bkData.scores_applied = true;
+      renderScores();
+      renderBracket();
+      msg.className = "action-msg ok";
+      msg.textContent = "Scores applied";
+      setTimeout(() => { msg.textContent = ""; }, 3000);
+    } else {
+      const d = await r.json().catch(() => ({}));
+      msg.className = "action-msg warn";
+      msg.textContent = d.error || "Failed";
+    }
+  } catch {
+    msg.className = "action-msg warn";
+    msg.textContent = "Network error";
   }
 }
 
