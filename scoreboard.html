@@ -484,6 +484,7 @@ let isAdmin   = false;
 let scoreData = null;
 let bkData    = null;
 let refreshTimer = null;
+let scoresDirty  = false;
 
 // ══ Bootstrap ══════════════════════════════════════════════════════════════════
 async function init() {
@@ -495,9 +496,17 @@ async function init() {
 function startAutoRefresh() {
   clearInterval(refreshTimer);
   refreshTimer = setInterval(async () => {
-    await Promise.all([fetchScores(), fetchBracket()]);
-    const t = new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
-    document.getElementById("refreshLabel").textContent = "Updated " + t;
+    // Skip score refresh while the admin has unsaved edits in the grid —
+    // otherwise the poll overwrites in-progress input values.
+    const tasks = scoresDirty ? [fetchBracket()] : [fetchScores(), fetchBracket()];
+    await Promise.all(tasks);
+    const label = document.getElementById("refreshLabel");
+    if (scoresDirty) {
+      label.textContent = "Editing — refresh paused";
+    } else {
+      const t = new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+      label.textContent = "Updated " + t;
+    }
   }, 10000);
 }
 
@@ -629,6 +638,7 @@ function renderScores() {
 }
 
 function markDirty() {
+  scoresDirty = true;
   const el = document.getElementById("saveMsg");
   el.className = "action-msg warn";
   el.textContent = "Unsaved changes";
@@ -657,6 +667,7 @@ async function saveAllScores() {
     });
     if (r.ok) {
       scoreData = await r.json();
+      scoresDirty = false;
       renderScores();
       msgEl.className = "action-msg ok";
       msgEl.textContent = "Saved";
