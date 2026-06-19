@@ -276,6 +276,60 @@
       font-size: 0.9rem;
     }
 
+    /* ── Timed events panel ─────────────────────────────────────────────────── */
+    .timed-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 20px;
+      margin-bottom: 20px;
+    }
+    .timed-section h3 {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .timed-table { border-collapse: collapse; width: 100%; max-width: 520px; }
+    .timed-table th, .timed-table td {
+      border: 1px solid var(--border);
+      padding: 7px 12px;
+      font-size: 0.85rem;
+    }
+    .timed-table th { background: var(--surface); color: var(--text); font-weight: 600; text-align: left; }
+    .timed-table td { text-align: center; }
+    .timed-table td:first-child { text-align: left; color: var(--text); }
+    .time-input {
+      width: 68px;
+      background: var(--bg);
+      border: 1px solid var(--accent);
+      color: var(--text);
+      text-align: center;
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+    .time-input:focus { outline: 2px solid rgba(0,200,200,0.35); }
+    .adj-btn {
+      padding: 3px 9px;
+      font-size: 0.78rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .adj-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .preview-pts { color: var(--dim); font-weight: 600; min-width: 60px; }
+    .preview-pts.has-val { color: var(--accent); }
+    .timed-rank { color: var(--dim); font-size: 0.78rem; }
+
     /* ── Setup panel ─────────────────────────────────────────────────────────── */
     .setup-grid { display: flex; flex-direction: column; gap: 8px; max-width: 500px; }
     .team-input-row { display: flex; gap: 8px; }
@@ -388,6 +442,7 @@
 <div class="sb-tabs">
   <button class="sb-tab active" id="tab-scores"  onclick="showTab('scores',  this)">Scoreboard</button>
   <button class="sb-tab"        id="tab-bracket" onclick="showTab('bracket', this)">Tournament Bracket</button>
+  <button class="sb-tab"        id="tab-timed"   onclick="showTab('timed',  this)">Timed Games</button>
   <button class="sb-tab"        id="tab-setup"   onclick="showTab('setup',   this)" style="display:none">Setup</button>
 </div>
 
@@ -451,6 +506,13 @@
       <div id="bracketContainer">
         <div class="bracket-notice">Bracket not yet initialized.</div>
       </div>
+    </div>
+  </div>
+
+  <!-- ══ Timed Games panel ══ -->
+  <div class="sb-panel" id="panel-timed">
+    <div id="timedContainer">
+      <p style="color:var(--dim);font-size:0.88rem">Loading…</p>
     </div>
   </div>
 
@@ -588,6 +650,7 @@ async function fetchScores() {
     const r = await fetch(`${API}/scoreboard`, {credentials: "include"});
     scoreData = await r.json();
     renderScores();
+    if (!timedDirty) renderTimedPanel();
   } catch (e) { console.error("Scores fetch failed:", e); }
 }
 
@@ -893,6 +956,199 @@ async function resetBracket() {
   } catch { alert("Network error"); }
 }
 
+// ══ Timed Games ════════════════════════════════════════════════════════════════
+const TIMED_EVENTS_LIST = ["Treasure Hunt", "Watering Hole", "Gauntlet"];
+const ROUND_ROBIN_PTS   = [10, 8, 6, 5, 4, 3, 2];
+let timedDirty = false;
+
+function parseTime(val) {
+  val = String(val || "").trim();
+  if (!val) return null;
+  if (val.includes(":")) {
+    const parts = val.split(":");
+    const m = parseInt(parts[0], 10);
+    const s = parseInt(parts[1], 10);
+    if (isNaN(m) || isNaN(s)) return null;
+    return m * 60 + s;
+  }
+  const n = parseInt(val, 10);
+  return isNaN(n) ? null : Math.max(0, n);
+}
+
+function formatTime(secs) {
+  if (secs === null || secs === undefined || secs < 0) return "";
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function onTimedInput(inp) {
+  timedDirty = true;
+  recalcPreview(decodeURIComponent(inp.dataset.event));
+}
+
+function adjustTime(teamEnc, eventEnc, delta) {
+  const inp = document.querySelector(`.time-input[data-team="${teamEnc}"][data-event="${eventEnc}"]`);
+  if (!inp) return;
+  const cur = parseTime(inp.value) ?? 0;
+  inp.value = formatTime(Math.max(0, cur + delta));
+  timedDirty = true;
+  recalcPreview(decodeURIComponent(eventEnc));
+}
+
+function recalcPreview(event) {
+  const eventEnc = encodeURIComponent(event);
+  const eventId  = event.replace(/\s+/g, "_").toLowerCase();
+  const inputs   = document.querySelectorAll(`.time-input[data-event="${eventEnc}"]`);
+
+  // Clear all first
+  inputs.forEach(inp => {
+    const cell = document.getElementById(`pts-${eventId}-${inp.dataset.team}`);
+    if (cell) { cell.textContent = "—"; cell.className = "preview-pts"; }
+    const rank = document.getElementById(`rank-${eventId}-${inp.dataset.team}`);
+    if (rank) rank.textContent = "";
+  });
+
+  // Collect valid entries
+  const entries = [];
+  inputs.forEach(inp => {
+    const secs = parseTime(inp.value);
+    if (secs !== null && secs > 0) entries.push({teamEnc: inp.dataset.team, secs});
+  });
+  entries.sort((a, b) => a.secs - b.secs);
+
+  entries.forEach(({teamEnc}, i) => {
+    const pts  = i < ROUND_ROBIN_PTS.length ? ROUND_ROBIN_PTS[i] : 0;
+    const cell = document.getElementById(`pts-${eventId}-${teamEnc}`);
+    const rank = document.getElementById(`rank-${eventId}-${teamEnc}`);
+    if (cell) { cell.textContent = pts; cell.className = "preview-pts has-val"; }
+    if (rank) rank.textContent = `#${i + 1}`;
+  });
+}
+
+function renderTimedPanel() {
+  const container = document.getElementById("timedContainer");
+  if (!scoreData || !scoreData.teams || !scoreData.teams.length) {
+    container.innerHTML = "<p style='color:var(--dim);font-size:0.88rem'>No teams set up yet.</p>";
+    return;
+  }
+
+  const teams  = sortedTeams(scoreData);
+  const stored = scoreData.times || {};
+  let html = "";
+
+  for (const event of TIMED_EVENTS_LIST) {
+    const eventEnc  = encodeURIComponent(event);
+    const eventId   = event.replace(/\s+/g, "_").toLowerCase();
+    const evTimes   = stored[event] || {};
+    const isGauntlet = event === "Gauntlet";
+
+    html += `<div class="timed-section">
+      <h3>${event}</h3>
+      <table class="timed-table">
+        <thead><tr>
+          <th>Team</th>
+          <th>${isAdmin ? "" : ""}Time</th>
+          ${isGauntlet && isAdmin ? "<th></th>" : ""}
+          <th>Rank</th>
+          <th>Points</th>
+        </tr></thead>
+        <tbody>`;
+
+    for (const t of teams) {
+      const teamEnc = encodeURIComponent(t.name);
+      const secs    = evTimes[t.name] !== undefined ? evTimes[t.name] : null;
+      const display = secs !== null ? formatTime(secs) : "";
+
+      html += `<tr>
+        <td>${escHtml(t.name)}</td>`;
+
+      if (isAdmin) {
+        html += `<td style="white-space:nowrap">`;
+        if (isGauntlet) {
+          html += `<button class="adj-btn" onclick="adjustTime('${teamEnc}','${eventEnc}',-5)">−5s</button> `;
+        }
+        html += `<input class="time-input" type="text" inputmode="decimal" placeholder="0:00"
+            data-team="${teamEnc}" data-event="${eventEnc}"
+            value="${escHtml(display)}" oninput="onTimedInput(this)">`;
+        if (isGauntlet) {
+          html += ` <button class="adj-btn" onclick="adjustTime('${teamEnc}','${eventEnc}',5)">+5s</button>`;
+        }
+        html += `</td>`;
+        if (isGauntlet) html += `<td></td>`;  // spacer for column alignment on non-gauntlet rows handled by colspan
+      } else {
+        html += `<td>${escHtml(display || "—")}</td>`;
+        if (isGauntlet) html += `<td></td>`;
+      }
+
+      html += `
+        <td class="timed-rank" id="rank-${eventId}-${teamEnc}"></td>
+        <td class="preview-pts" id="pts-${eventId}-${teamEnc}">—</td>
+      </tr>`;
+    }
+
+    html += `</tbody></table>`;
+
+    if (isAdmin) {
+      html += `<div style="margin-top:12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <button class="sb-btn sb-btn-green" onclick="applyTimedScores('${eventEnc}')">Apply Scores for ${escHtml(event)}</button>
+        <span class="action-msg" id="timed-msg-${eventId}"></span>
+      </div>`;
+    }
+
+    html += `</div>`;
+  }
+
+  container.innerHTML = html;
+
+  // Populate previews from stored times
+  for (const event of TIMED_EVENTS_LIST) {
+    recalcPreview(event);
+  }
+}
+
+async function applyTimedScores(eventEnc) {
+  const event   = decodeURIComponent(eventEnc);
+  const eventId = event.replace(/\s+/g, "_").toLowerCase();
+  const inputs  = document.querySelectorAll(`.time-input[data-event="${eventEnc}"]`);
+  const times   = {};
+  inputs.forEach(inp => {
+    const secs = parseTime(inp.value);
+    if (secs !== null && secs > 0) times[decodeURIComponent(inp.dataset.team)] = secs;
+  });
+
+  if (!Object.keys(times).length) {
+    alert("Enter at least one time before applying.");
+    return;
+  }
+
+  const msg = document.getElementById(`timed-msg-${eventId}`);
+  try {
+    const r = await fetch(`${API}/timed/update`, {
+      method: "POST", credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({event, times})
+    });
+    if (r.ok) {
+      scoreData   = await r.json();
+      timedDirty  = false;
+      scoresDirty = false;
+      renderScores();
+      renderTimedPanel();
+      msg.className   = "action-msg ok";
+      msg.textContent = "Scores applied";
+      setTimeout(() => { msg.textContent = ""; }, 3000);
+    } else {
+      const d = await r.json().catch(() => ({}));
+      msg.className   = "action-msg warn";
+      msg.textContent = d.error || "Failed";
+    }
+  } catch {
+    msg.className   = "action-msg warn";
+    msg.textContent = "Network error";
+  }
+}
+
 // ══ Setup ══════════════════════════════════════════════════════════════════════
 function renderSetupRows() {
   const container = document.getElementById("teamRows");
@@ -952,6 +1208,7 @@ function showTab(id, btn) {
   document.getElementById("panel-" + id).classList.add("active");
   btn.classList.add("active");
   if (id === "setup") renderSetupRows();
+  if (id === "timed") renderTimedPanel();
 }
 
 let tvMode = false;
