@@ -523,9 +523,10 @@
     </p>
     <div class="setup-label">Team Name &nbsp;·&nbsp; Members (optional)</div>
     <div class="setup-grid" id="teamRows"></div>
-    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
       <button class="sb-btn sb-btn-ghost" onclick="addTeamRow()">+ Add Team</button>
       <button class="sb-btn sb-btn-primary" onclick="saveTeams()">Save Teams</button>
+      <button class="sb-btn sb-btn-danger" onclick="clearAllTeams()">Clear All Teams</button>
       <span class="action-msg" id="setupMsg"></span>
     </div>
   </div>
@@ -1194,6 +1195,28 @@ async function saveTeams() {
     } else {
       msg.className = "action-msg warn";
       msg.textContent = "Save failed";
+    }
+  } catch {
+    msg.className = "action-msg warn";
+    msg.textContent = "Network error";
+  }
+}
+
+async function clearAllTeams() {
+  if (!confirm("Clear ALL teams and their scores? This cannot be undone.")) return;
+  const msg = document.getElementById("setupMsg");
+  try {
+    const r = await fetch(`${API}/scoreboard/teams`, {method: "DELETE", credentials: "include"});
+    if (r.ok) {
+      scoreData = await r.json();
+      renderScores();
+      renderSetupRows();
+      msg.className = "action-msg ok";
+      msg.textContent = "All teams cleared";
+      setTimeout(() => { msg.textContent = ""; }, 3000);
+    } else {
+      msg.className = "action-msg warn";
+      msg.textContent = "Clear failed";
     }
   } catch {
     msg.className = "action-msg warn";
