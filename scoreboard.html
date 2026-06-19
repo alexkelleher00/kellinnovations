@@ -117,17 +117,17 @@
     }
     .sb-grid thead th {
       background: var(--surface);
-      color: var(--muted);
+      color: var(--text);
       font-weight: 600;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
     }
     .sb-grid thead th.rank-1 { color: gold; }
     .sb-grid thead th.rank-2 { color: silver; }
     .sb-grid thead th.rank-3 { color: #cd7f32; }
     .sb-grid td.ev-label {
       text-align: left;
-      color: var(--dim);
-      font-size: 0.78rem;
+      color: var(--text);
+      font-size: 0.82rem;
       min-width: 140px;
     }
     .sb-grid tr.total-row td {
@@ -718,14 +718,15 @@ async function fetchBracket() {
   } catch (e) { console.error("Bracket fetch failed:", e); }
 }
 
+const TOURNAMENT_EVENTS = ["Volleyball", "Pickleball", "Gladiator Rumble"];
+
 function populateEventSelect() {
   const sel = document.getElementById("bracketEventSelect");
-  if (!sel || !scoreData) return;
-  const events = scoreData.events || [];
+  if (!sel) return;
   const prev = sel.value;
-  sel.innerHTML = events.map(e => `<option value="${escHtml(e)}">${e}</option>`).join("");
-  if (bkData && bkData.event && events.includes(bkData.event)) sel.value = bkData.event;
-  else if (events.includes(prev)) sel.value = prev;
+  sel.innerHTML = TOURNAMENT_EVENTS.map(e => `<option value="${escHtml(e)}">${e}</option>`).join("");
+  if (bkData && bkData.event && TOURNAMENT_EVENTS.includes(bkData.event)) sel.value = bkData.event;
+  else if (TOURNAMENT_EVENTS.includes(prev)) sel.value = prev;
 }
 
 function renderBracket() {
