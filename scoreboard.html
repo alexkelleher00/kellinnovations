@@ -473,7 +473,7 @@
               <tr><td>1st</td><td>10</td></tr>
               <tr><td>2nd</td><td>8</td></tr>
               <tr><td>3rd / 4th</td><td>5</td></tr>
-              <tr><td>5th–7th</td><td>3</td></tr>
+              <tr><td>5th+</td><td>3</td></tr>
             </table>
           </div>
           <div class="pts-table">
@@ -486,6 +486,7 @@
               <tr><td>5th</td><td>4</td></tr>
               <tr><td>6th</td><td>3</td></tr>
               <tr><td>7th</td><td>2</td></tr>
+              <tr><td>8th+</td><td>1</td></tr>
             </table>
           </div>
         </div>
@@ -959,7 +960,7 @@ async function resetBracket() {
 
 // ══ Timed Games ════════════════════════════════════════════════════════════════
 const TIMED_EVENTS_LIST = ["Treasure Hunt", "Watering Hole", "Gauntlet"];
-const ROUND_ROBIN_PTS   = [10, 8, 6, 5, 4, 3, 2];
+const ROUND_ROBIN_PTS   = [10, 8, 6, 5, 4, 3, 2, 1];  // rank >= 8 → 1 pt
 let timedDirty = false;
 
 function parseTime(val) {
@@ -1019,7 +1020,7 @@ function recalcPreview(event) {
   entries.sort((a, b) => a.secs - b.secs);
 
   entries.forEach(({teamEnc}, i) => {
-    const pts  = i < ROUND_ROBIN_PTS.length ? ROUND_ROBIN_PTS[i] : 0;
+    const pts  = i < ROUND_ROBIN_PTS.length ? ROUND_ROBIN_PTS[i] : 1;
     const cell = document.getElementById(`pts-${eventId}-${teamEnc}`);
     const rank = document.getElementById(`rank-${eventId}-${teamEnc}`);
     if (cell) { cell.textContent = pts; cell.className = "preview-pts has-val"; }
