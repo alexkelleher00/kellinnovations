@@ -82,6 +82,16 @@
       line-height: 1;
       filter: drop-shadow(0 0 3px rgba(0,0,0,0.9)) drop-shadow(0 0 1px rgba(0,0,0,0.9));
     }
+    .place-icon {
+      font-size: 18px;
+      line-height: 28px;
+      width: 28px; height: 28px;
+      text-align: center;
+      background: var(--surface);
+      border: 2px solid var(--text);
+      border-radius: 50%;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    }
 
     .transit-grid {
       display: grid;
@@ -107,6 +117,18 @@
       font-size: 0.78rem;
       color: var(--muted);
       margin-bottom: 14px;
+    }
+    .direction-block { margin-bottom: 14px; }
+    .direction-block:last-child { margin-bottom: 0; }
+    .direction-heading {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--line-color, var(--accent));
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
     }
     .arrival-row {
       display: flex;
@@ -187,8 +209,9 @@
   <p class="transit-note">
     Data from the MBTA V3 API (mbta.com/developers/v3-api) — predictions refresh every 15 seconds,
     vehicle positions on the map update on the same interval as MBTA reports them.
-    Tracking Green Line E (Ball Square), Red Line (Davis), Bus 96 (Davis), and Bus 354 (Medford Square).
-    More lines coming.
+    Tracking Green Line E (Ball Square), Red Line (Davis), Bus 96 (Davis), Bus 354 (Medford Square),
+    and Bus 1 (Mass Ave &amp; Beacon St). Every line shows both directions, even when one has nothing
+    coming for a while. More lines coming.
   </p>
 </main>
 
@@ -223,13 +246,22 @@ let geoLoaded = false;
 
 async function loadGeo() {
   try {
-    const r = await fetch(`${API}/geo`);
-    const data = await r.json();
-    const lines = data.lines || [];
+    const [geoRes, placesRes] = await Promise.all([
+      fetch(`${API}/geo`),
+      fetch(`${API}/places`),
+    ]);
+    const data   = await geoRes.json();
+    const places = (await placesRes.json()).places || [];
+    const lines  = data.lines || [];
+
     const legend = document.getElementById("mapLegend");
-    legend.innerHTML = lines.map(l =>
+    const lineSwatches  = lines.map(l =>
       `<span><span class="legend-swatch" style="background:${escHtml(l.color)}"></span>${escHtml(l.label)} — ${escHtml(l.sublabel)}</span>`
-    ).join("");
+    );
+    const placeSwatches = places.map(p =>
+      `<span>${p.icon} ${escHtml(p.label)} — ${escHtml(p.sublabel)}</span>`
+    );
+    legend.innerHTML = lineSwatches.concat(placeSwatches).join("");
 
     const bounds = [];
     lines.forEach(line => {
@@ -245,6 +277,19 @@ async function loadGeo() {
         }).bindPopup(escHtml(stop.name)).addTo(map);
       });
       if (line.focus_stop) bounds.push([line.focus_stop.lat, line.focus_stop.lon]);
+    });
+
+    places.forEach(p => {
+      const icon = L.divIcon({
+        className: "",
+        html: `<div class="place-icon">${p.icon}</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+      });
+      L.marker([p.lat, p.lon], { icon })
+        .bindPopup(`<strong>${escHtml(p.label)}</strong><br>${escHtml(p.sublabel)}`)
+        .addTo(map);
+      bounds.push([p.lat, p.lon]);
     });
 
     if (bounds.length) {
@@ -312,19 +357,26 @@ function renderGrid(lines) {
     let body;
     if (line.error) {
       body = `<p class="transit-error">Couldn't load live data right now.</p>`;
-    } else if (!line.arrivals || !line.arrivals.length) {
-      body = `<p class="transit-empty">No scheduled arrivals right now.</p>`;
     } else {
-      body = line.arrivals.map(a => {
-        const mins = minsUntil(a.when);
-        const minsLabel = mins <= 0 ? "Due" : `${mins} min`;
-        const dueClass = mins <= 0 ? " due" : "";
-        return `<div class="arrival-row" data-when="${escHtml(a.when)}">
-          <span class="arrival-mins${dueClass}">${minsLabel}</span>
-          <span class="arrival-info">
-            <span class="arrival-headsign">${escHtml(a.headsign || "—")}</span><br>
-            <span class="arrival-status">${escHtml(a.status || "")}</span>
-          </span>
+      body = (line.directions || []).map(dir => {
+        const heading = dir.destination ? `${escHtml(dir.name)} — ${escHtml(dir.destination)}` : escHtml(dir.name);
+        const rows = dir.arrivals.length
+          ? dir.arrivals.map(a => {
+              const mins = minsUntil(a.when);
+              const minsLabel = mins <= 0 ? "Due" : `${mins} min`;
+              const dueClass = mins <= 0 ? " due" : "";
+              return `<div class="arrival-row" data-when="${escHtml(a.when)}">
+                <span class="arrival-mins${dueClass}">${minsLabel}</span>
+                <span class="arrival-info">
+                  <span class="arrival-headsign">${escHtml(a.headsign || "—")}</span><br>
+                  <span class="arrival-status">${escHtml(a.status || "")}</span>
+                </span>
+              </div>`;
+            }).join("")
+          : `<p class="transit-empty">No scheduled arrivals right now.</p>`;
+        return `<div class="direction-block">
+          <div class="direction-heading">${heading}</div>
+          ${rows}
         </div>`;
       }).join("");
     }
