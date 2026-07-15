@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Live Transit Tracker — Kelleher Innovations</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     .transit-bar {
       display: flex;
@@ -38,6 +39,49 @@
       transition: border-color 0.15s, color 0.15s;
     }
     .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Map ── */
+    .map-wrap {
+      max-width: var(--container);
+      margin: 20px auto 0;
+      padding: 0 var(--pad);
+    }
+    #transitMap {
+      width: 100%;
+      height: 62vh;
+      min-height: 340px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .map-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      padding: 10px 2px 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .map-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-swatch {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    /* Leaflet popups themed to match the site instead of default white boxes */
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .leaflet-popup-content { font-family: 'Inter', system-ui, sans-serif; font-size: 0.82rem; }
+    .leaflet-container { background: var(--bg2); }
+    .veh-arrow {
+      font-size: 20px;
+      line-height: 1;
+      filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
+    }
 
     .transit-grid {
       display: grid;
@@ -122,13 +166,18 @@
   <span class="live-dot"></span>
   <span class="refresh-label" id="refreshLabel">Live</span>
   <span class="transit-spacer"></span>
-  <button class="refresh-btn" onclick="loadPredictions()">&#8635; Refresh</button>
+  <button class="refresh-btn" onclick="refreshAll()">&#8635; Refresh</button>
 </div>
 
 <main style="max-width:none; padding:0;">
   <div class="psg-header" style="padding:28px var(--pad) 0;">
     <h2>Live Transit Tracker</h2>
-    <p>Real-time MBTA predictions, straight from the source.</p>
+    <p>Real-time MBTA vehicle positions and predictions, straight from the source.</p>
+  </div>
+
+  <div class="map-wrap">
+    <div id="transitMap"></div>
+    <div class="map-legend" id="mapLegend"></div>
   </div>
 
   <div class="transit-grid" id="transitGrid">
@@ -136,7 +185,8 @@
   </div>
 
   <p class="transit-note">
-    Data from the MBTA V3 API (mbta.com/developers/v3-api) — refreshes every 15 seconds.
+    Data from the MBTA V3 API (mbta.com/developers/v3-api) — predictions refresh every 15 seconds,
+    vehicle positions on the map update on the same interval as MBTA reports them.
     Tracking Green Line E (Ball Square), Red Line (Davis), Bus 96 (Davis), and Bus 354 (Medford Square).
     More lines coming.
   </p>
@@ -146,13 +196,88 @@
   <p>&copy; 2026 Kelleher Innovations</p>
 </footer>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
 
 const API = "https://api.kellinnovations.com/transit";
 let lastData = null;
-let countTimer = null;
 
+const STATUS_LABEL = {
+  STOPPED_AT: "Stopped at station",
+  IN_TRANSIT_TO: "En route",
+  INCOMING_AT: "Approaching",
+};
+
+// ══ Map setup ══════════════════════════════════════════════════════════════════
+const map = L.map("transitMap", { scrollWheelZoom: true });
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "&copy; OpenStreetMap contributors",
+  maxZoom: 19,
+}).addTo(map);
+map.setView([42.38, -71.10], 13); // fallback center (Somerville/Medford) until geo loads
+
+let vehicleLayer = L.layerGroup().addTo(map);
+let geoLoaded = false;
+
+async function loadGeo() {
+  try {
+    const r = await fetch(`${API}/geo`);
+    const data = await r.json();
+    const lines = data.lines || [];
+    const legend = document.getElementById("mapLegend");
+    legend.innerHTML = lines.map(l =>
+      `<span><span class="legend-swatch" style="background:${escHtml(l.color)}"></span>${escHtml(l.label)} — ${escHtml(l.sublabel)}</span>`
+    ).join("");
+
+    const bounds = [];
+    lines.forEach(line => {
+      (line.paths || []).forEach(path => {
+        L.polyline(path, { color: line.color, weight: 4, opacity: 0.55 }).addTo(map);
+      });
+      (line.stops || []).forEach(stop => {
+        L.circleMarker([stop.lat, stop.lon], {
+          radius: 3.5, color: line.color, weight: 1, fillColor: line.color, fillOpacity: 0.9,
+        }).bindPopup(escHtml(stop.name)).addTo(map);
+      });
+      if (line.focus_stop) bounds.push([line.focus_stop.lat, line.focus_stop.lon]);
+    });
+
+    if (bounds.length) {
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 14 });
+    }
+    geoLoaded = true;
+  } catch (e) {
+    console.error("[transit] geo load failed:", e);
+  }
+}
+
+async function loadVehicles() {
+  try {
+    const r = await fetch(`${API}/vehicles`);
+    const data = await r.json();
+    vehicleLayer.clearLayers();
+    (data.lines || []).forEach(line => {
+      (line.vehicles || []).forEach(v => {
+        const rotation = typeof v.bearing === "number" ? v.bearing : 0;
+        const icon = L.divIcon({
+          className: "",
+          html: `<div class="veh-arrow" style="color:${escHtml(line.color)}; transform:rotate(${rotation}deg)">&#9650;</div>`,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10],
+        });
+        const statusLabel = STATUS_LABEL[v.status] || v.status || "";
+        L.marker([v.lat, v.lon], { icon })
+          .bindPopup(`<strong>${escHtml(v.headsign || "")}</strong><br>${escHtml(statusLabel)}`)
+          .addTo(vehicleLayer);
+      });
+    });
+  } catch (e) {
+    console.error("[transit] vehicles load failed:", e);
+  }
+}
+
+// ══ Predictions (cards) ═════════════════════════════════════════════════════════
 async function loadPredictions() {
   try {
     const r = await fetch(`${API}/predictions`);
@@ -163,7 +288,7 @@ async function loadPredictions() {
     document.getElementById("refreshLabel").textContent = "Updated " + t;
   } catch (e) {
     document.getElementById("refreshLabel").textContent = "Connection error — retrying";
-    console.error("[transit] fetch failed:", e);
+    console.error("[transit] predictions fetch failed:", e);
   }
 }
 
@@ -227,8 +352,15 @@ function escHtml(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-loadPredictions();
-setInterval(loadPredictions, 15000);
+function refreshAll() {
+  loadPredictions();
+  loadVehicles();
+  if (!geoLoaded) loadGeo();
+}
+
+loadGeo();
+refreshAll();
+setInterval(refreshAll, 15000);
 setInterval(retick, 1000);
 </script>
 
