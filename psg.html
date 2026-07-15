@@ -16,11 +16,34 @@
     </a>
     <nav>
       <a href="index.html">Home</a>
+      <a href="portfolio.html">Portfolio</a>
       <a href="woodwork.html">Woodwork</a>
       <a href="psg.html" class="active">Punk Squad Games</a>
     </nav>
   </div>
 </header>
+
+<!-- ── TEMPORARY: PSG Live Scoreboard quick-access banner — safe to remove after the event ── -->
+<a href="scoreboard.html" class="live-sb-banner">
+  <span class="live-sb-dot"></span>
+  📊 PSG Live Scoreboard — tap for live scores &amp; bracket
+</a>
+<style>
+  .live-sb-banner {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 10px var(--pad);
+    background: var(--accent); color: #000;
+    font-weight: 700; font-size: 0.9rem;
+    text-decoration: none;
+  }
+  .live-sb-banner:hover { background: #00e0e0; }
+  .live-sb-dot {
+    width: 8px; height: 8px; background: #000; border-radius: 50%;
+    animation: live-sb-pulse 1.5s infinite; flex-shrink: 0;
+  }
+  @keyframes live-sb-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+</style>
+<!-- ── END TEMPORARY banner ── -->
 
 <main>
 

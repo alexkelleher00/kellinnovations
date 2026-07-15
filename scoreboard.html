@@ -413,16 +413,15 @@
 
     /* ── PSG banner ──────────────────────────────────────────────────────────── */
     .psg-banner {
-      width: 100%;
-      max-height: 220px;
-      overflow: hidden;
-      border-bottom: 1px solid var(--border);
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 14px var(--pad) 0;
     }
     .psg-banner img {
       width: 100%;
       display: block;
-      object-fit: cover;
-      object-position: center 32%;
+      border-radius: 8px;
+      border: 1px solid var(--border);
     }
     body.tv-mode .psg-banner { display: none; }
 
@@ -432,7 +431,6 @@
       .sb-tab  { padding: 5px 12px; font-size: 0.8rem; }
       .sb-panel { padding: 16px 12px 40px; }
       .admin-bar { flex-wrap: wrap; }
-      .psg-banner { max-height: 130px; }
     }
   </style>
 </head>
@@ -446,6 +444,8 @@
     </a>
     <nav>
       <a href="index.html">Home</a>
+      <a href="portfolio.html">Portfolio</a>
+      <a href="woodwork.html">Woodwork</a>
       <a href="psg.html">Punk Squad Games</a>
       <a href="scoreboard.html" class="active">Scoreboard</a>
     </nav>
