@@ -80,7 +80,7 @@
     .veh-arrow {
       font-size: 20px;
       line-height: 1;
-      filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
+      filter: drop-shadow(0 0 3px rgba(0,0,0,0.9)) drop-shadow(0 0 1px rgba(0,0,0,0.9));
     }
 
     .transit-grid {
@@ -211,9 +211,10 @@ const STATUS_LABEL = {
 
 // ══ Map setup ══════════════════════════════════════════════════════════════════
 const map = L.map("transitMap", { scrollWheelZoom: true });
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: "&copy; OpenStreetMap contributors",
-  maxZoom: 19,
+L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+  maxZoom: 20,
+  subdomains: "abcd",
 }).addTo(map);
 map.setView([42.38, -71.10], 13); // fallback center (Somerville/Medford) until geo loads
 
@@ -236,8 +237,11 @@ async function loadGeo() {
         L.polyline(path, { color: line.color, weight: 4, opacity: 0.55 }).addTo(map);
       });
       (line.stops || []).forEach(stop => {
+        const isFocus = line.focus_stop && stop.id === line.focus_stop.id;
         L.circleMarker([stop.lat, stop.lon], {
-          radius: 3.5, color: line.color, weight: 1, fillColor: line.color, fillOpacity: 0.9,
+          radius: isFocus ? 6 : 3.5,
+          color: "#ffffff", weight: isFocus ? 2 : 1,
+          fillColor: line.color, fillOpacity: 0.95,
         }).bindPopup(escHtml(stop.name)).addTo(map);
       });
       if (line.focus_stop) bounds.push([line.focus_stop.lat, line.focus_stop.lon]);
@@ -358,7 +362,6 @@ function refreshAll() {
   if (!geoLoaded) loadGeo();
 }
 
-loadGeo();
 refreshAll();
 setInterval(refreshAll, 15000);
 setInterval(retick, 1000);
