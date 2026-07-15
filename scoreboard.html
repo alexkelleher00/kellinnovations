@@ -121,9 +121,6 @@
       font-weight: 600;
       font-size: 0.82rem;
     }
-    .sb-grid thead th.rank-1 { color: gold; }
-    .sb-grid thead th.rank-2 { color: silver; }
-    .sb-grid thead th.rank-3 { color: #cd7f32; }
     .sb-grid td.ev-label {
       text-align: left;
       color: var(--text);
@@ -303,17 +300,29 @@
     .timed-table th { background: var(--surface); color: var(--text); font-weight: 600; text-align: left; }
     .timed-table td { text-align: center; }
     .timed-table td:first-child { text-align: left; color: var(--text); }
+    .time-cell {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
     .time-input {
-      width: 68px;
       background: var(--bg);
       border: 1px solid var(--accent);
       color: var(--text);
       text-align: center;
-      padding: 4px 6px;
+      padding: 4px 4px;
       border-radius: 4px;
       font-size: 0.9rem;
       font-family: inherit;
+      /* hide number spinner arrows so mm/ss fields stay compact */
+      -moz-appearance: textfield;
     }
+    .time-input::-webkit-outer-spin-button,
+    .time-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .time-input-min { width: 42px; }
+    .time-input-sec { width: 38px; }
+    .time-sep { color: var(--muted); font-weight: 700; }
+    .time-unit { color: var(--dim); font-size: 0.72rem; margin-left: 2px; }
     .time-input:focus { outline: 2px solid rgba(0,200,200,0.35); }
     .adj-btn {
       padding: 3px 9px;
@@ -402,12 +411,28 @@
     body.tv-mode .standings-row { padding: 10px 14px; }
     body.tv-mode .action-row { display: none; }
 
+    /* ── PSG banner ──────────────────────────────────────────────────────────── */
+    .psg-banner {
+      width: 100%;
+      max-height: 220px;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+    }
+    .psg-banner img {
+      width: 100%;
+      display: block;
+      object-fit: cover;
+      object-position: center 32%;
+    }
+    body.tv-mode .psg-banner { display: none; }
+
     /* ── Responsive ──────────────────────────────────────────────────────────── */
     @media (max-width: 600px) {
       .sb-tabs { padding: 10px 12px 0; gap: 4px; }
       .sb-tab  { padding: 5px 12px; font-size: 0.8rem; }
       .sb-panel { padding: 16px 12px 40px; }
       .admin-bar { flex-wrap: wrap; }
+      .psg-banner { max-height: 130px; }
     }
   </style>
 </head>
@@ -426,6 +451,11 @@
     </nav>
   </div>
 </header>
+
+<!-- PSG 2026 banner -->
+<div class="psg-banner">
+  <img src="images/2026psg-edited.png" alt="Punk Squad Games 2026">
+</div>
 
 <!-- Admin bar -->
 <div class="admin-bar">
@@ -491,6 +521,24 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="timed-section" style="max-width:640px;">
+      <h3>House Rules &amp; Awards</h3>
+      <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;">
+        <li style="font-size:0.85rem;color:var(--text);line-height:1.5;">
+          <strong style="color:var(--accent)">⛳ The Brouillette Rule:</strong> Any practice swing on a Chip Shot is an immediate <strong>−1 point</strong>, subject to the Commissioner's final ruling.
+        </li>
+        <li style="font-size:0.85rem;color:var(--text);line-height:1.5;">
+          <strong style="color:var(--accent)">🍺 Beer Rule (proposed):</strong> For every 2 beers consumed, your team earns <strong>+1 point</strong> — cans must be collected in a team pile as proof.
+        </li>
+        <li style="font-size:0.85rem;color:var(--text);line-height:1.5;">
+          <strong style="color:var(--accent)">🐾 The Beastydog Award:</strong> Awarded in memory of the late great Buttercup. See <a href="psg.html">PSG History</a> for the full story.
+        </li>
+        <li style="font-size:0.8rem;color:var(--muted);font-style:italic;">
+          ⚖️ All scoring decisions are subject to final ruling by the Commissioner.
+        </li>
+      </ul>
     </div>
   </div>
 
@@ -679,13 +727,13 @@ function renderScores() {
     return;
   }
 
-  const medalClass = ["rank-1", "rank-2", "rank-3"];
+  const medalIcon = ["\u{1F947} ", "\u{1F948} ", "\u{1F949} "];
 
-  // Header
+  // Header — team names all share one bright color; rank is shown via medal emoji, not color
   let html = "<thead><tr><th style='text-align:left'>Event</th>";
   ordered.forEach((t, i) => {
-    const cls = medalClass[i] || "";
-    html += `<th class="${cls}">${t.name}${t.members ? `<br><small style="color:var(--dim);font-weight:400;font-size:0.72rem">${t.members}</small>` : ""}</th>`;
+    const medal = medalIcon[i] || "";
+    html += `<th>${medal}${t.name}${t.members ? `<br><small style="color:var(--text);font-weight:400;font-size:0.72rem">${t.members}</small>` : ""}</th>`;
   });
   html += "</tr></thead><tbody>";
 
@@ -963,20 +1011,6 @@ const TIMED_EVENTS_LIST = ["Treasure Hunt", "Watering Hole", "Gauntlet"];
 const ROUND_ROBIN_PTS   = [10, 8, 6, 5, 4, 3, 2, 1];  // rank >= 8 → 1 pt
 let timedDirty = false;
 
-function parseTime(val) {
-  val = String(val || "").trim();
-  if (!val) return null;
-  if (val.includes(":")) {
-    const parts = val.split(":");
-    const m = parseInt(parts[0], 10);
-    const s = parseInt(parts[1], 10);
-    if (isNaN(m) || isNaN(s)) return null;
-    return m * 60 + s;
-  }
-  const n = parseInt(val, 10);
-  return isNaN(n) ? null : Math.max(0, n);
-}
-
 function formatTime(secs) {
   if (secs === null || secs === undefined || secs < 0) return "";
   const m = Math.floor(secs / 60);
@@ -984,16 +1018,52 @@ function formatTime(secs) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+// Time entry uses separate minutes/seconds fields so a phone stopwatch
+// reading like "1:41" can be typed straight in, with no ambiguity about
+// whether a bare number means seconds or minutes-and-seconds.
+function timeParts(teamEnc, eventEnc) {
+  const minInp = document.querySelector(`.time-input-min[data-team="${teamEnc}"][data-event="${eventEnc}"]`);
+  const secInp = document.querySelector(`.time-input-sec[data-team="${teamEnc}"][data-event="${eventEnc}"]`);
+  return {minInp, secInp};
+}
+
+function readSecs(teamEnc, eventEnc) {
+  const {minInp, secInp} = timeParts(teamEnc, eventEnc);
+  if (!minInp || !secInp) return null;
+  if (!minInp.value.trim() && !secInp.value.trim()) return null;
+  const m = parseInt(minInp.value, 10) || 0;
+  const s = parseInt(secInp.value, 10) || 0;
+  return Math.max(0, m * 60 + s);
+}
+
+function writeSecs(teamEnc, eventEnc, secs) {
+  const {minInp, secInp} = timeParts(teamEnc, eventEnc);
+  if (!minInp || !secInp) return;
+  if (secs === null || secs === undefined || secs < 0) { minInp.value = ""; secInp.value = ""; return; }
+  minInp.value = Math.floor(secs / 60);
+  secInp.value = String(secs % 60).padStart(2, "0");
+}
+
 function onTimedInput(inp) {
   timedDirty = true;
-  recalcPreview(decodeURIComponent(inp.dataset.event));
+  const teamEnc  = inp.dataset.team;
+  const eventEnc = inp.dataset.event;
+  // If someone types a raw seconds value like "101" into the seconds field,
+  // carry the overflow into minutes instead of silently mis-scoring it.
+  if (inp.classList.contains("time-input-sec")) {
+    const s = parseInt(inp.value, 10);
+    if (!isNaN(s) && s > 59) {
+      const {minInp} = timeParts(teamEnc, eventEnc);
+      minInp.value = (parseInt(minInp.value, 10) || 0) + Math.floor(s / 60);
+      inp.value = s % 60;
+    }
+  }
+  recalcPreview(decodeURIComponent(eventEnc));
 }
 
 function adjustTime(teamEnc, eventEnc, delta) {
-  const inp = document.querySelector(`.time-input[data-team="${teamEnc}"][data-event="${eventEnc}"]`);
-  if (!inp) return;
-  const cur = parseTime(inp.value) ?? 0;
-  inp.value = formatTime(Math.max(0, cur + delta));
+  const cur = readSecs(teamEnc, eventEnc) ?? 0;
+  writeSecs(teamEnc, eventEnc, Math.max(0, cur + delta));
   timedDirty = true;
   recalcPreview(decodeURIComponent(eventEnc));
 }
@@ -1001,21 +1071,23 @@ function adjustTime(teamEnc, eventEnc, delta) {
 function recalcPreview(event) {
   const eventEnc = encodeURIComponent(event);
   const eventId  = event.replace(/\s+/g, "_").toLowerCase();
-  const inputs   = document.querySelectorAll(`.time-input[data-event="${eventEnc}"]`);
+  const cells    = document.querySelectorAll(`.time-cell[data-event="${eventEnc}"]`);
 
   // Clear all first
-  inputs.forEach(inp => {
-    const cell = document.getElementById(`pts-${eventId}-${inp.dataset.team}`);
+  cells.forEach(cellEl => {
+    const teamEnc = cellEl.dataset.team;
+    const cell = document.getElementById(`pts-${eventId}-${teamEnc}`);
     if (cell) { cell.textContent = "—"; cell.className = "preview-pts"; }
-    const rank = document.getElementById(`rank-${eventId}-${inp.dataset.team}`);
+    const rank = document.getElementById(`rank-${eventId}-${teamEnc}`);
     if (rank) rank.textContent = "";
   });
 
   // Collect valid entries
   const entries = [];
-  inputs.forEach(inp => {
-    const secs = parseTime(inp.value);
-    if (secs !== null && secs > 0) entries.push({teamEnc: inp.dataset.team, secs});
+  cells.forEach(cellEl => {
+    const teamEnc = cellEl.dataset.team;
+    const secs = readSecs(teamEnc, eventEnc);
+    if (secs !== null && secs > 0) entries.push({teamEnc, secs});
   });
   entries.sort((a, b) => a.secs - b.secs);
 
@@ -1066,13 +1138,21 @@ function renderTimedPanel() {
         <td>${escHtml(t.name)}</td>`;
 
       if (isAdmin) {
+        const minVal = secs !== null ? Math.floor(secs / 60) : "";
+        const secVal = secs !== null ? String(secs % 60).padStart(2, "0") : "";
         html += `<td style="white-space:nowrap">`;
         if (isGauntlet) {
           html += `<button class="adj-btn" onclick="adjustTime('${teamEnc}','${eventEnc}',-5)">−5s</button> `;
         }
-        html += `<input class="time-input" type="text" inputmode="decimal" placeholder="0:00"
-            data-team="${teamEnc}" data-event="${eventEnc}"
-            value="${escHtml(display)}" oninput="onTimedInput(this)">`;
+        html += `<span class="time-cell" data-team="${teamEnc}" data-event="${eventEnc}">
+            <input class="time-input time-input-min" type="number" inputmode="numeric" min="0" placeholder="0"
+                data-team="${teamEnc}" data-event="${eventEnc}"
+                value="${minVal}" oninput="onTimedInput(this)"><span class="time-unit">m</span>
+            <span class="time-sep">:</span>
+            <input class="time-input time-input-sec" type="number" inputmode="numeric" min="0" max="59" placeholder="00"
+                data-team="${teamEnc}" data-event="${eventEnc}"
+                value="${secVal}" oninput="onTimedInput(this)"><span class="time-unit">s</span>
+          </span>`;
         if (isGauntlet) {
           html += ` <button class="adj-btn" onclick="adjustTime('${teamEnc}','${eventEnc}',5)">+5s</button>`;
         }
@@ -1112,11 +1192,12 @@ function renderTimedPanel() {
 async function applyTimedScores(eventEnc) {
   const event   = decodeURIComponent(eventEnc);
   const eventId = event.replace(/\s+/g, "_").toLowerCase();
-  const inputs  = document.querySelectorAll(`.time-input[data-event="${eventEnc}"]`);
+  const cells   = document.querySelectorAll(`.time-cell[data-event="${eventEnc}"]`);
   const times   = {};
-  inputs.forEach(inp => {
-    const secs = parseTime(inp.value);
-    if (secs !== null && secs > 0) times[decodeURIComponent(inp.dataset.team)] = secs;
+  cells.forEach(cellEl => {
+    const teamEnc = cellEl.dataset.team;
+    const secs = readSecs(teamEnc, eventEnc);
+    if (secs !== null && secs > 0) times[decodeURIComponent(teamEnc)] = secs;
   });
 
   if (!Object.keys(times).length) {
