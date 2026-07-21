@@ -151,6 +151,7 @@
       font-family: inherit;
     }
     .score-input:focus { outline: 2px solid rgba(0,200,200,0.4); }
+    .team-members { color: var(--muted); font-weight: 400; }
 
     /* ── Standings sidebar ──────────────────────────────────────────────────── */
     .sb-lower { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 24px; align-items: flex-start; }
@@ -741,6 +742,19 @@ function sortedTeams(data) {
     (data.totals[b.name] || 0) - (data.totals[a.name] || 0));
 }
 
+// Player names in parens next to the team name — used everywhere a team
+// name is shown so a name-only string (e.g. from rrOrder) can still look
+// up its roster from scoreData.teams.
+function teamMembers(name) {
+  const t = (scoreData && scoreData.teams || []).find(x => x.name === name);
+  return t && t.members ? t.members : "";
+}
+
+function teamLabel(name) {
+  const m = teamMembers(name);
+  return m ? `${escHtml(name)} <span class="team-members">(${escHtml(m)})</span>` : escHtml(name);
+}
+
 function renderScores() {
   const grid = document.getElementById("scoreGrid");
   if (!scoreData) return;
@@ -766,7 +780,7 @@ function renderScores() {
   let html = "<thead><tr><th style='text-align:left'>Event</th>";
   ordered.forEach((t, i) => {
     const medal = medalIcon[i] || "";
-    html += `<th>${medal}${t.name}${t.members ? `<br><small style="color:var(--text);font-weight:400;font-size:0.72rem">${t.members}</small>` : ""}</th>`;
+    html += `<th>${medal}${escHtml(t.name)}${t.members ? `<br><small style="font-size:0.72rem" class="team-members">(${escHtml(t.members)})</small>` : ""}</th>`;
   });
   html += "</tr></thead><tbody>";
 
@@ -858,7 +872,7 @@ function renderStandings(ordered, totals) {
     const cls = medals[i] || "";
     return `<div class="standings-row ${cls}">
       <span class="s-rank">${i + 1}</span>
-      <span class="s-name">${t.name}</span>
+      <span class="s-name">${escHtml(t.name)}${t.members ? ` <span class="team-members">(${escHtml(t.members)})</span>` : ""}</span>
       <span class="s-score">${totals[t.name] || 0} pts</span>
     </div>`;
   }).join("");
@@ -908,7 +922,7 @@ function renderRoundRobinEvent(event, ei, teams, scores) {
   if (!isAdmin) {
     const rows = [...teams]
       .sort((a, b) => (scores[b.name] || [])[ei] - (scores[a.name] || [])[ei])
-      .map(t => `<div class="rr-readonly-row"><span>${escHtml(t.name)}</span><span>${(scores[t.name] || [])[ei] || 0} pts</span></div>`)
+      .map(t => `<div class="rr-readonly-row"><span>${teamLabel(t.name)}</span><span>${(scores[t.name] || [])[ei] || 0} pts</span></div>`)
       .join("");
     return `<div class="card-section"><h3>${escHtml(event)}</h3>${rows}</div>`;
   }
@@ -923,7 +937,7 @@ function renderRoundRobinEvent(event, ei, teams, scores) {
 
   const poolHtml = pool.length
     ? `<div class="rr-pool">${pool.map(t =>
-        `<button class="rr-chip" onclick="tapTeam('${eventId}','${encodeURIComponent(t.name)}')">${escHtml(t.name)}</button>`
+        `<button class="rr-chip" onclick="tapTeam('${eventId}','${encodeURIComponent(t.name)}')">${teamLabel(t.name)}</button>`
       ).join("")}</div>`
     : "";
 
@@ -932,7 +946,7 @@ function renderRoundRobinEvent(event, ei, teams, scores) {
         const pts = i < ROUND_ROBIN_PTS.length ? ROUND_ROBIN_PTS[i] : 1;
         return `<div class="rr-ranked-row">
           <span class="rr-rank-num">#${i + 1}</span>
-          <span class="rr-team-name">${escHtml(name)}</span>
+          <span class="rr-team-name">${teamLabel(name)}</span>
           <span class="rr-pts">${pts} pts</span>
           <button class="rr-remove-btn" onclick="untapTeam('${eventId}','${encodeURIComponent(name)}')">Remove</button>
         </div>`;
@@ -1014,7 +1028,7 @@ function renderBeerSection(teams) {
     const rows = teams.map(t => {
       const count = beers[t.name] || 0;
       const bonus = Math.floor(count / 2);
-      return `<div class="beer-row"><span class="beer-team-name">${escHtml(t.name)}</span><span class="beer-bonus">${count} beers (+${bonus})</span></div>`;
+      return `<div class="beer-row"><span class="beer-team-name">${teamLabel(t.name)}</span><span class="beer-bonus">${count} beers (+${bonus})</span></div>`;
     }).join("");
     return `<div class="card-section"><h3>🍺 Beer Total</h3>${rows}</div>`;
   }
@@ -1022,7 +1036,7 @@ function renderBeerSection(teams) {
   const rows = teams.map(t => {
     const count = beers[t.name] || 0;
     return `<div class="beer-row">
-      <span class="beer-team-name">${escHtml(t.name)}</span>
+      <span class="beer-team-name">${teamLabel(t.name)}</span>
       <input class="score-input" type="number" min="0" data-beer-team="${encodeURIComponent(t.name)}"
              value="${count}" oninput="onBeerInput()">
       <span class="beer-bonus" id="beer-bonus-${encodeURIComponent(t.name)}">+${Math.floor(count / 2)} pts</span>
@@ -1183,7 +1197,7 @@ function renderMatch(m, seedOf, event) {
       ? `onclick="advanceBracket('${encodeURIComponent(event)}', ${m.id}, '${name.replace(/\\/g,"\\\\").replace(/'/g,"\\'")}')"`
       : "";
 
-    return `<div class="${cls}" ${click}>${seed}${name}</div>`;
+    return `<div class="${cls}" ${click}>${seed}${teamLabel(name)}</div>`;
   };
 
   return `<div class="br-match">${teamEl(m.team1)}${teamEl(m.team2)}</div>`;
