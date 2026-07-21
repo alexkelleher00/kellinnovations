@@ -127,6 +127,11 @@
       font-size: 0.82rem;
       min-width: 140px;
     }
+    .sb-grid tr.beer-row td {
+      color: var(--muted);
+      font-style: italic;
+    }
+    .sb-grid tr.beer-row td.ev-label { color: var(--muted); }
     .sb-grid tr.total-row td {
       border-top: 2px solid var(--accent);
       font-weight: 700;
@@ -224,7 +229,7 @@
       border: 1px solid var(--border);
       border-radius: 7px;
       overflow: hidden;
-      background: var(--surface);
+      background: var(--bg2);
     }
     .br-team {
       padding: 9px 12px;
@@ -269,19 +274,19 @@
     .bracket-notice {
       text-align: center;
       color: var(--dim);
-      padding: 50px 20px;
+      padding: 40px 20px;
       font-size: 0.9rem;
     }
 
-    /* ── Timed events panel ─────────────────────────────────────────────────── */
-    .timed-section {
+    /* ── Card sections (round robin events, tournament events, house rules) ──── */
+    .card-section {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 18px 20px;
       margin-bottom: 20px;
     }
-    .timed-section h3 {
+    .card-section h3 {
       font-size: 0.72rem;
       font-weight: 700;
       text-transform: uppercase;
@@ -291,42 +296,47 @@
       padding-bottom: 8px;
       border-bottom: 1px solid var(--border);
     }
-    .timed-table { border-collapse: collapse; width: 100%; max-width: 520px; }
-    .timed-table th, .timed-table td {
-      border: 1px solid var(--border);
-      padding: 7px 12px;
-      font-size: 0.85rem;
+
+    /* ── Round robin: tap-to-rank ────────────────────────────────────────────── */
+    .rr-pool {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
     }
-    .timed-table th { background: var(--surface); color: var(--text); font-weight: 600; text-align: left; }
-    .timed-table td { text-align: center; }
-    .timed-table td:first-child { text-align: left; color: var(--text); }
-    .time-cell {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-    }
-    .time-input {
-      background: var(--bg);
+    .rr-chip {
+      padding: 8px 14px;
+      border-radius: 20px;
       border: 1px solid var(--accent);
+      background: var(--bg);
       color: var(--text);
-      text-align: center;
-      padding: 4px 4px;
-      border-radius: 4px;
-      font-size: 0.9rem;
       font-family: inherit;
-      /* hide number spinner arrows so mm/ss fields stay compact */
-      -moz-appearance: textfield;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.15s;
     }
-    .time-input::-webkit-outer-spin-button,
-    .time-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    .time-input-min { width: 42px; }
-    .time-input-sec { width: 38px; }
-    .time-sep { color: var(--muted); font-weight: 700; }
-    .time-unit { color: var(--dim); font-size: 0.72rem; margin-left: 2px; }
-    .time-input:focus { outline: 2px solid rgba(0,200,200,0.35); }
-    .adj-btn {
-      padding: 3px 9px;
-      font-size: 0.78rem;
+    .rr-chip:hover { background: rgba(0,200,200,0.15); }
+    .rr-ranked {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .rr-ranked-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 12px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .rr-rank-num { font-weight: 700; color: var(--accent); min-width: 24px; }
+    .rr-team-name { flex: 1; font-size: 0.88rem; color: var(--text); }
+    .rr-pts { font-size: 0.82rem; color: var(--dim); min-width: 46px; text-align: right; }
+    .rr-remove-btn {
+      padding: 2px 9px;
+      font-size: 0.75rem;
       border-radius: 4px;
       border: 1px solid var(--border);
       background: none;
@@ -334,10 +344,26 @@
       cursor: pointer;
       font-family: inherit;
     }
-    .adj-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .preview-pts { color: var(--dim); font-weight: 600; min-width: 60px; }
-    .preview-pts.has-val { color: var(--accent); }
-    .timed-rank { color: var(--dim); font-size: 0.78rem; }
+    .rr-remove-btn:hover { border-color: #e55; color: #e55; }
+    .rr-empty { color: var(--dim); font-size: 0.82rem; font-style: italic; margin-bottom: 10px; }
+    .rr-readonly-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+    .rr-readonly-row:last-child { border-bottom: none; }
+
+    /* ── Beer totals ─────────────────────────────────────────────────────────── */
+    .beer-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 0;
+    }
+    .beer-team-name { flex: 1; font-size: 0.88rem; color: var(--text); }
+    .beer-bonus { font-size: 0.8rem; color: var(--dim); min-width: 70px; text-align: right; }
 
     /* ── Setup panel ─────────────────────────────────────────────────────────── */
     .setup-grid { display: flex; flex-direction: column; gap: 8px; max-width: 500px; }
@@ -471,10 +497,10 @@
 
 <!-- Tabs -->
 <div class="sb-tabs">
-  <button class="sb-tab active" id="tab-scores"  onclick="showTab('scores',  this)">Scoreboard</button>
-  <button class="sb-tab"        id="tab-bracket" onclick="showTab('bracket', this)">Tournament Bracket</button>
-  <button class="sb-tab"        id="tab-timed"   onclick="showTab('timed',  this)">Timed Games</button>
-  <button class="sb-tab"        id="tab-setup"   onclick="showTab('setup',   this)" style="display:none">Setup</button>
+  <button class="sb-tab active" id="tab-scores"     onclick="showTab('scores',     this)">Scoreboard</button>
+  <button class="sb-tab"        id="tab-roundrobin" onclick="showTab('roundrobin', this)">Round Robin</button>
+  <button class="sb-tab"        id="tab-tournament" onclick="showTab('tournament', this)">Tournament</button>
+  <button class="sb-tab"        id="tab-setup"      onclick="showTab('setup',      this)" style="display:none">Setup</button>
 </div>
 
 <main style="max-width:none; padding-top:20px;">
@@ -524,14 +550,14 @@
       </div>
     </div>
 
-    <div class="timed-section" style="max-width:640px;">
+    <div class="card-section" style="max-width:640px;">
       <h3>House Rules &amp; Awards</h3>
       <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;">
         <li style="font-size:0.85rem;color:var(--text);line-height:1.5;">
           <strong style="color:var(--accent)">⛳ The Brouillette Rule:</strong> Any practice swing on a Chip Shot is an immediate <strong>−1 point</strong>, subject to the Commissioner's final ruling.
         </li>
         <li style="font-size:0.85rem;color:var(--text);line-height:1.5;">
-          <strong style="color:var(--accent)">🍺 Rabbit Hole Rule:</strong> For every 2 beers consumed, your team earns <strong>+1 point</strong> — cans must be collected in a team pile as proof.
+          <strong style="color:var(--accent)">🍺 Beer Rule:</strong> For every 2 beers consumed, your team earns <strong>+1 point</strong> — cans must be collected in a team pile as proof. Enter each team's total on the <strong>Round Robin</strong> tab.
         </li>
         <li style="font-size:0.85rem;color:var(--text);line-height:1.5;">
           <strong style="color:var(--accent)">🐾 The Beastydog Award:</strong> Awarded in memory of the late great Buttercup. See <a href="psg.html">PSG History</a> for the full story.
@@ -543,27 +569,22 @@
     </div>
   </div>
 
-  <!-- ══ Bracket panel ══ -->
-  <div class="sb-panel" id="panel-bracket">
-    <div class="action-row" id="bracketAdminRow" style="display:none">
-      <select class="sb-select" id="bracketEventSelect"></select>
-      <button class="sb-btn sb-btn-primary" onclick="initBracket()">Generate Bracket from Standings</button>
-      <button class="sb-btn sb-btn-green" id="applyScoresBtn" onclick="applyBracketScores()" style="display:none">Apply Scores to Scoreboard</button>
-      <button class="sb-btn sb-btn-danger"  onclick="resetBracket()">Reset</button>
-      <span class="action-msg" id="bracketMsg"></span>
-    </div>
-    <div class="bracket-wrap">
-      <div id="bracketContainer">
-        <div class="bracket-notice">Bracket not yet initialized.</div>
-      </div>
-    </div>
+  <!-- ══ Round Robin panel ══ -->
+  <div class="sb-panel" id="panel-roundrobin">
+    <p style="color:var(--muted); font-size:0.85rem; margin-bottom:18px;">
+      Tap teams in the order they finished — 1st, then 2nd, and so on. Points fill in automatically.
+      Need to fix a number? Use the numeric fields on the <strong>Scoreboard</strong> tab.
+    </p>
+    <div id="rrContainer"><p style="color:var(--dim);font-size:0.88rem">Loading…</p></div>
   </div>
 
-  <!-- ══ Timed Games panel ══ -->
-  <div class="sb-panel" id="panel-timed">
-    <div id="timedContainer">
-      <p style="color:var(--dim);font-size:0.88rem">Loading…</p>
-    </div>
+  <!-- ══ Tournament panel ══ -->
+  <div class="sb-panel" id="panel-tournament">
+    <p style="color:var(--muted); font-size:0.85rem; margin-bottom:18px;">
+      All three tournament-style events run side by side. Regenerate any one of them from the current
+      standings whenever you're ready to start it.
+    </p>
+    <div id="tourneyContainer"><p style="color:var(--dim);font-size:0.88rem">Loading…</p></div>
   </div>
 
   <!-- ══ Setup panel (admin only) ══ -->
@@ -605,11 +626,21 @@
 "use strict";
 
 const API = "https://api.kellinnovations.com/psg";
+
+// Bracket-style events; everything else in scoreData.events is round robin
+// (including what used to be separately-timed events — they're ranked by
+// finish order now too, same as any other round robin game).
+const TOURNAMENT_EVENTS = ["Volleyball", "Pickleball", "Gladiator Rumble"];
+const ROUND_ROBIN_PTS   = [10, 8, 6, 5, 4, 3, 2, 1];  // rank >= 8 → 1 pt
+
 let isAdmin   = false;
 let scoreData = null;
-let bkData    = null;
-let refreshTimer = null;
-let scoresDirty  = false;
+let bkData    = null;          // {event: bracketObj, ...} — one per tournament event
+let refreshTimer  = null;
+let scoresDirty   = false;      // Scoreboard-tab grid has unsaved edits
+let rrOrder       = {};         // {event: [teamName, ...]} tap-order state, keyed by event
+let rrInitialized = {};         // {event: bool} — have we seeded rrOrder from scoreData yet
+let beerDirty     = false;
 
 // ══ Bootstrap ══════════════════════════════════════════════════════════════════
 async function init() {
@@ -621,8 +652,8 @@ async function init() {
 function startAutoRefresh() {
   clearInterval(refreshTimer);
   refreshTimer = setInterval(async () => {
-    // Skip score refresh while the admin has unsaved edits in the grid —
-    // otherwise the poll overwrites in-progress input values.
+    // Skip score refresh while the admin has unsaved edits anywhere — otherwise
+    // the poll overwrites in-progress input values.
     const tasks = scoresDirty ? [fetchBracket()] : [fetchScores(), fetchBracket()];
     await Promise.all(tasks);
     const label = document.getElementById("refreshLabel");
@@ -651,10 +682,10 @@ function applyAdminUI() {
   show("loginBtn",        !isAdmin);
   show("logoutBtn",       isAdmin);
   show("scoreAdminRow",   isAdmin);
-  show("bracketAdminRow", isAdmin);
   show("tab-setup",       isAdmin);
   renderScores();
-  renderBracket();
+  renderBracketTab();
+  renderRoundRobinTab();
 }
 
 function openLogin() {
@@ -701,7 +732,7 @@ async function fetchScores() {
     const r = await fetch(`${API}/scoreboard`, {credentials: "include"});
     scoreData = await r.json();
     renderScores();
-    if (!timedDirty) renderTimedPanel();
+    if (!beerDirty) renderRoundRobinTab();
   } catch (e) { console.error("Scores fetch failed:", e); }
 }
 
@@ -718,6 +749,7 @@ function renderScores() {
   const events  = data.events || [];
   const scores  = data.scores || {};
   const totals  = data.totals || {};
+  const beers   = data.beers  || {};
   const ordered = sortedTeams(data);
 
   if (!ordered.length) {
@@ -754,6 +786,15 @@ function renderScores() {
     html += "</tr>";
   });
 
+  // Beer bonus row (read-only here — edited on the Round Robin tab)
+  html += '<tr class="beer-row"><td class="ev-label">🍺 Beer Bonus</td>';
+  ordered.forEach(t => {
+    const count = beers[t.name] || 0;
+    const bonus = Math.floor(count / 2);
+    html += `<td>${bonus ? `+${bonus}` : "—"}</td>`;
+  });
+  html += "</tr>";
+
   // Totals
   html += '<tr class="total-row"><td class="ev-label">Total</td>';
   ordered.forEach(t => { html += `<td>${totals[t.name] || 0}</td>`; });
@@ -761,7 +802,6 @@ function renderScores() {
   grid.innerHTML = html;
 
   renderStandings(ordered, totals);
-  populateEventSelect();
 }
 
 function markDirty() {
@@ -796,6 +836,7 @@ async function saveAllScores() {
       scoreData = await r.json();
       scoresDirty = false;
       renderScores();
+      renderRoundRobinTab();
       msgEl.className = "action-msg ok";
       msgEl.textContent = "Saved";
       setTimeout(() => { msgEl.textContent = ""; }, 3000);
@@ -823,56 +864,283 @@ function renderStandings(ordered, totals) {
   }).join("");
 }
 
-// ══ Bracket ═══════════════════════════════════════════════════════════════════
+// ══ Round Robin (tap-to-rank) ═══════════════════════════════════════════════════
+function roundRobinEvents() {
+  if (!scoreData || !scoreData.events) return [];
+  return scoreData.events.filter(e => !TOURNAMENT_EVENTS.includes(e));
+}
+
+function renderRoundRobinTab() {
+  const container = document.getElementById("rrContainer");
+  if (!scoreData || !scoreData.teams || !scoreData.teams.length) {
+    container.innerHTML = "<p style='color:var(--dim);font-size:0.88rem'>No teams set up yet.</p>";
+    return;
+  }
+
+  const teams  = sortedTeams(scoreData);
+  const scores = scoreData.scores || {};
+  let html = "";
+
+  roundRobinEvents().forEach((event, ei) => {
+    html += renderRoundRobinEvent(event, ei, teams, scores);
+    if (event === "Gauntlet") html += renderBeerSection(teams);
+  });
+
+  container.innerHTML = html;
+}
+
+function seedRrOrder(event, ei, teams, scores) {
+  if (rrInitialized[event]) return;
+  rrInitialized[event] = true;
+  const withScores = teams.filter(t => (scores[t.name] || [])[ei] > 0);
+  if (withScores.length) {
+    withScores.sort((a, b) => (scores[b.name] || [])[ei] - (scores[a.name] || [])[ei]);
+    rrOrder[event] = withScores.map(t => t.name);
+  } else {
+    rrOrder[event] = [];
+  }
+}
+
+function renderRoundRobinEvent(event, ei, teams, scores) {
+  seedRrOrder(event, ei, teams, scores);
+  const eventId = event.replace(/\s+/g, "_").toLowerCase();
+
+  if (!isAdmin) {
+    const rows = [...teams]
+      .sort((a, b) => (scores[b.name] || [])[ei] - (scores[a.name] || [])[ei])
+      .map(t => `<div class="rr-readonly-row"><span>${escHtml(t.name)}</span><span>${(scores[t.name] || [])[ei] || 0} pts</span></div>`)
+      .join("");
+    return `<div class="card-section"><h3>${escHtml(event)}</h3>${rows}</div>`;
+  }
+
+  // Filter out any tapped name that's no longer a real team (renamed/removed
+  // via Setup after being tapped) so it doesn't linger as a ghost entry.
+  const currentNames = new Set(teams.map(t => t.name));
+  const ranked   = (rrOrder[event] || []).filter(name => currentNames.has(name));
+  rrOrder[event] = ranked;
+  const rankedSet = new Set(ranked);
+  const pool     = teams.filter(t => !rankedSet.has(t.name));
+
+  const poolHtml = pool.length
+    ? `<div class="rr-pool">${pool.map(t =>
+        `<button class="rr-chip" onclick="tapTeam('${eventId}','${encodeURIComponent(t.name)}')">${escHtml(t.name)}</button>`
+      ).join("")}</div>`
+    : "";
+
+  const rankedHtml = ranked.length
+    ? `<div class="rr-ranked">${ranked.map((name, i) => {
+        const pts = i < ROUND_ROBIN_PTS.length ? ROUND_ROBIN_PTS[i] : 1;
+        return `<div class="rr-ranked-row">
+          <span class="rr-rank-num">#${i + 1}</span>
+          <span class="rr-team-name">${escHtml(name)}</span>
+          <span class="rr-pts">${pts} pts</span>
+          <button class="rr-remove-btn" onclick="untapTeam('${eventId}','${encodeURIComponent(name)}')">Remove</button>
+        </div>`;
+      }).join("")}</div>`
+    : `<p class="rr-empty">No one tapped yet — tap teams below in the order they finished.</p>`;
+
+  return `<div class="card-section" data-event-id="${eventId}">
+    <h3>${escHtml(event)}</h3>
+    ${rankedHtml}
+    ${poolHtml}
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:6px;">
+      <button class="sb-btn sb-btn-ghost" onclick="resetRanking('${eventId}')">Reset</button>
+      <button class="sb-btn sb-btn-green" onclick="saveRanking('${eventId}','${encodeURIComponent(event)}')">Save ${escHtml(event)}</button>
+      <span class="action-msg" id="rr-msg-${eventId}"></span>
+    </div>
+  </div>`;
+}
+
+// Event ids (spaces->underscore, lowercased) are unique across our 10 events,
+// so a simple lookup map back to the real name is enough here.
+function eventIdToName(eventId) {
+  return roundRobinEvents().find(e => e.replace(/\s+/g, "_").toLowerCase() === eventId);
+}
+
+function tapTeam(eventId, teamEnc) {
+  const event = eventIdToName(eventId);
+  const team  = decodeURIComponent(teamEnc);
+  if (!rrOrder[event]) rrOrder[event] = [];
+  if (!rrOrder[event].includes(team)) rrOrder[event].push(team);
+  renderRoundRobinTab();
+}
+
+function untapTeam(eventId, teamEnc) {
+  const event = eventIdToName(eventId);
+  const team  = decodeURIComponent(teamEnc);
+  rrOrder[event] = (rrOrder[event] || []).filter(n => n !== team);
+  renderRoundRobinTab();
+}
+
+function resetRanking(eventId) {
+  const event = eventIdToName(eventId);
+  rrOrder[event] = [];
+  renderRoundRobinTab();
+}
+
+async function saveRanking(eventId, eventEnc) {
+  const event = decodeURIComponent(eventEnc);
+  const order = rrOrder[event] || [];
+  if (!order.length) { alert("Tap at least one team before saving."); return; }
+
+  const msg = document.getElementById(`rr-msg-${eventId}`);
+  try {
+    const r = await fetch(`${API}/scoreboard/rank`, {
+      method: "POST", credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({event, order})
+    });
+    if (r.ok) {
+      scoreData = await r.json();
+      renderScores();
+      msg.className = "action-msg ok";
+      msg.textContent = "Saved";
+      setTimeout(() => { msg.textContent = ""; }, 3000);
+    } else {
+      const d = await r.json().catch(() => ({}));
+      msg.className = "action-msg warn";
+      msg.textContent = d.error || "Failed";
+    }
+  } catch {
+    msg.className = "action-msg warn";
+    msg.textContent = "Network error";
+  }
+}
+
+// ══ Beer totals ═════════════════════════════════════════════════════════════════
+function renderBeerSection(teams) {
+  const beers = (scoreData && scoreData.beers) || {};
+  if (!isAdmin) {
+    const rows = teams.map(t => {
+      const count = beers[t.name] || 0;
+      const bonus = Math.floor(count / 2);
+      return `<div class="beer-row"><span class="beer-team-name">${escHtml(t.name)}</span><span class="beer-bonus">${count} beers (+${bonus})</span></div>`;
+    }).join("");
+    return `<div class="card-section"><h3>🍺 Beer Total</h3>${rows}</div>`;
+  }
+
+  const rows = teams.map(t => {
+    const count = beers[t.name] || 0;
+    return `<div class="beer-row">
+      <span class="beer-team-name">${escHtml(t.name)}</span>
+      <input class="score-input" type="number" min="0" data-beer-team="${encodeURIComponent(t.name)}"
+             value="${count}" oninput="onBeerInput()">
+      <span class="beer-bonus" id="beer-bonus-${encodeURIComponent(t.name)}">+${Math.floor(count / 2)} pts</span>
+    </div>`;
+  }).join("");
+
+  return `<div class="card-section">
+    <h3>🍺 Beer Total</h3>
+    ${rows}
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px;">
+      <button class="sb-btn sb-btn-green" onclick="saveBeerTotals()">Save Beer Totals</button>
+      <span class="action-msg" id="beer-msg"></span>
+    </div>
+  </div>`;
+}
+
+function onBeerInput() {
+  beerDirty = true;
+  document.querySelectorAll("[data-beer-team]").forEach(inp => {
+    const team  = encodeURIComponent(decodeURIComponent(inp.dataset.beerTeam));
+    const count = parseInt(inp.value) || 0;
+    const bonusEl = document.getElementById(`beer-bonus-${team}`);
+    if (bonusEl) bonusEl.textContent = `+${Math.floor(count / 2)} pts`;
+  });
+}
+
+async function saveBeerTotals() {
+  const inputs = document.querySelectorAll("[data-beer-team]");
+  const msg = document.getElementById("beer-msg");
+  try {
+    for (const inp of inputs) {
+      const team  = decodeURIComponent(inp.dataset.beerTeam);
+      const count = parseInt(inp.value) || 0;
+      const r = await fetch(`${API}/scoreboard/beers`, {
+        method: "POST", credentials: "include",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({team, count})
+      });
+      if (r.ok) scoreData = await r.json();
+    }
+    beerDirty = false;
+    renderScores();
+    msg.className = "action-msg ok";
+    msg.textContent = "Saved";
+    setTimeout(() => { msg.textContent = ""; }, 3000);
+  } catch {
+    msg.className = "action-msg warn";
+    msg.textContent = "Network error";
+  }
+}
+
+// ══ Tournament (3 simultaneous brackets) ═══════════════════════════════════════
 async function fetchBracket() {
   try {
     const r = await fetch(`${API}/bracket`, {credentials: "include"});
     bkData = await r.json();
-    renderBracket();
+    renderBracketTab();
   } catch (e) { console.error("Bracket fetch failed:", e); }
 }
 
-const TOURNAMENT_EVENTS = ["Volleyball", "Pickleball", "Gladiator Rumble"];
-
-function populateEventSelect() {
-  const sel = document.getElementById("bracketEventSelect");
-  if (!sel) return;
-  const prev = sel.value;
-  sel.innerHTML = TOURNAMENT_EVENTS.map(e => `<option value="${escHtml(e)}">${e}</option>`).join("");
-  if (bkData && bkData.event && TOURNAMENT_EVENTS.includes(bkData.event)) sel.value = bkData.event;
-  else if (TOURNAMENT_EVENTS.includes(prev)) sel.value = prev;
+function renderBracketTab() {
+  const container = document.getElementById("tourneyContainer");
+  if (!container) return;
+  container.innerHTML = TOURNAMENT_EVENTS.map(event => renderBracketEvent(event)).join("");
 }
 
-function renderBracket() {
-  const container = document.getElementById("bracketContainer");
-  populateEventSelect();
+function renderBracketEvent(event) {
+  const eventId = event.replace(/\s+/g, "_").toLowerCase();
+  const bracket = bkData ? bkData[event] : null;
 
-  if (!bkData || !bkData.initialized) {
-    container.innerHTML = `<div class="bracket-notice">
-      ${isAdmin
-        ? "Pick an event above and click <strong>Generate Bracket from Standings</strong> to seed teams."
-        : "Bracket has not been initialized yet — check back later!"}
-    </div>`;
-    document.getElementById("applyScoresBtn").style.display = "none";
-    return;
+  let actionRow = "";
+  if (isAdmin) {
+    actionRow = `<div class="action-row">
+      <button class="sb-btn sb-btn-primary" onclick="initBracket('${encodeURIComponent(event)}')">
+        ${bracket && bracket.initialized ? "Regenerate from Standings" : "Generate from Standings"}
+      </button>`;
+    if (bracket && bracket.initialized) {
+      const finalMatch = bracket.matches.find(m => m.round === bracket.round_names.length - 1);
+      const complete = !!(finalMatch && finalMatch.winner);
+      if (complete) {
+        actionRow += `<button class="sb-btn sb-btn-green" onclick="applyBracketScores('${encodeURIComponent(event)}')">
+          ${bracket.scores_applied ? "Re-apply Scores" : "Apply Scores"}
+        </button>`;
+      }
+      actionRow += `<button class="sb-btn sb-btn-danger" onclick="resetBracket('${encodeURIComponent(event)}')">Reset</button>`;
+    }
+    actionRow += `<span class="action-msg" id="tourney-msg-${eventId}"></span></div>`;
   }
 
-  const {matches, round_names} = bkData;
+  let body;
+  if (!bracket || !bracket.initialized) {
+    body = `<div class="bracket-notice">
+      ${isAdmin ? "Click <strong>Generate from Standings</strong> to seed teams." : "Bracket has not been initialized yet — check back later!"}
+    </div>`;
+  } else {
+    body = renderBracketBody(bracket);
+  }
+
+  return `<div class="card-section">
+    <h3>${escHtml(event)}</h3>
+    ${actionRow}
+    <div class="bracket-wrap">${body}</div>
+  </div>`;
+}
+
+function renderBracketBody(bracket) {
+  const {matches, round_names} = bracket;
   const numRounds = round_names.length;
   const byRound   = Array.from({length: numRounds}, (_, r) => matches.filter(m => m.round === r));
 
-  // Seed lookup from current standings
   const seedOf = {};
   if (scoreData) {
     sortedTeams(scoreData).forEach((t, i) => { seedOf[t.name] = i + 1; });
   }
 
   let html = "";
-  if (bkData.event) {
-    html += `<div style="margin-bottom:14px;color:var(--muted);font-size:0.85rem">
-      Bracket event: <strong style="color:var(--accent)">${escHtml(bkData.event)}</strong>
-      ${bkData.scores_applied ? '<span style="color:#5f5;margin-left:8px">&#10003; scores applied</span>' : ""}
-    </div>`;
+  if (bracket.scores_applied) {
+    html += `<div style="margin-bottom:10px;color:#5f5;font-size:0.82rem">&#10003; scores applied</div>`;
   }
 
   html += '<div class="bracket">';
@@ -880,11 +1148,10 @@ function renderBracket() {
     html += `<div class="br-round">
       <div class="br-round-title">${round_names[r]}</div>
       <div class="br-matches">`;
-    byRound[r].forEach(m => { html += renderMatch(m, seedOf); });
+    byRound[r].forEach(m => { html += renderMatch(m, seedOf, bracket.event); });
     html += `</div></div>`;
 
     if (r < numRounds - 1) {
-      // Simple visual spacer/connector column
       const matchCount = byRound[r].length;
       html += `<div class="br-connector">`;
       for (let i = 0; i < matchCount; i++) {
@@ -894,21 +1161,10 @@ function renderBracket() {
     }
   }
   html += "</div>";
-  container.innerHTML = html;
-
-  // Show "Apply Scores" once the final has a winner
-  const finalMatch = matches.find(m => m.round === numRounds - 1);
-  const complete   = !!(finalMatch && finalMatch.winner);
-  const applyBtn   = document.getElementById("applyScoresBtn");
-  if (isAdmin && complete) {
-    applyBtn.style.display = "";
-    applyBtn.textContent = bkData.scores_applied ? "Re-apply Scores to Scoreboard" : "Apply Scores to Scoreboard";
-  } else {
-    applyBtn.style.display = "none";
-  }
+  return html;
 }
 
-function renderMatch(m, seedOf) {
+function renderMatch(m, seedOf, event) {
   const teamEl = (name) => {
     if (!name)               return `<div class="br-team tbd"><span class="br-seed"></span>TBD</div>`;
     if (name === "BYE")      return `<div class="br-team bye"><span class="br-seed"></span>— BYE —</div>`;
@@ -924,7 +1180,7 @@ function renderMatch(m, seedOf) {
     if (canClick)  cls += " clickable";
 
     const click = canClick
-      ? `onclick="advanceBracket(${m.id}, '${name.replace(/\\/g,"\\\\").replace(/'/g,"\\'")}')"`
+      ? `onclick="advanceBracket('${encodeURIComponent(event)}', ${m.id}, '${name.replace(/\\/g,"\\\\").replace(/'/g,"\\'")}')"`
       : "";
 
     return `<div class="${cls}" ${click}>${seed}${name}</div>`;
@@ -933,11 +1189,11 @@ function renderMatch(m, seedOf) {
   return `<div class="br-match">${teamEl(m.team1)}${teamEl(m.team2)}</div>`;
 }
 
-async function initBracket() {
-  const sel   = document.getElementById("bracketEventSelect");
-  const event = sel ? sel.value : null;
-  if (!confirm(`Generate bracket for "${event}" from current standings? This will replace any existing bracket.`)) return;
-  const msg = document.getElementById("bracketMsg");
+async function initBracket(eventEnc) {
+  const event = decodeURIComponent(eventEnc);
+  if (!confirm(`Generate bracket for "${event}" from current standings? This will replace any existing bracket for it.`)) return;
+  const eventId = event.replace(/\s+/g, "_").toLowerCase();
+  const msg = document.getElementById(`tourney-msg-${eventId}`);
   try {
     const r = await fetch(`${API}/bracket/init`, {
       method: "POST", credentials: "include",
@@ -945,8 +1201,10 @@ async function initBracket() {
       body: JSON.stringify({event})
     });
     if (r.ok) {
-      bkData = await r.json();
-      renderBracket();
+      const updated = await r.json();
+      if (!bkData) bkData = {};
+      bkData[event] = updated;
+      renderBracketTab();
       msg.className = "action-msg ok";
       msg.textContent = "Bracket created";
       setTimeout(() => { msg.textContent = ""; }, 3000);
@@ -956,22 +1214,27 @@ async function initBracket() {
       msg.textContent = d.error || "Failed";
     }
   } catch {
-    document.getElementById("bracketMsg").textContent = "Network error";
+    document.getElementById(`tourney-msg-${eventId}`).textContent = "Network error";
   }
 }
 
-async function applyBracketScores() {
-  if (!confirm(`Apply final placements to the "${bkData.event}" column on the scoreboard? This overwrites any existing scores for that event.`)) return;
-  const msg = document.getElementById("bracketMsg");
+async function applyBracketScores(eventEnc) {
+  const event = decodeURIComponent(eventEnc);
+  if (!confirm(`Apply final placements to the "${event}" column on the scoreboard? This overwrites any existing scores for that event.`)) return;
+  const eventId = event.replace(/\s+/g, "_").toLowerCase();
+  const msg = document.getElementById(`tourney-msg-${eventId}`);
   try {
-    const r = await fetch(`${API}/bracket/apply_scores`, {method: "POST", credentials: "include"});
+    const r = await fetch(`${API}/bracket/apply_scores`, {
+      method: "POST", credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({event})
+    });
     if (r.ok) {
       const d = await r.json();
       scoreData = d.scoreboard;
-      scoresDirty = false;
-      bkData.scores_applied = true;
+      bkData[event].scores_applied = true;
       renderScores();
-      renderBracket();
+      renderBracketTab();
       msg.className = "action-msg ok";
       msg.textContent = "Scores applied";
       setTimeout(() => { msg.textContent = ""; }, 3000);
@@ -986,251 +1249,39 @@ async function applyBracketScores() {
   }
 }
 
-async function advanceBracket(matchId, winner) {
+async function advanceBracket(eventEnc, matchId, winner) {
   if (!confirm(`Mark "${winner}" as the winner?`)) return;
+  const event = decodeURIComponent(eventEnc);
   try {
     const r = await fetch(`${API}/bracket/advance`, {
       method: "POST", credentials: "include",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({match_id: matchId, winner})
-    });
-    if (r.ok) { bkData = await r.json(); renderBracket(); }
-    else { const d = await r.json().catch(()=>({})); alert(d.error || "Failed to advance"); }
-  } catch { alert("Network error"); }
-}
-
-async function resetBracket() {
-  if (!confirm("Reset the entire bracket? This cannot be undone.")) return;
-  try {
-    const r = await fetch(`${API}/bracket/reset`, {method: "POST", credentials: "include"});
-    if (r.ok) { bkData = await r.json(); renderBracket(); }
-  } catch { alert("Network error"); }
-}
-
-// ══ Timed Games ════════════════════════════════════════════════════════════════
-const TIMED_EVENTS_LIST = ["Treasure Hunt", "Watering Hole", "Gauntlet"];
-const ROUND_ROBIN_PTS   = [10, 8, 6, 5, 4, 3, 2, 1];  // rank >= 8 → 1 pt
-let timedDirty = false;
-
-function formatTime(secs) {
-  if (secs === null || secs === undefined || secs < 0) return "";
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-// Time entry uses separate minutes/seconds fields so a phone stopwatch
-// reading like "1:41" can be typed straight in, with no ambiguity about
-// whether a bare number means seconds or minutes-and-seconds.
-function timeParts(teamEnc, eventEnc) {
-  const minInp = document.querySelector(`.time-input-min[data-team="${teamEnc}"][data-event="${eventEnc}"]`);
-  const secInp = document.querySelector(`.time-input-sec[data-team="${teamEnc}"][data-event="${eventEnc}"]`);
-  return {minInp, secInp};
-}
-
-function readSecs(teamEnc, eventEnc) {
-  const {minInp, secInp} = timeParts(teamEnc, eventEnc);
-  if (!minInp || !secInp) return null;
-  if (!minInp.value.trim() && !secInp.value.trim()) return null;
-  const m = parseInt(minInp.value, 10) || 0;
-  const s = parseInt(secInp.value, 10) || 0;
-  return Math.max(0, m * 60 + s);
-}
-
-function writeSecs(teamEnc, eventEnc, secs) {
-  const {minInp, secInp} = timeParts(teamEnc, eventEnc);
-  if (!minInp || !secInp) return;
-  if (secs === null || secs === undefined || secs < 0) { minInp.value = ""; secInp.value = ""; return; }
-  minInp.value = Math.floor(secs / 60);
-  secInp.value = String(secs % 60).padStart(2, "0");
-}
-
-function onTimedInput(inp) {
-  timedDirty = true;
-  const teamEnc  = inp.dataset.team;
-  const eventEnc = inp.dataset.event;
-  // If someone types a raw seconds value like "101" into the seconds field,
-  // carry the overflow into minutes instead of silently mis-scoring it.
-  if (inp.classList.contains("time-input-sec")) {
-    const s = parseInt(inp.value, 10);
-    if (!isNaN(s) && s > 59) {
-      const {minInp} = timeParts(teamEnc, eventEnc);
-      minInp.value = (parseInt(minInp.value, 10) || 0) + Math.floor(s / 60);
-      inp.value = s % 60;
-    }
-  }
-  recalcPreview(decodeURIComponent(eventEnc));
-}
-
-function adjustTime(teamEnc, eventEnc, delta) {
-  const cur = readSecs(teamEnc, eventEnc) ?? 0;
-  writeSecs(teamEnc, eventEnc, Math.max(0, cur + delta));
-  timedDirty = true;
-  recalcPreview(decodeURIComponent(eventEnc));
-}
-
-function recalcPreview(event) {
-  const eventEnc = encodeURIComponent(event);
-  const eventId  = event.replace(/\s+/g, "_").toLowerCase();
-  const cells    = document.querySelectorAll(`.time-cell[data-event="${eventEnc}"]`);
-
-  // Clear all first
-  cells.forEach(cellEl => {
-    const teamEnc = cellEl.dataset.team;
-    const cell = document.getElementById(`pts-${eventId}-${teamEnc}`);
-    if (cell) { cell.textContent = "—"; cell.className = "preview-pts"; }
-    const rank = document.getElementById(`rank-${eventId}-${teamEnc}`);
-    if (rank) rank.textContent = "";
-  });
-
-  // Collect valid entries
-  const entries = [];
-  cells.forEach(cellEl => {
-    const teamEnc = cellEl.dataset.team;
-    const secs = readSecs(teamEnc, eventEnc);
-    if (secs !== null && secs > 0) entries.push({teamEnc, secs});
-  });
-  entries.sort((a, b) => a.secs - b.secs);
-
-  entries.forEach(({teamEnc}, i) => {
-    const pts  = i < ROUND_ROBIN_PTS.length ? ROUND_ROBIN_PTS[i] : 1;
-    const cell = document.getElementById(`pts-${eventId}-${teamEnc}`);
-    const rank = document.getElementById(`rank-${eventId}-${teamEnc}`);
-    if (cell) { cell.textContent = pts; cell.className = "preview-pts has-val"; }
-    if (rank) rank.textContent = `#${i + 1}`;
-  });
-}
-
-function renderTimedPanel() {
-  const container = document.getElementById("timedContainer");
-  if (!scoreData || !scoreData.teams || !scoreData.teams.length) {
-    container.innerHTML = "<p style='color:var(--dim);font-size:0.88rem'>No teams set up yet.</p>";
-    return;
-  }
-
-  const teams  = sortedTeams(scoreData);
-  const stored = scoreData.times || {};
-  let html = "";
-
-  for (const event of TIMED_EVENTS_LIST) {
-    const eventEnc  = encodeURIComponent(event);
-    const eventId   = event.replace(/\s+/g, "_").toLowerCase();
-    const evTimes   = stored[event] || {};
-    const isGauntlet = event === "Gauntlet";
-
-    html += `<div class="timed-section">
-      <h3>${event}</h3>
-      <table class="timed-table">
-        <thead><tr>
-          <th>Team</th>
-          <th>${isAdmin ? "" : ""}Time</th>
-          ${isGauntlet && isAdmin ? "<th></th>" : ""}
-          <th>Rank</th>
-          <th>Points</th>
-        </tr></thead>
-        <tbody>`;
-
-    for (const t of teams) {
-      const teamEnc = encodeURIComponent(t.name);
-      const secs    = evTimes[t.name] !== undefined ? evTimes[t.name] : null;
-      const display = secs !== null ? formatTime(secs) : "";
-
-      html += `<tr>
-        <td>${escHtml(t.name)}</td>`;
-
-      if (isAdmin) {
-        const minVal = secs !== null ? Math.floor(secs / 60) : "";
-        const secVal = secs !== null ? String(secs % 60).padStart(2, "0") : "";
-        html += `<td style="white-space:nowrap">`;
-        if (isGauntlet) {
-          html += `<button class="adj-btn" onclick="adjustTime('${teamEnc}','${eventEnc}',-5)">−5s</button> `;
-        }
-        html += `<span class="time-cell" data-team="${teamEnc}" data-event="${eventEnc}">
-            <input class="time-input time-input-min" type="number" inputmode="numeric" min="0" placeholder="0"
-                data-team="${teamEnc}" data-event="${eventEnc}"
-                value="${minVal}" oninput="onTimedInput(this)"><span class="time-unit">m</span>
-            <span class="time-sep">:</span>
-            <input class="time-input time-input-sec" type="number" inputmode="numeric" min="0" max="59" placeholder="00"
-                data-team="${teamEnc}" data-event="${eventEnc}"
-                value="${secVal}" oninput="onTimedInput(this)"><span class="time-unit">s</span>
-          </span>`;
-        if (isGauntlet) {
-          html += ` <button class="adj-btn" onclick="adjustTime('${teamEnc}','${eventEnc}',5)">+5s</button>`;
-        }
-        html += `</td>`;
-        if (isGauntlet) html += `<td></td>`;  // spacer for column alignment on non-gauntlet rows handled by colspan
-      } else {
-        html += `<td>${escHtml(display || "—")}</td>`;
-        if (isGauntlet) html += `<td></td>`;
-      }
-
-      html += `
-        <td class="timed-rank" id="rank-${eventId}-${teamEnc}"></td>
-        <td class="preview-pts" id="pts-${eventId}-${teamEnc}">—</td>
-      </tr>`;
-    }
-
-    html += `</tbody></table>`;
-
-    if (isAdmin) {
-      html += `<div style="margin-top:12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <button class="sb-btn sb-btn-green" onclick="applyTimedScores('${eventEnc}')">Apply Scores for ${escHtml(event)}</button>
-        <span class="action-msg" id="timed-msg-${eventId}"></span>
-      </div>`;
-    }
-
-    html += `</div>`;
-  }
-
-  container.innerHTML = html;
-
-  // Populate previews from stored times
-  for (const event of TIMED_EVENTS_LIST) {
-    recalcPreview(event);
-  }
-}
-
-async function applyTimedScores(eventEnc) {
-  const event   = decodeURIComponent(eventEnc);
-  const eventId = event.replace(/\s+/g, "_").toLowerCase();
-  const cells   = document.querySelectorAll(`.time-cell[data-event="${eventEnc}"]`);
-  const times   = {};
-  cells.forEach(cellEl => {
-    const teamEnc = cellEl.dataset.team;
-    const secs = readSecs(teamEnc, eventEnc);
-    if (secs !== null && secs > 0) times[decodeURIComponent(teamEnc)] = secs;
-  });
-
-  if (!Object.keys(times).length) {
-    alert("Enter at least one time before applying.");
-    return;
-  }
-
-  const msg = document.getElementById(`timed-msg-${eventId}`);
-  try {
-    const r = await fetch(`${API}/timed/update`, {
-      method: "POST", credentials: "include",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({event, times})
+      body: JSON.stringify({event, match_id: matchId, winner})
     });
     if (r.ok) {
-      scoreData   = await r.json();
-      timedDirty  = false;
-      scoresDirty = false;
-      renderScores();
-      renderTimedPanel();
-      msg.className   = "action-msg ok";
-      msg.textContent = "Scores applied";
-      setTimeout(() => { msg.textContent = ""; }, 3000);
+      bkData[event] = await r.json();
+      renderBracketTab();
     } else {
-      const d = await r.json().catch(() => ({}));
-      msg.className   = "action-msg warn";
-      msg.textContent = d.error || "Failed";
+      const d = await r.json().catch(()=>({}));
+      alert(d.error || "Failed to advance");
     }
-  } catch {
-    msg.className   = "action-msg warn";
-    msg.textContent = "Network error";
-  }
+  } catch { alert("Network error"); }
+}
+
+async function resetBracket(eventEnc) {
+  const event = decodeURIComponent(eventEnc);
+  if (!confirm(`Reset the "${event}" bracket? This cannot be undone.`)) return;
+  try {
+    const r = await fetch(`${API}/bracket/reset`, {
+      method: "POST", credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({event})
+    });
+    if (r.ok) {
+      bkData[event] = await r.json();
+      renderBracketTab();
+    }
+  } catch { alert("Network error"); }
 }
 
 // ══ Setup ══════════════════════════════════════════════════════════════════════
@@ -1272,6 +1323,7 @@ async function saveTeams() {
     if (r.ok) {
       scoreData = await r.json();
       renderScores();
+      renderRoundRobinTab();
       msg.className = "action-msg ok";
       msg.textContent = "Saved";
       setTimeout(() => { msg.textContent = ""; }, 3000);
@@ -1292,7 +1344,10 @@ async function clearAllTeams() {
     const r = await fetch(`${API}/scoreboard/teams`, {method: "DELETE", credentials: "include"});
     if (r.ok) {
       scoreData = await r.json();
+      rrOrder = {};
+      rrInitialized = {};
       renderScores();
+      renderRoundRobinTab();
       renderSetupRows();
       msg.className = "action-msg ok";
       msg.textContent = "All teams cleared";
@@ -1314,7 +1369,8 @@ function showTab(id, btn) {
   document.getElementById("panel-" + id).classList.add("active");
   btn.classList.add("active");
   if (id === "setup") renderSetupRows();
-  if (id === "timed") renderTimedPanel();
+  if (id === "roundrobin") renderRoundRobinTab();
+  if (id === "tournament") renderBracketTab();
 }
 
 let tvMode = false;
