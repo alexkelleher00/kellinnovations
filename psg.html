@@ -60,7 +60,8 @@
     <button onclick="showYear('psg2023', this)">PSG 2023</button>
     <button onclick="showYear('psg2024', this)">PSG 2024</button>
     <button onclick="showYear('psg2025', this)">PSG 2025</button>
-    <button onclick="showYear('psg2026', this)" class="active">PSG 2026</button>
+    <button onclick="showYear('psg2026', this)">PSG 2026</button>
+    <button onclick="showYear('psg2027', this)" class="active">PSG 2027</button>
   </div>
 
   <!-- ══════════ PSG 2019 ══════════ -->
@@ -210,7 +211,52 @@
   </div>
 
   <!-- ══════════ PSG 2026 ══════════ -->
-  <div id="psg2026" class="psg-section active">
+  <div id="psg2026" class="psg-section">
+
+    <div class="psg-col">
+      <h3>Highlights</h3>
+      <ul>
+        <li>Bucket single-handedly breaks the Treasure Hunt record, carrying Dust Bowl Dance to the win</li>
+        <li>A beat-up Mello powers through to take home the inaugural Beer Record</li>
+        <li>Jack Kelleher's three-peat streak comes to an end</li>
+        <li>Han is back at the bottom of the standings</li>
+        <li>Ethan &amp; Jack Fox put on a show — Mystery Survivor Game <em>and</em> 3-Point Contest champions</li>
+        <li>Kells goes it alone all tournament and still takes Chip Shot outright</li>
+        <li>The Wolf edges Broken Crown by just 2 points, 76–74 — the closest finish yet</li>
+        <li>Eric &amp; Chris (Broken Crown) win the Gauntlet outright with a monster 27 — and would've won the
+          <em>entire tournament</em> if not for the new Beer Rule</li>
+      </ul>
+      <img src="images/2026psg-edited.png" alt="PSG 2026 draft graphic">
+      <img src="images/psg2026scoreboard.png" alt="PSG 2026 final scoreboard" style="margin-top:10px;">
+    </div>
+
+    <div class="psg-col">
+      <h3>Champions</h3>
+
+      <details class="champion-entry">
+        <summary>Jesse</summary>
+        <p>One half of "The Wolf." No fireworks in any single event, just top-of-the-board finishes everywhere it counted. That's how you win a 2-point nail-biter.</p>
+      </details>
+
+      <details class="champion-entry">
+        <summary>Mello</summary>
+        <p>Banged up and still standing all the way to a 76-point finish — and found time to set the tournament's first-ever Beer Record along the way. Champion, and clearly built different.</p>
+      </details>
+
+    </div>
+
+    <div class="psg-col">
+      <h3>News</h3>
+      <p class="news-item">🏆 <strong>The Wolf</strong> (Jesse &amp; Mello) crowned PSG 2026 Champions.</p>
+      <p class="news-item">⛳ The Brouillette Rule survived its first live test on the chip shot green.</p>
+      <p class="news-item">🍺 The Beer Rule made its debut — 2 beers per point, cans piled up as proof.</p>
+      <p class="news-item">🐾 The Beastydog Award, in memory of Buttercup, made its debut.</p>
+    </div>
+
+  </div>
+
+  <!-- ══════════ PSG 2027 ══════════ -->
+  <div id="psg2027" class="psg-section active">
 
     <div class="psg-col">
       <h3>This Year's Events</h3>
@@ -229,17 +275,18 @@
 
       <h3>Things to Watch</h3>
       <ul>
-        <li>Watch out for Jack's team — surely he can't win four in a row.</li>
-        <li>Can Jake finally break through this year?</li>
-        <li>Is Akells a one-hit wonder, or is he making it back to the podium?</li>
-        <li>Will OD get reinstated after last year's dropout?</li>
+        <li>Can The Wolf (Jesse &amp; Mello) go back-to-back after last year's 2-point squeaker?</li>
+        <li>Does Jack Kelleher come back for revenge after his streak finally snapped?</li>
+        <li>Can Han climb out of the basement?</li>
+        <li>Does Broken Crown's Gauntlet firepower (27 points last year!) finally add up to a title?</li>
+        <li>Can Kells run it back solo after taking Chip Shot alone in 2026?</li>
       </ul>
     </div>
 
     <div class="psg-col">
       <h3>Event Date</h3>
       <div class="event-date">
-        <h2>July 18, 2026</h2>
+        <h2>July 10, 2027</h2>
       </div>
 
       <div class="psg-countdown">
@@ -247,10 +294,8 @@
         <div id="countdown">Loading…</div>
       </div>
 
-      <img src="images/2026psg-edited.png" alt="PSG 2026" style="width:100%; border-radius:8px; margin:1rem 0;">
-
       <h3>Registration</h3>
-      <form id="registerForm2026" class="register-form">
+      <form id="registerForm2027" class="register-form">
         <div class="form-field">
           <label for="reg-name">Name</label>
           <input type="text" id="reg-name" name="name" placeholder="Your full name" required>
@@ -264,19 +309,17 @@
 
       <details class="memorial-entry">
         <summary>In Remembrance — The Beastydog Award</summary>
-        <p>In honor of the late great Buttercup, a new award has been created: The Beastydog Award.</p>
+        <p>In honor of the late great Buttercup, awarded each year to keep his memory part of the games.</p>
         <img src="images/thebeast.jpg" alt="Buttercup — The Beast">
       </details>
     </div>
 
     <div class="psg-col">
       <h3>News</h3>
-      <p class="news-item">🕹️ New PSG webpage launched!</p>
-      <p class="news-item">📅 PSG 2026 date confirmed: July 18th.</p>
-      <p class="news-item">📋 Draft day of!</p>
-      <p class="news-item">🏆 New games, trophies, awards, and more coming.</p>
-      <p class="news-item">⛳ New <strong>Brouillette Rule</strong>: any practice swing on a Chip Shot is an immediate <strong>−1 point</strong>, subject to the Commissioner's final ruling.</p>
-      <p class="news-item">🍺 Possible new <strong>Beer Rule</strong>: every 2 beers consumed earns your team <strong>+1 point</strong> — cans must be collected in a team pile as proof.</p>
+      <p class="news-item">🕹️ PSG 2027 tab is live!</p>
+      <p class="news-item">📅 PSG 2027 date confirmed: July 10th.</p>
+      <p class="news-item">⛳ The Brouillette Rule is back: any practice swing on a Chip Shot is an immediate <strong>−1 point</strong>, subject to the Commissioner's final ruling.</p>
+      <p class="news-item">🍺 The Beer Rule is back: every 2 beers consumed earns your team <strong>+1 point</strong> — cans must be collected in a team pile as proof.</p>
       <p class="news-item">📊 <a href="scoreboard.html">Live Scoreboard</a> — scores &amp; tournament bracket.</p>
 
       <h3>Registered Players</h3>
@@ -303,7 +346,7 @@
   }
 
   /* ── Countdown ── */
-  const psgTarget = new Date("2026-07-18T12:00:00").getTime();
+  const psgTarget = new Date("2027-07-10T12:00:00").getTime();
 
   function tickPSG() {
     const diff = psgTarget - Date.now();
@@ -323,12 +366,15 @@
   /* ── Registration ── */
   const API_BASE = "https://api.kellinnovations.com/psg";
 
-  document.getElementById("registerForm2026").addEventListener("submit", async e => {
+  const REG_YEAR = 2027;
+
+  document.getElementById("registerForm2027").addEventListener("submit", async e => {
     e.preventDefault();
     const form = e.target;
     const payload = {
       name:  form.name.value.trim(),
-      email: form.email.value.trim()
+      email: form.email.value.trim(),
+      year:  REG_YEAR
     };
 
     try {
@@ -350,7 +396,7 @@
   async function loadRegistrations() {
     const list = document.getElementById("registrationsList");
     try {
-      const res  = await fetch(`${API_BASE}/api/registrations`);
+      const res  = await fetch(`${API_BASE}/api/registrations?year=${REG_YEAR}`);
       const regs = await res.json();
       console.log("[PSG] registrations raw:", regs);
       if (!regs || regs.length === 0) {
