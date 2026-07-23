@@ -101,40 +101,95 @@ nav a.active {
   background: rgba(200, 121, 26, 0.12);
 }
 
-/* ══════════════════════════════════════
-   PAGE HERO
-══════════════════════════════════════ */
-.page-hero {
-  padding: 52px 0 40px;
-  background: linear-gradient(135deg,
-    rgba(200, 121, 26, 0.07) 0%,
-    rgba(100, 60, 10, 0.04) 60%,
-    transparent 100%);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 0;
-}
-
 .container {
   max-width: 1100px;
   margin: 0 auto;
   padding: 0 clamp(16px, 5vw, 48px);
 }
 
-.page-hero h1 {
-  font-size: clamp(1.8rem, 4vw, 2.6rem);
+.subtitle {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 22px;
+}
+
+/* ══════════════════════════════════════
+   BRAND HERO (logo + tagline + section nav)
+══════════════════════════════════════ */
+.brand-hero {
+  padding: 64px 0 44px;
+  text-align: center;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 0%, rgba(200, 121, 26, 0.12) 0%, transparent 70%);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand-logo {
+  width: 100%;
+  max-width: 220px;
+  margin: 0 auto 22px;
+  border-radius: 50%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--border);
+}
+
+.brand-tagline {
+  max-width: 560px;
+  margin: 0 auto 28px;
+  font-size: 1.05rem;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.section-nav {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.section-nav a {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 9px 22px;
+  border-radius: 20px;
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.section-nav a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(200, 121, 26, 0.08);
+}
+
+/* ══════════════════════════════════════
+   SECTIONS (Gallery / Shop / Contact share this)
+══════════════════════════════════════ */
+.section {
+  padding: 56px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.section:last-of-type {
+  border-bottom: none;
+}
+
+.section-header {
+  margin-bottom: 28px;
+}
+
+.section-header h2 {
+  font-size: clamp(1.5rem, 3.2vw, 2rem);
   font-weight: 800;
   background: linear-gradient(135deg, var(--text) 0%, var(--accent) 60%, #d4a060 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  letter-spacing: -0.5px;
-  margin-bottom: 8px;
-}
-
-.subtitle {
-  font-size: 0.95rem;
-  color: var(--muted);
-  margin-bottom: 22px;
+  letter-spacing: -0.4px;
+  margin-bottom: 6px;
 }
 
 /* ── Filter controls ── */
@@ -287,6 +342,213 @@ main {
 }
 
 /* ══════════════════════════════════════
+   SHOP
+══════════════════════════════════════ */
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.shop-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease;
+}
+
+.shop-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(200, 121, 26, 0.55);
+  box-shadow: 0 20px 48px rgba(200, 121, 26, 0.14), 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.shop-card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.shop-card-body {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.shop-card h3 {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.shop-price {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.92rem;
+  margin-bottom: 8px;
+}
+
+.shop-desc {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  margin-bottom: 16px;
+  flex: 1;
+}
+
+.shop-cta {
+  align-self: flex-start;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  padding: 8px 18px;
+  border-radius: 20px;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.shop-cta:hover {
+  background: var(--accent);
+  color: #000;
+}
+
+.shop-note {
+  margin-top: 26px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+/* ══════════════════════════════════════
+   CONTACT
+══════════════════════════════════════ */
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.form-field input,
+.form-field textarea {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px 13px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.92rem;
+  resize: vertical;
+}
+
+.form-field input:focus,
+.form-field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(200, 121, 26, 0.18);
+}
+
+.contact-form .submit-btn {
+  align-self: flex-start;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.contact-form .submit-btn:hover {
+  background: var(--accent-lt);
+}
+
+.contact-form .submit-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.form-msg {
+  font-size: 0.88rem;
+  min-height: 1.2em;
+}
+
+.form-msg.ok  { color: #7fd97f; }
+.form-msg.err { color: #e88; }
+
+.contact-direct {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 26px 24px;
+}
+
+.contact-direct h3 {
+  font-size: 0.95rem;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.direct-email {
+  display: inline-block;
+  color: var(--accent);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-decoration: none;
+  margin-bottom: 14px;
+  word-break: break-all;
+}
+
+.direct-email:hover { color: var(--accent-lt); }
+
+.contact-note {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 720px) {
+  .contact-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+}
+
+/* ══════════════════════════════════════
    LIGHTBOX
 ══════════════════════════════════════ */
 .lightbox {
@@ -363,5 +625,7 @@ footer {
 /* ── Mobile ── */
 @media (max-width: 600px) {
   .card img { height: 160px; }
+  .shop-card img { height: 160px; }
   .controls { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; }
+  .brand-logo { max-width: 170px; }
 }
