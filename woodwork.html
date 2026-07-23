@@ -26,9 +26,18 @@
     </div>
   </header>
 
-  <!-- ══ Brand hero — this is the "Kelleher Heartwood" storefront; the header
-       above stays as the Kelleher Innovations nav for now per plan to keep it
-       nested there until this moves to its own domain. ══ -->
+  <!-- ══ Kelleher Heartwood brand sub-nav — shared across woodwork.html /
+       gallery.html / shop.html ══ -->
+  <nav class="brand-nav">
+    <div class="brand-nav-inner">
+      <a href="woodwork.html" class="active">Home</a>
+      <a href="gallery.html">Gallery</a>
+      <a href="shop.html">Shop</a>
+      <a href="woodwork.html#contact">Contact</a>
+    </div>
+  </nav>
+
+  <!-- ══ Brand hero ══ -->
   <section class="brand-hero">
     <div class="container">
       <img src="images/kelleherheartwood.png" alt="Kelleher Heartwood — Custom Woodworking" class="brand-logo">
@@ -36,185 +45,90 @@
         Custom furniture, signs, and one-of-a-kind builds — handcrafted in Somerville, MA.
         Every piece made to order, built to last.
       </p>
-      <nav class="section-nav">
-        <a href="#gallery">Gallery</a>
-        <a href="#shop">Shop</a>
-        <a href="#contact">Contact</a>
-      </nav>
+      <div class="hero-ctas">
+        <a href="#contact" class="btn-primary">Request a Quote</a>
+        <a href="gallery.html" class="btn-secondary">View My Work</a>
+      </div>
     </div>
   </section>
 
-  <main style="padding-top: 0;">
+  <main>
 
-    <!-- ══ Gallery ══ -->
-    <section id="gallery" class="section">
+    <!-- ══ About ══ -->
+    <section class="section about-section">
       <div class="container">
-        <div class="section-header">
-          <h2>Gallery</h2>
-          <p class="subtitle">Completed builds — click any piece for a closer look.</p>
-        </div>
-
-        <nav class="controls" style="margin-bottom: 24px;">
-          <button class="filter-btn active" data-filter="*">All</button>
-          <button class="filter-btn" data-filter="furniture">Furniture</button>
-          <button class="filter-btn" data-filter="small-projects">Small Projects</button>
-        </nav>
-
-        <div class="gallery">
-
-          <figure class="card card-lower" data-category="furniture" data-caption="Circular End Table">
-            <img src="images/endtablecircular.jpg" alt="Circular End Table" loading="lazy">
-            <figcaption>
-              <h3>Circular End Table</h3>
-              <p class="tag">Furniture &middot; 2025</p>
-            </figcaption>
-          </figure>
-
-          <figure class="card card-lower" data-category="furniture" data-caption="Bench">
-            <img src="images/bench.jpg" alt="Bench" loading="lazy">
-            <figcaption>
-              <h3>Bench</h3>
-              <p class="tag">Furniture &middot; 2025</p>
-            </figcaption>
-          </figure>
-
-          <figure class="card card-lower" data-category="furniture" data-caption="Wine Rack">
-            <img src="images/winerack.jpg" alt="Wine Rack" loading="lazy">
-            <figcaption>
-              <h3>Wine Rack</h3>
-              <p class="tag">Furniture &middot; 2025</p>
-            </figcaption>
-          </figure>
-
-          <figure class="card" data-category="furniture" data-caption="Porch Coffee Table">
-            <img src="images/coffeetable.jpg" alt="Porch Coffee Table" loading="lazy">
-            <figcaption>
-              <h3>Porch Coffee Table</h3>
-              <p class="tag">Furniture &middot; 2026</p>
-            </figcaption>
-          </figure>
-
-          <figure class="card" data-category="furniture" data-caption="Ottoman Storage Bench">
-            <img src="images/ottoman.jpg" alt="Ottoman Storage Bench" loading="lazy">
-            <figcaption>
-              <h3>Ottoman Storage Bench</h3>
-              <p class="tag">Furniture &middot; 2026</p>
-            </figcaption>
-          </figure>
-
-          <figure class="card" data-category="small-projects" data-caption="Counter Extension">
-            <img src="images/counterextension.jpg" alt="Counter Extension" loading="lazy">
-            <figcaption>
-              <h3>Counter Extension</h3>
-              <p class="tag">Small Projects &middot; 2025</p>
-            </figcaption>
-          </figure>
-
-          <figure class="card" data-category="small-projects" data-caption="Reclaimed wood soldering station">
-            <img src="images/solderingstation.jpg" alt="Soldering Station" loading="lazy">
-            <figcaption>
-              <h3>Soldering Station</h3>
-              <p class="tag">Small Projects &middot; 2025</p>
-            </figcaption>
-          </figure>
-
-          <figure class="card" data-category="small-projects" data-caption="Plant Stand">
-            <img src="images/plantstand.jpg" alt="Plant Stand" loading="lazy">
-            <figcaption>
-              <h3>Plant Stand</h3>
-              <p class="tag">Small Projects &middot; 2026</p>
-            </figcaption>
-          </figure>
-
-          <figure class="card" data-category="small-projects" data-caption="Solar Box">
-            <img src="images/solarbox.jpg" alt="Solar Box" loading="lazy">
-            <figcaption>
-              <h3>Solar Box</h3>
-              <p class="tag">Small Projects &middot; 2026</p>
-            </figcaption>
-          </figure>
-
-          <figure class="card" data-category="furniture" data-caption="Tabletop">
-            <span class="sold-badge">Sold</span>
-            <img src="images/tabletop.jpg" alt="Tabletop" loading="lazy">
-            <figcaption>
-              <h3>Tabletop</h3>
-              <p class="tag">Furniture &middot; 2026 &middot; Sold</p>
-            </figcaption>
-          </figure>
-
-          <figure class="card" data-category="small-projects" data-caption="Bar Sign">
-            <span class="sold-badge">Sold</span>
-            <img src="images/barsign.jpg" alt="Bar Sign" loading="lazy">
-            <figcaption>
-              <h3>Bar Sign</h3>
-              <p class="tag">Small Projects &middot; 2026 &middot; Sold</p>
-            </figcaption>
-          </figure>
-
+        <div class="about-grid">
+          <div class="about-text">
+            <div class="section-header">
+              <h2>About Kelleher Heartwood</h2>
+            </div>
+            <p>
+              Kelleher Heartwood is a custom woodworking shop based in Somerville, Massachusetts.
+              Every piece — from furniture to signage — is designed and built one at a time, with
+              an eye for the details that make handmade work worth the wait.
+            </p>
+            <p>
+              Whether it's a table built to fit your exact space, a sign that captures your style,
+              or something entirely custom, I work with you from first sketch to final finish —
+              picking wood, dimensions, and details together before anything gets cut.
+            </p>
+            <!-- Personalize this further with more of your own story/background whenever you're ready -->
+            <a href="#contact" class="btn-secondary" style="margin-top: 8px;">Start a Project</a>
+          </div>
+          <div class="about-photo">
+            <img src="images/winerack.jpg" alt="Custom wine rack build" loading="lazy">
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- ══ Shop ══
-         NOTE: pricing is intentionally "quote on request" rather than fixed —
-         everything here is custom/made-to-order, not standing inventory.
-         Swap in real ready-to-buy items (with real prices) if/when there's
-         actual in-stock inventory to sell. -->
-    <section id="shop" class="section">
+    <!-- ══ Showcase carousel ══ -->
+    <section class="section showcase-section">
       <div class="container">
-        <div class="section-header">
-          <h2>Shop</h2>
-          <p class="subtitle">Most pieces are custom, made to order. Here's the kind of work available to commission — reach out with your dimensions, wood preference, and vision.</p>
+        <div class="section-header centered">
+          <h2>Some Recent Work</h2>
+          <p class="subtitle">A quick look — see the full gallery for everything.</p>
         </div>
 
-        <div class="shop-grid">
-
-          <div class="shop-card">
-            <img src="images/coffeetable.jpg" alt="Custom tables" loading="lazy">
-            <div class="shop-card-body">
-              <h3>Custom Tables</h3>
-              <p class="shop-price">Priced per project &mdash; inquire for a quote</p>
-              <p class="shop-desc">Coffee tables, end tables, dining tables &mdash; built to your size, wood, and finish.</p>
-              <a href="#contact" class="shop-cta">Request a Quote</a>
+        <div class="carousel">
+          <button class="carousel-arrow prev" id="carouselPrev" aria-label="Previous slide">&#9664;</button>
+          <button class="carousel-arrow next" id="carouselNext" aria-label="Next slide">&#9654;</button>
+          <div class="carousel-track">
+            <div class="carousel-slide active">
+              <img src="images/winerack.jpg" alt="Wine Rack" loading="lazy">
+              <div class="carousel-caption">Wine Rack</div>
+            </div>
+            <div class="carousel-slide">
+              <img src="images/endtablecircular.jpg" alt="Circular End Table" loading="lazy">
+              <div class="carousel-caption">Circular End Table</div>
+            </div>
+            <div class="carousel-slide">
+              <img src="images/coffeetable.jpg" alt="Porch Coffee Table" loading="lazy">
+              <div class="carousel-caption">Porch Coffee Table</div>
+            </div>
+            <div class="carousel-slide">
+              <img src="images/tabletop.jpg" alt="Tabletop" loading="lazy">
+              <div class="carousel-caption">Tabletop</div>
+            </div>
+            <div class="carousel-slide">
+              <img src="images/barsign.jpg" alt="Bar Sign" loading="lazy">
+              <div class="carousel-caption">Bar Sign</div>
             </div>
           </div>
-
-          <div class="shop-card">
-            <img src="images/barsign.jpg" alt="Custom signs" loading="lazy">
-            <div class="shop-card-body">
-              <h3>Custom Signs</h3>
-              <p class="shop-price">Priced per project &mdash; inquire for a quote</p>
-              <p class="shop-desc">Bar signs, house signs, and personalized wall pieces, carved and finished to order.</p>
-              <a href="#contact" class="shop-cta">Request a Quote</a>
-            </div>
-          </div>
-
-          <div class="shop-card">
-            <img src="images/bench.jpg" alt="Benches and seating" loading="lazy">
-            <div class="shop-card-body">
-              <h3>Benches &amp; Seating</h3>
-              <p class="shop-price">Priced per project &mdash; inquire for a quote</p>
-              <p class="shop-desc">Entryway benches, storage benches, and outdoor seating built to last.</p>
-              <a href="#contact" class="shop-cta">Request a Quote</a>
-            </div>
-          </div>
-
+          <div class="carousel-dots" id="carouselDots"></div>
         </div>
-
-        <p class="shop-note">Have something else in mind? I take on all kinds of custom builds &mdash; <a href="#contact">get in touch</a> and let's talk about it.</p>
       </div>
     </section>
 
     <!-- ══ Contact ══ -->
     <section id="contact" class="section">
       <div class="container">
-        <div class="section-header">
+        <div class="section-header centered">
           <h2>Get in Touch</h2>
           <p class="subtitle">Have a project in mind? Send a few details and I'll get back to you.</p>
         </div>
 
-        <div class="contact-grid">
+        <div class="contact-card">
           <form id="contactForm" class="contact-form">
             <div class="form-row">
               <div class="form-field">
@@ -234,10 +148,11 @@
             <p class="form-msg" id="formMsg"></p>
           </form>
 
-          <div class="contact-direct">
-            <h3>Prefer email?</h3>
+          <div class="contact-divider">Or reach out directly</div>
+
+          <div class="contact-email-row">
             <a href="mailto:kelleherheartwood@gmail.com" class="direct-email">kelleherheartwood@gmail.com</a>
-            <p class="contact-note">Based in Somerville, MA &mdash; happy to discuss custom furniture, signs, repairs, or one-off builds.</p>
+            <p class="contact-note">Based in Somerville, MA — happy to discuss custom furniture, signs, repairs, or one-off builds.</p>
           </div>
         </div>
       </div>
@@ -246,94 +161,53 @@
   </main>
 
   <footer>
-    <p>&copy; 2026 Kelleher Heartwood &nbsp;&middot;&nbsp; <a href="mailto:kelleherheartwood@gmail.com" style="color:inherit;">kelleherheartwood@gmail.com</a></p>
+    <img src="images/kelleherheartwood.png" alt="Kelleher Heartwood" class="footer-logo">
+    <div class="footer-socials">
+      <a href="mailto:kelleherheartwood@gmail.com">Email</a>
+      <!-- Swap in your real Instagram handle when ready -->
+      <a href="https://instagram.com/YOUR_INSTAGRAM_HANDLE" target="_blank" rel="noopener">Instagram</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 Kelleher Heartwood</p>
   </footer>
 
-  <!-- Lightbox Modal -->
-  <div id="lightbox" class="lightbox" aria-hidden="true" role="dialog" aria-label="Image preview">
-    <button id="lbClose" class="lb-close" aria-label="Close">&#x2715;</button>
-    <button id="lbPrev" class="lb-nav lb-prev" aria-label="Previous">&#9664;</button>
-    <div class="lb-stage">
-      <img id="lbImage" src="" alt="">
-      <div id="lbCaption" class="lb-caption"></div>
-    </div>
-    <button id="lbNext" class="lb-nav lb-next" aria-label="Next">&#9654;</button>
-  </div>
-
 <script>
-/* ----- FILTERING ----- */
-const filterBtns = document.querySelectorAll('.filter-btn');
-const cards = document.querySelectorAll('.card');
+/* ----- CAROUSEL ----- */
+const slides = document.querySelectorAll('.carousel-slide');
+const dotsWrap = document.getElementById('carouselDots');
+let current = 0;
+let autoTimer;
 
-filterBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    filterBtns.forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const filter = btn.getAttribute('data-filter');
-    cards.forEach(card => {
-      card.style.display = (filter === '*' || card.dataset.category === filter) ? '' : 'none';
-    });
-  });
-});
-
-/* ----- LIGHTBOX ----- */
-const lightbox = document.getElementById('lightbox');
-const lbImage  = document.getElementById('lbImage');
-const lbCaption = document.getElementById('lbCaption');
-const lbClose  = document.getElementById('lbClose');
-const lbPrev   = document.getElementById('lbPrev');
-const lbNext   = document.getElementById('lbNext');
-
-let visibleIndex = -1;
-let visibleCards = Array.from(cards);
-
-function openLightbox(index) {
-  visibleIndex = index;
-  const card = visibleCards[visibleIndex];
-  const img = card.querySelector('img');
-  lbImage.src = img.src;
-  lbImage.alt = img.alt || '';
-  lbCaption.textContent = card.dataset.caption || card.querySelector('figcaption h3')?.textContent || '';
-  lightbox.setAttribute('aria-hidden', 'false');
-  lightbox.classList.add('open');
-  document.body.style.overflow = 'hidden';
+function showSlide(i) {
+  slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+  dotsWrap.querySelectorAll('button').forEach((d, idx) => d.classList.toggle('active', idx === i));
+  current = i;
 }
 
-function closeLightbox() {
-  lightbox.setAttribute('aria-hidden', 'true');
-  lightbox.classList.remove('open');
-  lbImage.src = '';
-  document.body.style.overflow = '';
+slides.forEach((_, i) => {
+  const dot = document.createElement('button');
+  dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+  dot.addEventListener('click', () => { showSlide(i); resetAuto(); });
+  dotsWrap.appendChild(dot);
+});
+showSlide(0);
+
+function resetAuto() {
+  clearInterval(autoTimer);
+  autoTimer = setInterval(() => showSlide((current + 1) % slides.length), 5000);
 }
 
-function updateVisibleCards() {
-  visibleCards = Array.from(document.querySelectorAll('.card')).filter(c => c.style.display !== 'none');
-}
-
-cards.forEach(card => {
-  card.addEventListener('click', () => {
-    updateVisibleCards();
-    openLightbox(visibleCards.indexOf(card));
-  });
+document.getElementById('carouselPrev').addEventListener('click', () => {
+  showSlide((current - 1 + slides.length) % slides.length);
+  resetAuto();
+});
+document.getElementById('carouselNext').addEventListener('click', () => {
+  showSlide((current + 1) % slides.length);
+  resetAuto();
 });
 
-lbClose.addEventListener('click', closeLightbox);
-lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
-lbPrev.addEventListener('click', () => { if (visibleIndex > 0) openLightbox(visibleIndex - 1); });
-lbNext.addEventListener('click', () => { if (visibleIndex < visibleCards.length - 1) openLightbox(visibleIndex + 1); });
-
-document.addEventListener('keydown', e => {
-  if (!lightbox.classList.contains('open')) return;
-  if (e.key === 'Escape') closeLightbox();
-  if (e.key === 'ArrowLeft') lbPrev.click();
-  if (e.key === 'ArrowRight') lbNext.click();
-});
+resetAuto();
 
 /* ----- CONTACT FORM (Formspree) ----- */
-// TODO: replace with your real Formspree endpoint. Sign up free at
-// https://formspree.io, create a new form, set its notification email to
-// kelleherheartwood@gmail.com, then swap the URL below for the one it gives you
-// (looks like https://formspree.io/f/xxxxxxxx).
 const FORMSPREE_ENDPOINT = "https://formspree.io/f/xzdnakpk";
 
 const contactForm = document.getElementById('contactForm');
@@ -342,12 +216,6 @@ const contactSubmitBtn = document.getElementById('contactSubmitBtn');
 
 contactForm.addEventListener('submit', async e => {
   e.preventDefault();
-
-  if (FORMSPREE_ENDPOINT.includes('YOUR_FORM_ID')) {
-    formMsg.textContent = 'Form isn\'t connected yet — email kelleherheartwood@gmail.com directly for now.';
-    formMsg.className = 'form-msg err';
-    return;
-  }
 
   contactSubmitBtn.disabled = true;
   formMsg.textContent = '';
