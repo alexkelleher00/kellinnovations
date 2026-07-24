@@ -20,10 +20,12 @@ No build step — plain HTML/CSS/JS, deploy by pushing to git (auto-deploys via 
 | `style.css` | Global dark theme; all CSS variables defined here |
 | `portfolio.css` | Portfolio-specific styles |
 
-Woodworking (formerly `woodwork.html`/`gallery.html`/`shop.html`) now lives in its own repo,
-**kelleherheartwood** (`git@github.com:alexkelleher00/kelleherheartwood.git`, local copy at
-`Website/kelleherheartwood/`). It's not currently hosted anywhere live — the "Woodwork" nav
-links and the homepage project card link straight to the GitHub repo.
+Woodworking (formerly `woodwork.html`/`gallery.html`/`shop.html`) now lives in its own repo and
+is rebranded as **Kelleher Workshop**, live at **kelleherworkshop.com** via GitHub Pages (custom
+domain set via the repo's `CNAME` file). The "Woodwork" nav links and the homepage project card
+link straight to that domain. Repo is currently still named `kelleherheartwood` on GitHub
+(`git@github.com:alexkelleher00/kelleherheartwood.git`, local copy at `Website/kelleherheartwood/`)
+pending a rename to `kelleherworkshop` — update this note and the local folder path once that's done.
 
 ## Design System (`style.css`)
 
