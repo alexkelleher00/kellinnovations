@@ -15,6 +15,9 @@
 
   .pt-screen { display: none; }
   .pt-screen.active { display: block; }
+  /* .pt-stage inside is position:fixed (out of flow), which would otherwise
+     leave this section a degenerate 0-height box */
+  #screen-board.active { position: fixed; inset: 0; }
 
   /* ── Landing ── */
   .pt-landing {
@@ -118,28 +121,20 @@
     padding: 2px 7px; border-radius: 10px; background: rgba(0,200,200,0.15); color: var(--accent);
   }
 
-  /* ── Board screen layout ── */
-  .pt-game-wrap {
-    display: flex;
-    gap: 14px;
-    padding: 14px;
-    min-height: 100vh;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  .pt-board-col { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  /* ── Board screen: full-screen mobile-first stage ── */
+  .pt-stage { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
+  .pt-board-viewport { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .pt-board {
     display: grid;
     grid-template-columns: repeat(11, 1fr);
     grid-template-rows: repeat(11, 1fr);
     gap: 2px;
-    width: min(78vh, 92vw, 760px);
-    aspect-ratio: 1;
+    width: min(100vw, 100dvh);
+    height: min(100vw, 100dvh);
     background: var(--border);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
+    will-change: transform;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .pt-cell {
     position: relative;
@@ -159,6 +154,7 @@
   }
   .pt-cell:hover { background: var(--surface2); }
   .pt-cell.corner { font-size: 0.58rem; justify-content: center; color: var(--text); font-weight: 700; }
+  .pt-cell.here { box-shadow: inset 0 0 0 2px var(--accent); }
   .pt-cell .grp-bar { position: absolute; top: 0; left: 0; right: 0; height: 6px; }
   .pt-cell .cell-name { font-weight: 600; color: var(--text); padding: 0 1px; }
   .pt-cell .cell-price { color: var(--dim); font-size: 0.48rem; }
@@ -168,74 +164,138 @@
   .pt-cell.mortgaged { opacity: 0.5; }
   .pt-cell .cell-build { position: absolute; top: 8px; left: 2px; font-size: 0.5rem; }
 
-  .pt-center {
+  .pt-center-logo {
     grid-column: 2 / 11;
     grid-row: 2 / 11;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 10px;
     background: linear-gradient(135deg, rgba(0,200,200,0.05), rgba(120,0,200,0.04));
-    text-align: center;
-    padding: 10px;
   }
-  .pt-center h2 {
-    font-size: clamp(1.1rem, 3vw, 1.7rem);
+  .pt-center-logo span {
+    font-size: clamp(0.9rem, 2.4vw, 1.4rem);
     font-weight: 800;
+    opacity: 0.35;
     background: linear-gradient(135deg, var(--text) 0%, var(--accent) 55%, #8888ff 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   }
-  .pt-turn-indicator { font-size: 0.85rem; color: var(--muted); }
-  .pt-turn-indicator strong { color: var(--accent); }
-  .pt-dice { display: flex; gap: 8px; }
-  .pt-die {
-    width: 42px; height: 42px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.3rem; font-weight: 800; color: var(--text);
-  }
-  .pt-die.rolling { animation: pt-die-roll 0.4s ease; }
-  @keyframes pt-die-roll { from { transform: rotate(0deg) scale(1.15); } to { transform: rotate(360deg) scale(1); } }
 
-  /* ── Sidebar ── */
-  .pt-sidebar { flex: 0 1 340px; min-width: 280px; display: flex; flex-direction: column; gap: 10px; }
-  .pt-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px;
+  /* ── HUD overlays (siblings of the zoomed board, never transformed) ── */
+  .pt-hud-top {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 12px; pointer-events: none;
   }
-  .pt-card h4 {
+  .pt-hud-btn {
+    pointer-events: auto;
+    width: 46px; height: 46px; border-radius: 50%;
+    background: rgba(23,23,42,0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border); color: var(--text);
+    font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  }
+  .pt-hud-money {
+    pointer-events: auto;
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(23,23,42,0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border); border-radius: 24px;
+    padding: 10px 16px; font-weight: 800; color: var(--accent); font-size: 0.95rem;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  }
+  .pt-hud-money .piece { font-size: 1.1rem; }
+
+  .pt-turn-pill {
+    position: fixed; top: 66px; left: 50%; transform: translateX(-50%); z-index: 190;
+    background: rgba(23,23,42,0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 6px 16px; font-size: 0.78rem; color: var(--muted); pointer-events: none;
+    white-space: nowrap;
+  }
+  .pt-turn-pill strong { color: var(--accent); }
+  .pt-turn-pill.mine { border-color: var(--accent); color: var(--text); }
+  .pt-turn-pill:empty { display: none; }
+
+  .pt-zoom-btn {
+    position: fixed; top: 66px; left: 12px; z-index: 190;
+    background: rgba(23,23,42,0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border); border-radius: 20px; color: var(--text);
+    padding: 9px 14px; font-size: 0.76rem; font-family: inherit; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  }
+  .pt-zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Center dice / roll CTA ── */
+  .pt-center-action {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 150;
+    display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
+    pointer-events: none;
+  }
+  .pt-center-action > * { pointer-events: auto; }
+  .pt-roll-cta {
+    padding: 18px 34px; background: var(--accent); color: #000; border: none; border-radius: 50px;
+    font-weight: 800; font-size: 1.05rem; font-family: inherit; cursor: pointer;
+    box-shadow: 0 8px 28px rgba(0,200,200,0.45); animation: pt-pulse 1.8s ease-in-out infinite;
+  }
+  .pt-roll-cta:hover { background: #00e0e0; }
+  @keyframes pt-pulse { 0%,100% { box-shadow: 0 8px 28px rgba(0,200,200,0.45); } 50% { box-shadow: 0 8px 40px rgba(0,200,200,0.75); } }
+  .pt-dice-big { display: flex; gap: 10px; }
+  .pt-die-big {
+    width: 56px; height: 56px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    font-size: 1.7rem; font-weight: 800; color: var(--text);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4); animation: pt-die-drop 0.35s ease;
+  }
+  @keyframes pt-die-drop { from { transform: translateY(-14px) rotate(-8deg); opacity: 0; } to { transform: translateY(0) rotate(0); opacity: 1; } }
+
+  /* ── Bottom floating actions ── */
+  .pt-floating-actions {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 150;
+    display: flex; flex-direction: column; gap: 8px; align-items: center;
+    width: min(420px, 94vw);
+  }
+  .pt-debt-banner, .pt-buy-banner {
+    width: 100%; box-sizing: border-box;
+    background: rgba(23,23,42,0.92); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border-radius: 12px; padding: 12px 14px; font-size: 0.85rem;
+    display: flex; flex-direction: column; gap: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .pt-debt-banner { border: 1px solid #e03131; color: #ff9494; }
+  .pt-buy-banner { border: 1px solid var(--accent); color: var(--text); }
+
+  /* ── Hamburger drawer ── */
+  .pt-drawer-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300;
+    display: none; opacity: 0; transition: opacity 0.25s ease;
+  }
+  .pt-drawer-overlay.open { display: block; opacity: 1; }
+  .pt-drawer {
+    position: absolute; top: 0; left: 0; bottom: 0; width: min(320px, 86vw);
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 20px; overflow-y: auto; box-sizing: border-box;
+    transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .pt-drawer-overlay.open .pt-drawer { transform: translateX(0); }
+  .pt-drawer-section { margin-top: 20px; }
+  .pt-drawer-section:first-of-type { margin-top: 4px; }
+  .pt-drawer-section h4 {
     font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--accent); margin-bottom: 10px;
+    color: var(--accent); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
   }
-  .pt-me-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.86rem; }
-  .pt-me-row:last-child { border-bottom: none; }
-  .pt-me-row.you { background: rgba(0,200,200,0.06); border-radius: 6px; padding: 6px 8px; }
-  .pt-me-row .piece { font-size: 1.15rem; }
-  .pt-me-row .pname { flex: 1; font-weight: 600; }
-  .pt-me-row .pcash { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
-  .pt-me-row.bankrupt { opacity: 0.4; text-decoration: line-through; }
-  .pt-me-row .jailtag { font-size: 0.65rem; color: #ff9f43; }
-
-  .pt-action-bar { display: flex; flex-direction: column; gap: 8px; }
-  .pt-debt-banner {
-    background: rgba(224,49,49,0.15); border: 1px solid #e03131; border-radius: 8px;
-    padding: 10px 12px; font-size: 0.84rem; color: #ff9494; display: flex; flex-direction: column; gap: 8px;
-  }
-  .pt-buy-banner {
-    background: rgba(0,200,200,0.1); border: 1px solid var(--accent); border-radius: 8px;
-    padding: 10px 12px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px;
-  }
+  .pt-lb-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 0.85rem; }
+  .pt-lb-rank { width: 18px; color: var(--dim); font-weight: 700; font-size: 0.78rem; }
+  .pt-lb-row .piece { font-size: 1.1rem; }
+  .pt-lb-row .pname { flex: 1; font-weight: 600; }
+  .pt-lb-row .pworth { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .pt-lb-row.you { background: rgba(0,200,200,0.08); border-radius: 6px; padding: 6px 8px; }
+  .pt-lb-row.bankrupt { opacity: 0.4; text-decoration: line-through; }
+  .pt-jailtag { font-size: 0.65rem; color: #ff9f43; }
+  .pt-trade-badge { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ff6b6b; margin-left: 6px; }
 
   .pt-log { display: flex; flex-direction: column-reverse; gap: 6px; max-height: 220px; overflow-y: auto; font-size: 0.78rem; }
   .pt-log-entry { padding: 5px 8px; border-left: 2px solid var(--accent); background: rgba(0,200,200,0.05); border-radius: 0 5px 5px 0; color: var(--text); }
 
   /* ── Toasts ── */
-  .pt-toasts { position: fixed; top: 14px; right: 14px; z-index: 500; display: flex; flex-direction: column; gap: 8px; max-width: 320px; pointer-events: none; }
+  .pt-toasts { position: fixed; top: 120px; right: 14px; z-index: 500; display: flex; flex-direction: column; gap: 8px; max-width: 320px; pointer-events: none; }
   .pt-toast {
     padding: 10px 14px; border-radius: 8px; font-size: 0.83rem;
     background: var(--surface); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,0.4);
@@ -345,22 +405,40 @@
 
   <!-- ══════════════ Board ══════════════ -->
   <section id="screen-board" class="pt-screen">
-    <div class="pt-game-wrap">
-      <div class="pt-board-col">
+    <div class="pt-stage" id="gameStage">
+      <div class="pt-board-viewport" id="boardViewport">
         <div class="pt-board" id="boardGrid"></div>
       </div>
-      <div class="pt-sidebar">
-        <div class="pt-card">
-          <h4>Players</h4>
-          <div id="playerList"></div>
-        </div>
-        <div class="pt-card">
-          <h4>Your Turn</h4>
-          <div class="pt-action-bar" id="actionBar"></div>
-        </div>
-        <div class="pt-card">
-          <h4>Activity</h4>
-          <div class="pt-log" id="logFeed"></div>
+
+      <div class="pt-hud-top">
+        <button class="pt-hud-btn" id="menuBtn" aria-label="Menu">☰</button>
+        <div class="pt-hud-money" id="hudMoney"></div>
+      </div>
+      <div class="pt-turn-pill" id="turnPill"></div>
+      <button class="pt-zoom-btn" id="zoomBtn">⤢ Fit Board</button>
+
+      <div class="pt-center-action" id="centerAction"></div>
+      <div class="pt-floating-actions" id="floatingActions"></div>
+
+      <div class="pt-drawer-overlay" id="drawerOverlay">
+        <div class="pt-drawer">
+          <button class="pt-modal-close" id="closeDrawerBtn">&times;</button>
+          <h3>Menu</h3>
+          <div class="pt-drawer-section">
+            <h4>Leaderboard</h4>
+            <div id="leaderboardList"></div>
+          </div>
+          <div class="pt-drawer-section" style="display:flex; flex-direction:column; gap:8px;">
+            <button class="pt-btn" id="drawerTradeBtn" style="width:100%;">Trade</button>
+            <button class="pt-btn pt-btn-outline" id="drawerPropsBtn" style="width:100%;">Properties</button>
+          </div>
+          <div class="pt-drawer-section">
+            <h4>Activity</h4>
+            <div class="pt-log" id="logFeed"></div>
+          </div>
+          <div class="pt-drawer-section">
+            <button class="pt-btn pt-btn-outline pt-btn-small" id="leaveGameBtn">Leave Game</button>
+          </div>
         </div>
       </div>
     </div>
@@ -372,7 +450,10 @@
       <div class="trophy">🏆</div>
       <h2 id="winnerName">—</h2>
       <p class="pt-lobby-hint" id="finalStandings"></p>
-      <a href="propertytrade.html" class="pt-btn" style="text-decoration:none; display:inline-block; margin-top:10px;">Play Again</a>
+      <div class="pt-btn-row" style="justify-content:center; margin-top:10px;">
+        <button class="pt-btn" id="playAgainBtn">Play Again</button>
+        <a href="index.html" class="pt-btn pt-btn-outline" style="text-decoration:none;">Back to Home</a>
+      </div>
     </div>
   </section>
 
@@ -407,6 +488,8 @@
   let selectedCreatePiece = null;
   let selectedJoinPiece = null;
   let tradeTargetId = null;
+  let zoomMode = "follow"; // "follow" (zoomed on your token) | "fit" (whole board)
+  const ZOOM_SCALE = 2.4;
 
   function loadSession() {
     try { return JSON.parse(localStorage.getItem("pt_session") || "null"); }
@@ -532,8 +615,93 @@
       try { board = await api("/board"); indexBoard(); } catch (e) { toast(e.message, "error"); return; }
     }
     lastLogLen = -1;
+    zoomMode = "follow";
+    closeDrawer();
     render();
     startPolling();
+  }
+
+  // ── Drawer (hamburger menu) ─────────────────────────────────────────
+  function openDrawer() {
+    document.getElementById("drawerOverlay").classList.add("open");
+    renderLeaderboard();
+  }
+  function closeDrawer() {
+    document.getElementById("drawerOverlay").classList.remove("open");
+  }
+  document.getElementById("menuBtn").addEventListener("click", openDrawer);
+  document.getElementById("closeDrawerBtn").addEventListener("click", closeDrawer);
+  document.getElementById("drawerOverlay").addEventListener("click", e => {
+    if (e.target.id === "drawerOverlay") closeDrawer();
+  });
+  document.getElementById("drawerTradeBtn").addEventListener("click", () => { closeDrawer(); openTradeModal(); });
+  document.getElementById("drawerPropsBtn").addEventListener("click", () => { closeDrawer(); openManageModal(); });
+  function returnToLanding() {
+    stopPolling();
+    clearSession();
+    closeDrawer();
+    document.getElementById("createName").value = "";
+    document.getElementById("joinCode").value = "";
+    document.getElementById("joinName").value = "";
+    selectedCreatePiece = null;
+    selectedJoinPiece = null;
+    document.querySelectorAll("#createPiecePicker .pt-piece-btn, #joinPiecePicker .pt-piece-btn")
+      .forEach(b => b.classList.remove("selected"));
+    showScreen("landing");
+  }
+  document.getElementById("leaveGameBtn").addEventListener("click", () => {
+    if (confirm("Leave this game? You can rejoin later with the room code.")) returnToLanding();
+  });
+  document.getElementById("playAgainBtn").addEventListener("click", returnToLanding);
+
+  // ── Board zoom ───────────────────────────────────────────────────────
+  document.getElementById("zoomBtn").addEventListener("click", () => {
+    zoomMode = zoomMode === "follow" ? "fit" : "follow";
+    document.getElementById("zoomBtn").textContent = zoomMode === "follow" ? "⤢ Fit Board" : "🎯 Follow Me";
+    applyBoardZoom();
+  });
+  window.addEventListener("resize", () => {
+    if (document.getElementById("screen-board").classList.contains("active")) applyBoardZoom();
+  });
+
+  function applyBoardZoom() {
+    const vp = document.getElementById("boardViewport");
+    const grid = document.getElementById("boardGrid");
+    if (!vp || !grid) return;
+    const vw = vp.clientWidth, vh = vp.clientHeight;
+    if (zoomMode === "fit" || !state) {
+      grid.style.transformOrigin = "50% 50%";
+      grid.style.transform = "translate(0px, 0px) scale(1)";
+      return;
+    }
+    const m = me();
+    const pos = gridPos(m ? m.position : 0);
+    const fx = (pos.c - 0.5) / 11;
+    const fy = (pos.r - 0.5) / 11;
+    const S = ZOOM_SCALE;
+    const boardSize = Math.min(vw, vh);
+    const offsetX = (vw - boardSize) / 2;
+    const offsetY = (vh - boardSize) / 2;
+    const originScreenX = offsetX + fx * boardSize;
+    const originScreenY = offsetY + fy * boardSize;
+
+    // Ideal translate centers the target cell in the viewport...
+    let X = (vw / 2) - originScreenX;
+    let Y = (vh / 2) - originScreenY;
+
+    // ...but near a corner/edge that would pan past the board's own edge and
+    // reveal empty space beyond it. Clamp so the board edge stays flush with
+    // the viewport edge instead — same behavior as a map/photo viewer.
+    const scaledSize = S * boardSize;
+    const kx = originScreenX + S * (offsetX - originScreenX);
+    const ky = originScreenY + S * (offsetY - originScreenY);
+    const xMin = vw - kx - scaledSize, xMax = -kx;
+    const yMin = vh - ky - scaledSize, yMax = -ky;
+    if (xMin <= xMax) X = Math.min(Math.max(X, xMin), xMax);
+    if (yMin <= yMax) Y = Math.min(Math.max(Y, yMin), yMax);
+
+    grid.style.transformOrigin = `${fx * 100}% ${fy * 100}%`;
+    grid.style.transform = `translate(${X}px, ${Y}px) scale(${S})`;
   }
 
   function indexBoard() {
@@ -633,13 +801,8 @@
     });
 
     const center = document.createElement("div");
-    center.className = "pt-center";
-    center.id = "boardCenter";
-    center.innerHTML = `
-      <h2>Property Empire</h2>
-      <div class="pt-turn-indicator" id="turnIndicator"></div>
-      <div class="pt-dice" id="diceDisplay"></div>
-    `;
+    center.className = "pt-center-logo";
+    center.innerHTML = `<span>Property Empire</span>`;
     grid.appendChild(center);
     boardBuilt = true;
   }
@@ -670,6 +833,9 @@
   function renderBoard() {
     if (!boardBuilt) buildBoardGrid();
 
+    const m = me();
+    const myPos = (m && !m.bankrupt) ? m.position : null;
+
     // properties: owner dot, mortgage, build markers, tokens
     board.spaces.forEach(sp => {
       const cell = document.querySelector(`.pt-cell[data-idx="${sp.idx}"]`);
@@ -678,6 +844,7 @@
       const dot = cell.querySelector("[data-owner-dot]");
       const build = cell.querySelector("[data-build]");
       cell.classList.toggle("mortgaged", !!(prop && prop.mortgaged));
+      cell.classList.toggle("here", sp.idx === myPos);
       if (prop && prop.owner) {
         const ownerIdx = state.turn_order.indexOf(prop.owner);
         dot.style.background = PLAYER_COLORS[ownerIdx % PLAYER_COLORS.length] || "#888";
@@ -692,50 +859,95 @@
       tokWrap.innerHTML = here.map(p => `<span>${p.piece}</span>`).join("");
     });
 
-    // turn indicator + dice
-    const current = state.players.find(p => p.id === state.current_player);
-    document.getElementById("turnIndicator").innerHTML = current
-      ? `<strong>${escHtml(current.name)}</strong>'s turn`
-      : "";
-    const diceEl = document.getElementById("diceDisplay");
-    if (state.last_roll) {
-      diceEl.innerHTML = state.last_roll.map(d => `<div class="pt-die">${d}</div>`).join("");
-    } else {
-      diceEl.innerHTML = "";
-    }
-
-    renderPlayerList();
-    renderActionBar();
+    renderHud();
+    renderTurnPill();
+    renderCenterAction();
+    renderFloatingActions();
+    renderLeaderboard();
     renderLog();
     renderAuctionModal();
+    applyBoardZoom();
   }
 
-  function renderPlayerList() {
-    const wrap = document.getElementById("playerList");
-    wrap.innerHTML = state.players.map((p, i) => `
-      <div class="pt-me-row ${p.id === session.playerId ? "you" : ""} ${p.bankrupt ? "bankrupt" : ""}">
+  function renderHud() {
+    const m = me();
+    const hud = document.getElementById("hudMoney");
+    if (m) hud.innerHTML = `<span class="piece">${m.piece}</span> $${m.cash.toLocaleString()}`;
+  }
+
+  function renderTurnPill() {
+    const pill = document.getElementById("turnPill");
+    const current = state.players.find(p => p.id === state.current_player);
+    const mine = state.current_player === session.playerId;
+    pill.classList.toggle("mine", mine);
+    pill.innerHTML = current ? (mine ? `<strong>Your turn</strong>` : `<strong>${escHtml(current.name)}</strong>'s turn`) : "";
+  }
+
+  // Net worth = cash + property value (mortgage value if mortgaged, else price) + rough building equity
+  function netWorth(p) {
+    let total = p.cash;
+    Object.entries(state.properties).forEach(([idx, prop]) => {
+      if (prop.owner !== p.id) return;
+      const sp = boardByIdx[idx];
+      total += prop.mortgaged ? sp.mortgage : sp.price;
+      if (sp.type === "property" && prop.level > 0) {
+        total += prop.level === 5 ? sp.house_cost * 2 : sp.house_cost * prop.level * 0.5;
+      }
+    });
+    return total;
+  }
+
+  function renderLeaderboard() {
+    const wrap = document.getElementById("leaderboardList");
+    if (!wrap) return;
+    const ranked = state.players.slice().sort((a, b) => netWorth(b) - netWorth(a));
+    wrap.innerHTML = ranked.map((p, i) => `
+      <div class="pt-lb-row ${p.id === session.playerId ? "you" : ""} ${p.bankrupt ? "bankrupt" : ""}">
+        <span class="pt-lb-rank">#${i + 1}</span>
         <span class="piece">${p.piece}</span>
         <span class="pname">${escHtml(p.name)}${p.id === state.current_player ? " 🎯" : ""}</span>
-        ${p.in_jail ? '<span class="jailtag">JAIL</span>' : ""}
-        <span class="pcash">$${p.cash.toLocaleString()}</span>
+        ${p.in_jail ? '<span class="pt-jailtag">JAIL</span>' : ""}
+        <span class="pworth">$${netWorth(p).toLocaleString()}</span>
       </div>`).join("");
+    const tradeBtn = document.getElementById("drawerTradeBtn");
+    const hasPending = state.pending_trades.some(t => t.to === session.playerId || t.from === session.playerId);
+    tradeBtn.innerHTML = "Trade" + (hasPending ? '<span class="pt-trade-badge"></span>' : "");
   }
 
-  // ── Action bar ─────────────────────────────────────────────────────
-  function renderActionBar() {
-    const bar = document.getElementById("actionBar");
+  // ── Center action: the roll-dice CTA / dice result ──────────────────
+  function renderCenterAction() {
+    const el = document.getElementById("centerAction");
+    const m = me();
+    if (!m || m.bankrupt) { el.innerHTML = ""; return; }
+    const isMyTurn = state.current_player === session.playerId;
+    const canRoll = isMyTurn && !state.debts[m.id] && state.awaiting_buy === null && !state.auction
+      && (!state.dice_rolled || state.extra_roll_pending);
+
+    let html = "";
+    if (state.last_roll) {
+      html += `<div class="pt-dice-big">${state.last_roll.map(d => `<div class="pt-die-big">${d}</div>`).join("")}</div>`;
+    }
+    if (canRoll) {
+      const label = m.in_jail ? "Roll for Doubles" : (state.extra_roll_pending ? "Roll Again — Doubles!" : "Roll Dice");
+      html += `<button class="pt-roll-cta" data-roll>🎲 ${label}</button>`;
+    }
+    el.innerHTML = html;
+    const btn = el.querySelector("[data-roll]");
+    if (btn) btn.addEventListener("click", () => runAction(() => act("roll_dice")));
+  }
+
+  // ── Bottom floating actions: everything else ─────────────────────────
+  function renderFloatingActions() {
+    const bar = document.getElementById("floatingActions");
     const m = me();
     if (!m) { bar.innerHTML = ""; return; }
     const isMyTurn = state.current_player === session.playerId;
     let html = "";
 
     if (m.bankrupt) {
-      bar.innerHTML = `<p class="pt-lobby-hint">You're out — watch the rest of the game play out.</p>`;
-      return;
-    }
-
-    if (isMyTurn && state.debts[m.id]) {
-      html += `<div class="pt-debt-banner">
+      html = `<div class="pt-buy-banner">You're out — watch the rest of the game play out.</div>`;
+    } else if (isMyTurn && state.debts[m.id]) {
+      html = `<div class="pt-debt-banner">
         You owe money and can't cover it. Mortgage or sell buildings, or declare bankruptcy.
         <div class="pt-btn-row">
           <button class="pt-btn pt-btn-small" data-open-manage>Manage Properties</button>
@@ -744,7 +956,7 @@
       </div>`;
     } else if (isMyTurn && state.awaiting_buy !== null) {
       const sp = boardByIdx[state.awaiting_buy];
-      html += `<div class="pt-buy-banner">
+      html = `<div class="pt-buy-banner">
         Buy <strong>${escHtml(sp.name)}</strong> for $${sp.price}?
         <div class="pt-btn-row">
           <button class="pt-btn pt-btn-small" data-buy>Buy</button>
@@ -752,38 +964,26 @@
         </div>
       </div>`;
     } else if (isMyTurn && state.auction) {
-      html += `<p class="pt-lobby-hint">An auction is in progress — see the popup.</p>`;
+      html = `<div class="pt-buy-banner">An auction is in progress — see the popup.</div>`;
     } else if (isMyTurn && m.in_jail && !state.dice_rolled) {
-      html += `<p class="pt-lobby-hint">You're in jail (attempt ${m.jail_turns}/3).</p>
+      html = `<div class="pt-buy-banner">
+        In jail (attempt ${m.jail_turns}/3) — roll above, or:
         <div class="pt-btn-row">
-          <button class="pt-btn pt-btn-small" data-roll>Roll for Doubles</button>
           <button class="pt-btn pt-btn-outline pt-btn-small" data-pay-jail>Pay $50</button>
           ${m.jail_cards > 0 ? '<button class="pt-btn pt-btn-outline pt-btn-small" data-use-jail-card>Use Jail Card</button>' : ""}
-        </div>`;
-    } else if (isMyTurn) {
-      html += `<div class="pt-btn-row">
-        ${!state.dice_rolled || state.extra_roll_pending ? '<button class="pt-btn" data-roll>Roll Dice</button>' : ""}
-        ${state.dice_rolled && !state.extra_roll_pending ? '<button class="pt-btn" data-end-turn>End Turn</button>' : ""}
+        </div>
       </div>`;
-    } else {
-      const cur = state.players.find(p => p.id === state.current_player);
-      html += `<p class="pt-lobby-hint">Waiting for ${cur ? escHtml(cur.name) : "the next player"}…</p>`;
+    } else if (isMyTurn && state.dice_rolled && !state.extra_roll_pending) {
+      html = `<button class="pt-btn" data-end-turn>End Turn</button>`;
     }
 
-    html += `<div class="pt-btn-row" style="margin-top:6px;">
-      <button class="pt-btn pt-btn-outline pt-btn-small" data-open-manage>Properties</button>
-      <button class="pt-btn pt-btn-outline pt-btn-small" data-open-trade>Trade</button>
-      ${!isMyTurn && !m.bankrupt && !state.debts[m.id] ? '<button class="pt-btn pt-btn-danger pt-btn-small" data-bankrupt>Bankrupt</button>' : ""}
-    </div>`;
-
-    if (state.pending_trades.some(t => t.to === m.id || t.from === m.id)) {
-      html += `<div class="pt-lobby-hint">You have a pending trade — open Trade to review it.</div>`;
+    if (!isMyTurn && !m.bankrupt && !state.debts[m.id]) {
+      html += `<button class="pt-btn pt-btn-danger pt-btn-small" data-bankrupt>Bankrupt</button>`;
     }
 
     bar.innerHTML = html;
 
     const on = (sel, fn) => { const el = bar.querySelector(sel); if (el) el.addEventListener("click", fn); };
-    on("[data-roll]", () => runAction(() => act("roll_dice")));
     on("[data-buy]", () => runAction(() => act("buy")));
     on("[data-pass]", () => runAction(() => act("pass")));
     on("[data-end-turn]", () => runAction(() => act("end_turn")));
@@ -793,7 +993,6 @@
       if (confirm("Declare bankruptcy? You'll be out of the game.")) runAction(() => act("declare_bankruptcy"));
     });
     on("[data-open-manage]", openManageModal);
-    on("[data-open-trade]", openTradeModal);
   }
 
   let actionInFlight = false;
