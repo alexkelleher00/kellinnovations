@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Property Empire — Kelleher Innovations</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* ══════════════════════════════════════
+     Property Empire — page-scoped styles
+  ══════════════════════════════════════ */
+  body.pt-in-game header,
+  body.pt-in-game footer { display: none; }
+  body.pt-in-game main { padding: 0; max-width: none; }
+
+  .pt-screen { display: none; }
+  .pt-screen.active { display: block; }
+
+  /* ── Landing ── */
+  .pt-landing {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap);
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  @media (max-width: 700px) { .pt-landing { grid-template-columns: 1fr; } }
+
+  .pt-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .pt-panel h3 {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pt-panel input[type="text"] {
+    padding: 10px 12px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-family: inherit;
+  }
+  .pt-panel input[type="text"]:focus { outline: none; border-color: var(--accent); }
+  .pt-panel input[type="text"].pt-code-input { text-transform: uppercase; letter-spacing: 0.2em; text-align: center; font-weight: 700; }
+
+  .pt-piece-picker { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .pt-piece-btn {
+    font-size: 1.4rem;
+    padding: 10px 0;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  }
+  .pt-piece-btn:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .pt-piece-btn.selected { border-color: var(--accent); background: rgba(0,200,200,0.14); box-shadow: 0 0 0 2px rgba(0,200,200,0.25); }
+
+  .pt-btn {
+    padding: 10px 20px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.88rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+  }
+  .pt-btn:hover:not(:disabled) { background: #00e0e0; transform: translateY(-1px); }
+  .pt-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .pt-btn.pt-btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+  .pt-btn.pt-btn-outline:hover:not(:disabled) { background: var(--accent); color: #000; }
+  .pt-btn.pt-btn-danger { background: #e03131; color: #fff; }
+  .pt-btn.pt-btn-danger:hover:not(:disabled) { background: #ff5555; }
+  .pt-btn.pt-btn-small { padding: 6px 12px; font-size: 0.78rem; }
+  .pt-btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .pt-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; }
+
+  /* ── Lobby ── */
+  .pt-lobby { max-width: 560px; margin: 0 auto; text-align: center; }
+  .pt-lobby-code {
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    margin: 6px 0 4px;
+  }
+  .pt-lobby-hint { color: var(--muted); font-size: 0.85rem; margin-bottom: 18px; }
+  .pt-player-list { display: flex; flex-direction: column; gap: 8px; margin: 18px 0; text-align: left; }
+  .pt-player-chip {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.92rem;
+  }
+  .pt-player-chip .piece { font-size: 1.3rem; }
+  .pt-player-chip .name { flex: 1; font-weight: 600; }
+  .pt-badge {
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 2px 7px; border-radius: 10px; background: rgba(0,200,200,0.15); color: var(--accent);
+  }
+
+  /* ── Board screen layout ── */
+  .pt-game-wrap {
+    display: flex;
+    gap: 14px;
+    padding: 14px;
+    min-height: 100vh;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .pt-board-col { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .pt-board {
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);
+    grid-template-rows: repeat(11, 1fr);
+    gap: 2px;
+    width: min(78vh, 92vw, 760px);
+    aspect-ratio: 1;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .pt-cell {
+    position: relative;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 2px;
+    overflow: hidden;
+    cursor: pointer;
+    font-size: 0.5rem;
+    line-height: 1.15;
+    text-align: center;
+    color: var(--muted);
+    transition: background 0.15s;
+  }
+  .pt-cell:hover { background: var(--surface2); }
+  .pt-cell.corner { font-size: 0.58rem; justify-content: center; color: var(--text); font-weight: 700; }
+  .pt-cell .grp-bar { position: absolute; top: 0; left: 0; right: 0; height: 6px; }
+  .pt-cell .cell-name { font-weight: 600; color: var(--text); padding: 0 1px; }
+  .pt-cell .cell-price { color: var(--dim); font-size: 0.48rem; }
+  .pt-cell .cell-owner-dot { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; }
+  .pt-cell .cell-tokens { position: absolute; bottom: 2px; left: 2px; display: flex; flex-wrap: wrap; gap: 1px; max-width: 90%; }
+  .pt-cell .cell-tokens span { font-size: 0.62rem; filter: drop-shadow(0 0 2px #000); }
+  .pt-cell.mortgaged { opacity: 0.5; }
+  .pt-cell .cell-build { position: absolute; top: 8px; left: 2px; font-size: 0.5rem; }
+
+  .pt-center {
+    grid-column: 2 / 11;
+    grid-row: 2 / 11;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: linear-gradient(135deg, rgba(0,200,200,0.05), rgba(120,0,200,0.04));
+    text-align: center;
+    padding: 10px;
+  }
+  .pt-center h2 {
+    font-size: clamp(1.1rem, 3vw, 1.7rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--text) 0%, var(--accent) 55%, #8888ff 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .pt-turn-indicator { font-size: 0.85rem; color: var(--muted); }
+  .pt-turn-indicator strong { color: var(--accent); }
+  .pt-dice { display: flex; gap: 8px; }
+  .pt-die {
+    width: 42px; height: 42px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; font-weight: 800; color: var(--text);
+  }
+  .pt-die.rolling { animation: pt-die-roll 0.4s ease; }
+  @keyframes pt-die-roll { from { transform: rotate(0deg) scale(1.15); } to { transform: rotate(360deg) scale(1); } }
+
+  /* ── Sidebar ── */
+  .pt-sidebar { flex: 0 1 340px; min-width: 280px; display: flex; flex-direction: column; gap: 10px; }
+  .pt-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+  .pt-card h4 {
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--accent); margin-bottom: 10px;
+  }
+  .pt-me-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.86rem; }
+  .pt-me-row:last-child { border-bottom: none; }
+  .pt-me-row.you { background: rgba(0,200,200,0.06); border-radius: 6px; padding: 6px 8px; }
+  .pt-me-row .piece { font-size: 1.15rem; }
+  .pt-me-row .pname { flex: 1; font-weight: 600; }
+  .pt-me-row .pcash { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .pt-me-row.bankrupt { opacity: 0.4; text-decoration: line-through; }
+  .pt-me-row .jailtag { font-size: 0.65rem; color: #ff9f43; }
+
+  .pt-action-bar { display: flex; flex-direction: column; gap: 8px; }
+  .pt-debt-banner {
+    background: rgba(224,49,49,0.15); border: 1px solid #e03131; border-radius: 8px;
+    padding: 10px 12px; font-size: 0.84rem; color: #ff9494; display: flex; flex-direction: column; gap: 8px;
+  }
+  .pt-buy-banner {
+    background: rgba(0,200,200,0.1); border: 1px solid var(--accent); border-radius: 8px;
+    padding: 10px 12px; font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px;
+  }
+
+  .pt-log { display: flex; flex-direction: column-reverse; gap: 6px; max-height: 220px; overflow-y: auto; font-size: 0.78rem; }
+  .pt-log-entry { padding: 5px 8px; border-left: 2px solid var(--accent); background: rgba(0,200,200,0.05); border-radius: 0 5px 5px 0; color: var(--text); }
+
+  /* ── Toasts ── */
+  .pt-toasts { position: fixed; top: 14px; right: 14px; z-index: 500; display: flex; flex-direction: column; gap: 8px; max-width: 320px; pointer-events: none; }
+  .pt-toast {
+    padding: 10px 14px; border-radius: 8px; font-size: 0.83rem;
+    background: var(--surface); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    animation: pt-toast-in 0.25s ease;
+  }
+  .pt-toast.error { border-color: #e03131; color: #ff9494; }
+  .pt-toast.info { border-color: var(--accent); color: var(--text); }
+  @keyframes pt-toast-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+  /* ── Modals ── */
+  .pt-modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    display: flex; align-items: center; justify-content: center; z-index: 600; padding: 16px;
+  }
+  .pt-modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    max-width: 560px; width: 100%; max-height: 86vh; overflow-y: auto; padding: 22px;
+  }
+  .pt-modal h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 14px; color: var(--text); }
+  .pt-modal-close { float: right; background: none; border: none; color: var(--muted); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+  .pt-trade-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+  @media (max-width: 520px) { .pt-trade-cols { grid-template-columns: 1fr; } }
+  .pt-trade-col h5 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; }
+  .pt-prop-check { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; padding: 3px 0; }
+  .pt-manage-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem;
+  }
+  .pt-manage-row:last-child { border-bottom: none; }
+  .pt-manage-row .mname { flex: 1; }
+  .pt-manage-row .mlevel { font-size: 0.72rem; color: var(--dim); }
+  .pt-pending-trade { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-top: 8px; font-size: 0.82rem; }
+
+  .pt-select, select.pt-select {
+    padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: inherit; font-size: 0.85rem; width: 100%;
+  }
+  .pt-num-input {
+    padding: 7px 9px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: inherit; font-size: 0.85rem; width: 90px;
+  }
+
+  /* ── Game over ── */
+  .pt-gameover { max-width: 520px; margin: 60px auto; text-align: center; }
+  .pt-gameover .trophy { font-size: 3.4rem; }
+  .pt-gameover h2 {
+    font-size: 2rem; font-weight: 800; margin: 10px 0;
+    background: linear-gradient(135deg, var(--text) 0%, var(--accent) 55%, #8888ff 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand"><strong>Kelleher Innovations</strong><span>Software &amp; Systems</span></a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="propertytrade.html" class="active">Property Empire</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ══════════════ Landing ══════════════ -->
+  <section id="screen-landing" class="pt-screen">
+    <div class="hero" style="padding:44px 20px 34px;">
+      <h2>Property Empire</h2>
+      <p>An original online property-trading board game — up to 5 players, one shared board, real trades, real bankruptcies.</p>
+    </div>
+    <div class="pt-landing">
+      <div class="pt-panel">
+        <h3>Create a Room</h3>
+        <input type="text" id="createName" placeholder="Your name" maxlength="20">
+        <div class="pt-piece-picker" id="createPiecePicker"></div>
+        <button class="pt-btn" id="createRoomBtn">Create Room</button>
+        <div class="pt-error" id="createError"></div>
+      </div>
+      <div class="pt-panel">
+        <h3>Join a Room</h3>
+        <input type="text" id="joinCode" class="pt-code-input" placeholder="CODE" maxlength="4">
+        <input type="text" id="joinName" placeholder="Your name" maxlength="20">
+        <div class="pt-piece-picker" id="joinPiecePicker"></div>
+        <button class="pt-btn pt-btn-outline" id="joinRoomBtn">Join Room</button>
+        <div class="pt-error" id="joinError"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ Lobby ══════════════ -->
+  <section id="screen-lobby" class="pt-screen">
+    <div class="pt-lobby">
+      <div class="pt-panel">
+        <h3>Room Code</h3>
+        <div class="pt-lobby-code" id="lobbyCode">----</div>
+        <div class="pt-lobby-hint">Share this code — up to 5 players can join</div>
+        <div class="pt-player-list" id="lobbyPlayers"></div>
+        <div id="lobbyHostControls" class="pt-btn-row" style="display:none; justify-content:center;">
+          <button class="pt-btn" id="startGameBtn">Start Game</button>
+        </div>
+        <div id="lobbyWaitMsg" class="pt-lobby-hint" style="display:none;">Waiting for the host to start the game…</div>
+        <div class="pt-error" id="lobbyError"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ Board ══════════════ -->
+  <section id="screen-board" class="pt-screen">
+    <div class="pt-game-wrap">
+      <div class="pt-board-col">
+        <div class="pt-board" id="boardGrid"></div>
+      </div>
+      <div class="pt-sidebar">
+        <div class="pt-card">
+          <h4>Players</h4>
+          <div id="playerList"></div>
+        </div>
+        <div class="pt-card">
+          <h4>Your Turn</h4>
+          <div class="pt-action-bar" id="actionBar"></div>
+        </div>
+        <div class="pt-card">
+          <h4>Activity</h4>
+          <div class="pt-log" id="logFeed"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ Game Over ══════════════ -->
+  <section id="screen-gameover" class="pt-screen">
+    <div class="pt-gameover">
+      <div class="trophy">🏆</div>
+      <h2 id="winnerName">—</h2>
+      <p class="pt-lobby-hint" id="finalStandings"></p>
+      <a href="propertytrade.html" class="pt-btn" style="text-decoration:none; display:inline-block; margin-top:10px;">Play Again</a>
+    </div>
+  </section>
+
+</main>
+
+<footer><p>&copy; 2026 Kelleher Innovations</p></footer>
+
+<div class="pt-toasts" id="toasts"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ── Config ──────────────────────────────────────────────────────────
+  const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/proptrade"
+    : "https://api.kellinnovations.com/proptrade";
+  const PIECES = ["🚗","🎩","🚀","⚓","🐕","🎲","🏆","🐈"];
+  const GROUP_LABELS = {
+    brown: "Brown", lightblue: "Light Blue", pink: "Pink", orange: "Orange",
+    red: "Red", yellow: "Yellow", green: "Green", darkblue: "Dark Blue",
+  };
+  const PLAYER_COLORS = ["#00c8c8", "#ff6b6b", "#f2c744", "#8080ff", "#3ddc84"];
+
+  // ── State ───────────────────────────────────────────────────────────
+  let board = null;         // { spaces, groups, ... } from GET /board
+  let boardByIdx = {};
+  let session = loadSession(); // { code, token, playerId }
+  let state = null;         // last GET /rooms/<code>/state
+  let pollTimer = null;
+  let lastLogLen = -1;
+  let selectedCreatePiece = null;
+  let selectedJoinPiece = null;
+  let tradeTargetId = null;
+
+  function loadSession() {
+    try { return JSON.parse(localStorage.getItem("pt_session") || "null"); }
+    catch (e) { return null; }
+  }
+  function saveSession(code, token, playerId) {
+    session = { code, token, playerId };
+    localStorage.setItem("pt_session", JSON.stringify(session));
+  }
+  function clearSession() {
+    session = null;
+    localStorage.removeItem("pt_session");
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  // ── API helper ──────────────────────────────────────────────────────
+  async function api(path, body) {
+    const opts = body === undefined
+      ? { method: "GET" }
+      : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+    let resp, data;
+    try {
+      resp = await fetch(API + path, opts);
+      data = await resp.json();
+    } catch (e) {
+      throw new Error("Can't reach the server — check your connection");
+    }
+    if (!resp.ok) throw new Error((data && data.error) || "Something went wrong");
+    return data;
+  }
+  function act(type, payload) {
+    return api(`/rooms/${session.code}/action`, Object.assign({ token: session.token, type }, payload || {}));
+  }
+
+  // ── Toasts ──────────────────────────────────────────────────────────
+  const MAX_TOASTS = 3;
+  function toast(msg, kind) {
+    const wrap = document.getElementById("toasts");
+    const el = document.createElement("div");
+    el.className = "pt-toast " + (kind || "info");
+    el.style.pointerEvents = "auto";
+    el.textContent = msg;
+    wrap.appendChild(el);
+    while (wrap.children.length > MAX_TOASTS) wrap.removeChild(wrap.firstChild);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  // ── Screen switching ────────────────────────────────────────────────
+  function showScreen(name) {
+    document.querySelectorAll(".pt-screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-" + name).classList.add("active");
+    document.body.classList.toggle("pt-in-game", name === "board");
+  }
+
+  // ── Piece pickers ──────────────────────────────────────────────────
+  function buildPiecePicker(container, onPick) {
+    container.innerHTML = "";
+    PIECES.forEach(p => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "pt-piece-btn";
+      btn.textContent = p;
+      btn.addEventListener("click", () => {
+        container.querySelectorAll(".pt-piece-btn").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        onPick(p);
+      });
+      container.appendChild(btn);
+    });
+  }
+  buildPiecePicker(document.getElementById("createPiecePicker"), p => selectedCreatePiece = p);
+  buildPiecePicker(document.getElementById("joinPiecePicker"), p => selectedJoinPiece = p);
+
+  // ── Landing actions ─────────────────────────────────────────────────
+  document.getElementById("createRoomBtn").addEventListener("click", async () => {
+    const errEl = document.getElementById("createError");
+    errEl.textContent = "";
+    const name = document.getElementById("createName").value.trim();
+    if (!name) return errEl.textContent = "Enter your name";
+    if (!selectedCreatePiece) return errEl.textContent = "Pick a token";
+    try {
+      const data = await api("/rooms", { name, piece: selectedCreatePiece });
+      saveSession(data.code, data.token, data.player_id);
+      state = data.state;
+      enterRoom();
+    } catch (e) { errEl.textContent = e.message; }
+  });
+
+  document.getElementById("joinRoomBtn").addEventListener("click", async () => {
+    const errEl = document.getElementById("joinError");
+    errEl.textContent = "";
+    const code = document.getElementById("joinCode").value.trim().toUpperCase();
+    const name = document.getElementById("joinName").value.trim();
+    if (!code) return errEl.textContent = "Enter a room code";
+    if (!name) return errEl.textContent = "Enter your name";
+    if (!selectedJoinPiece) return errEl.textContent = "Pick a token";
+    try {
+      const data = await api(`/rooms/${code}/join`, { name, piece: selectedJoinPiece });
+      saveSession(data.code, data.token, data.player_id);
+      state = data.state;
+      enterRoom();
+    } catch (e) { errEl.textContent = e.message; }
+  });
+
+  async function startGame() {
+    const errEl = document.getElementById("lobbyError");
+    errEl.textContent = "";
+    try {
+      state = await api(`/rooms/${session.code}/start`, { token: session.token });
+      render();
+    } catch (e) { errEl.textContent = e.message; }
+  }
+  document.getElementById("startGameBtn").addEventListener("click", startGame);
+
+  // ── Enter room / polling ───────────────────────────────────────────
+  async function enterRoom() {
+    if (!board) {
+      try { board = await api("/board"); indexBoard(); } catch (e) { toast(e.message, "error"); return; }
+    }
+    lastLogLen = -1;
+    render();
+    startPolling();
+  }
+
+  function indexBoard() {
+    boardByIdx = {};
+    board.spaces.forEach(s => boardByIdx[s.idx] = s);
+  }
+
+  function startPolling() {
+    stopPolling();
+    pollTimer = setInterval(poll, 1000);
+  }
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+  async function poll() {
+    if (document.hidden || !session) return;
+    try {
+      state = await api(`/rooms/${session.code}/state`);
+      render();
+    } catch (e) {
+      // transient network hiccup — next tick will retry
+    }
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && session) poll();
+  });
+
+  // ── Render dispatch ──────────────────────────────────────────────────
+  function render() {
+    if (!session || !state) { showScreen("landing"); return; }
+    if (state.phase === "lobby") { showScreen("lobby"); renderLobby(); return; }
+    if (state.phase === "in_progress") { showScreen("board"); renderBoard(); return; }
+    if (state.phase === "finished") { showScreen("gameover"); renderGameOver(); return; }
+  }
+
+  function me() {
+    return state.players.find(p => p.id === session.playerId) || null;
+  }
+
+  // ── Lobby rendering ────────────────────────────────────────────────
+  function renderLobby() {
+    document.getElementById("lobbyCode").textContent = state.code;
+    const list = document.getElementById("lobbyPlayers");
+    list.innerHTML = state.players.map(p => `
+      <div class="pt-player-chip">
+        <span class="piece">${p.piece}</span>
+        <span class="name">${escHtml(p.name)}</span>
+        ${p.id === state.host_id ? '<span class="pt-badge">Host</span>' : ""}
+      </div>`).join("");
+    const isHost = session.playerId === state.host_id;
+    document.getElementById("lobbyHostControls").style.display = isHost ? "flex" : "none";
+    document.getElementById("lobbyWaitMsg").style.display = isHost ? "none" : "block";
+    const startBtn = document.getElementById("startGameBtn");
+    startBtn.disabled = state.players.length < 2;
+  }
+
+  // ── Board rendering ────────────────────────────────────────────────
+  function gridPos(idx) {
+    if (idx === 0) return { r: 11, c: 11 };
+    if (idx <= 9) return { r: 11, c: 11 - idx };
+    if (idx === 10) return { r: 11, c: 1 };
+    if (idx <= 19) return { r: 11 - (idx - 10), c: 1 };
+    if (idx === 20) return { r: 1, c: 1 };
+    if (idx <= 29) return { r: 1, c: 1 + (idx - 20) };
+    if (idx === 30) return { r: 1, c: 11 };
+    return { r: 1 + (idx - 30), c: 11 };
+  }
+
+  let boardBuilt = false;
+  function buildBoardGrid() {
+    const grid = document.getElementById("boardGrid");
+    grid.innerHTML = "";
+    board.spaces.forEach(sp => {
+      const pos = gridPos(sp.idx);
+      const cell = document.createElement("div");
+      cell.className = "pt-cell" + (["go", "jail", "free_parking", "go_to_jail"].includes(sp.type) ? " corner" : "");
+      cell.style.gridColumn = pos.c;
+      cell.style.gridRow = pos.r;
+      cell.dataset.idx = sp.idx;
+      cell.title = sp.name;
+
+      let html = "";
+      if (sp.type === "property") {
+        html += `<div class="grp-bar" style="background:${board.groups[sp.group].color}"></div>`;
+      }
+      const icon = { go: "➡️", jail: "🔒", free_parking: "🅿️", go_to_jail: "🚔",
+                     fortune: "🍀", community_fund: "🏛️", tax: "💸",
+                     railroad: "🚉", utility: "💡" }[sp.type] || "";
+      html += `<div class="cell-name">${icon ? icon + " " : ""}${escHtml(shortName(sp.name))}</div>`;
+      if (sp.price) html += `<div class="cell-price">$${sp.price}</div>`;
+      html += `<div class="cell-owner-dot" data-owner-dot></div>`;
+      html += `<div class="cell-build" data-build></div>`;
+      html += `<div class="cell-tokens" data-tokens></div>`;
+      cell.innerHTML = html;
+      cell.addEventListener("click", () => showSpaceInfo(sp.idx));
+      grid.appendChild(cell);
+    });
+
+    const center = document.createElement("div");
+    center.className = "pt-center";
+    center.id = "boardCenter";
+    center.innerHTML = `
+      <h2>Property Empire</h2>
+      <div class="pt-turn-indicator" id="turnIndicator"></div>
+      <div class="pt-dice" id="diceDisplay"></div>
+    `;
+    grid.appendChild(center);
+    boardBuilt = true;
+  }
+
+  function shortName(name) {
+    return name.length > 14 ? name.slice(0, 13) + "…" : name;
+  }
+
+  function showSpaceInfo(idx) {
+    const sp = boardByIdx[idx];
+    const prop = state.properties[idx];
+    let msg = sp.name;
+    if (prop) {
+      if (prop.owner) {
+        const owner = state.players.find(p => p.id === prop.owner);
+        msg += ` — owned by ${owner ? owner.name : "?"}`;
+        if (prop.mortgaged) msg += " (mortgaged)";
+        else if (sp.type === "property" && prop.level > 0) msg += prop.level === 5 ? " (hotel)" : ` (${prop.level} house${prop.level > 1 ? "s" : ""})`;
+      } else if (sp.price) {
+        msg += ` — unowned, $${sp.price}`;
+      }
+    } else if (sp.amount) {
+      msg += ` — $${sp.amount}`;
+    }
+    toast(msg, "info");
+  }
+
+  function renderBoard() {
+    if (!boardBuilt) buildBoardGrid();
+
+    // properties: owner dot, mortgage, build markers, tokens
+    board.spaces.forEach(sp => {
+      const cell = document.querySelector(`.pt-cell[data-idx="${sp.idx}"]`);
+      if (!cell) return;
+      const prop = state.properties[sp.idx];
+      const dot = cell.querySelector("[data-owner-dot]");
+      const build = cell.querySelector("[data-build]");
+      cell.classList.toggle("mortgaged", !!(prop && prop.mortgaged));
+      if (prop && prop.owner) {
+        const ownerIdx = state.turn_order.indexOf(prop.owner);
+        dot.style.background = PLAYER_COLORS[ownerIdx % PLAYER_COLORS.length] || "#888";
+        dot.style.display = "block";
+        build.textContent = prop.level === 5 ? "🏨" : (prop.level > 0 ? "🏠".repeat(prop.level) : "");
+      } else {
+        dot.style.display = "none";
+        build.textContent = "";
+      }
+      const tokWrap = cell.querySelector("[data-tokens]");
+      const here = state.players.filter(p => p.position === sp.idx && !p.bankrupt);
+      tokWrap.innerHTML = here.map(p => `<span>${p.piece}</span>`).join("");
+    });
+
+    // turn indicator + dice
+    const current = state.players.find(p => p.id === state.current_player);
+    document.getElementById("turnIndicator").innerHTML = current
+      ? `<strong>${escHtml(current.name)}</strong>'s turn`
+      : "";
+    const diceEl = document.getElementById("diceDisplay");
+    if (state.last_roll) {
+      diceEl.innerHTML = state.last_roll.map(d => `<div class="pt-die">${d}</div>`).join("");
+    } else {
+      diceEl.innerHTML = "";
+    }
+
+    renderPlayerList();
+    renderActionBar();
+    renderLog();
+    renderAuctionModal();
+  }
+
+  function renderPlayerList() {
+    const wrap = document.getElementById("playerList");
+    wrap.innerHTML = state.players.map((p, i) => `
+      <div class="pt-me-row ${p.id === session.playerId ? "you" : ""} ${p.bankrupt ? "bankrupt" : ""}">
+        <span class="piece">${p.piece}</span>
+        <span class="pname">${escHtml(p.name)}${p.id === state.current_player ? " 🎯" : ""}</span>
+        ${p.in_jail ? '<span class="jailtag">JAIL</span>' : ""}
+        <span class="pcash">$${p.cash.toLocaleString()}</span>
+      </div>`).join("");
+  }
+
+  // ── Action bar ─────────────────────────────────────────────────────
+  function renderActionBar() {
+    const bar = document.getElementById("actionBar");
+    const m = me();
+    if (!m) { bar.innerHTML = ""; return; }
+    const isMyTurn = state.current_player === session.playerId;
+    let html = "";
+
+    if (m.bankrupt) {
+      bar.innerHTML = `<p class="pt-lobby-hint">You're out — watch the rest of the game play out.</p>`;
+      return;
+    }
+
+    if (isMyTurn && state.debts[m.id]) {
+      html += `<div class="pt-debt-banner">
+        You owe money and can't cover it. Mortgage or sell buildings, or declare bankruptcy.
+        <div class="pt-btn-row">
+          <button class="pt-btn pt-btn-small" data-open-manage>Manage Properties</button>
+          <button class="pt-btn pt-btn-danger pt-btn-small" data-bankrupt>Declare Bankruptcy</button>
+        </div>
+      </div>`;
+    } else if (isMyTurn && state.awaiting_buy !== null) {
+      const sp = boardByIdx[state.awaiting_buy];
+      html += `<div class="pt-buy-banner">
+        Buy <strong>${escHtml(sp.name)}</strong> for $${sp.price}?
+        <div class="pt-btn-row">
+          <button class="pt-btn pt-btn-small" data-buy>Buy</button>
+          <button class="pt-btn pt-btn-outline pt-btn-small" data-pass>Pass (Auction)</button>
+        </div>
+      </div>`;
+    } else if (isMyTurn && state.auction) {
+      html += `<p class="pt-lobby-hint">An auction is in progress — see the popup.</p>`;
+    } else if (isMyTurn && m.in_jail && !state.dice_rolled) {
+      html += `<p class="pt-lobby-hint">You're in jail (attempt ${m.jail_turns}/3).</p>
+        <div class="pt-btn-row">
+          <button class="pt-btn pt-btn-small" data-roll>Roll for Doubles</button>
+          <button class="pt-btn pt-btn-outline pt-btn-small" data-pay-jail>Pay $50</button>
+          ${m.jail_cards > 0 ? '<button class="pt-btn pt-btn-outline pt-btn-small" data-use-jail-card>Use Jail Card</button>' : ""}
+        </div>`;
+    } else if (isMyTurn) {
+      html += `<div class="pt-btn-row">
+        ${!state.dice_rolled || state.extra_roll_pending ? '<button class="pt-btn" data-roll>Roll Dice</button>' : ""}
+        ${state.dice_rolled && !state.extra_roll_pending ? '<button class="pt-btn" data-end-turn>End Turn</button>' : ""}
+      </div>`;
+    } else {
+      const cur = state.players.find(p => p.id === state.current_player);
+      html += `<p class="pt-lobby-hint">Waiting for ${cur ? escHtml(cur.name) : "the next player"}…</p>`;
+    }
+
+    html += `<div class="pt-btn-row" style="margin-top:6px;">
+      <button class="pt-btn pt-btn-outline pt-btn-small" data-open-manage>Properties</button>
+      <button class="pt-btn pt-btn-outline pt-btn-small" data-open-trade>Trade</button>
+      ${!isMyTurn && !m.bankrupt && !state.debts[m.id] ? '<button class="pt-btn pt-btn-danger pt-btn-small" data-bankrupt>Bankrupt</button>' : ""}
+    </div>`;
+
+    if (state.pending_trades.some(t => t.to === m.id || t.from === m.id)) {
+      html += `<div class="pt-lobby-hint">You have a pending trade — open Trade to review it.</div>`;
+    }
+
+    bar.innerHTML = html;
+
+    const on = (sel, fn) => { const el = bar.querySelector(sel); if (el) el.addEventListener("click", fn); };
+    on("[data-roll]", () => runAction(() => act("roll_dice")));
+    on("[data-buy]", () => runAction(() => act("buy")));
+    on("[data-pass]", () => runAction(() => act("pass")));
+    on("[data-end-turn]", () => runAction(() => act("end_turn")));
+    on("[data-pay-jail]", () => runAction(() => act("pay_jail")));
+    on("[data-use-jail-card]", () => runAction(() => act("use_jail_card")));
+    on("[data-bankrupt]", () => {
+      if (confirm("Declare bankruptcy? You'll be out of the game.")) runAction(() => act("declare_bankruptcy"));
+    });
+    on("[data-open-manage]", openManageModal);
+    on("[data-open-trade]", openTradeModal);
+  }
+
+  let actionInFlight = false;
+  async function runAction(fn) {
+    if (actionInFlight) return;
+    actionInFlight = true;
+    try {
+      state = await fn();
+      render();
+    } catch (e) {
+      toast(e.message, "error");
+    } finally {
+      actionInFlight = false;
+    }
+  }
+
+  // ── Activity log ───────────────────────────────────────────────────
+  function renderLog() {
+    const feed = document.getElementById("logFeed");
+    feed.innerHTML = state.log.slice().reverse().map(e => `<div class="pt-log-entry">${escHtml(e.msg)}</div>`).join("");
+    if (lastLogLen >= 0 && state.log.length > lastLogLen) {
+      state.log.slice(lastLogLen).forEach(e => toast(e.msg, "info"));
+    }
+    lastLogLen = state.log.length;
+  }
+
+  // ── Auction modal ──────────────────────────────────────────────────
+  function renderAuctionModal() {
+    let overlay = document.getElementById("auctionOverlay");
+    if (!state.auction) {
+      if (overlay) overlay.remove();
+      return;
+    }
+    const sp = boardByIdx[state.auction.idx];
+    const m = me();
+    const canAct = m && state.auction.active.includes(m.id) && !state.auction.passed.includes(m.id);
+    const highBidder = state.players.find(p => p.id === state.auction.highest_bidder);
+    const html = `
+      <div class="pt-modal">
+        <h3>Auction: ${escHtml(sp.name)}</h3>
+        <p class="pt-lobby-hint">Highest bid: $${state.auction.highest_bid} ${highBidder ? "by " + escHtml(highBidder.name) : "(none yet)"}</p>
+        ${canAct ? `
+          <div class="pt-btn-row" style="margin-top:12px;">
+            <input type="number" class="pt-num-input" id="bidAmount" min="${state.auction.highest_bid + 1}" placeholder="$${state.auction.highest_bid + 1}">
+            <button class="pt-btn pt-btn-small" id="bidBtn">Bid</button>
+            <button class="pt-btn pt-btn-outline pt-btn-small" id="auctionPassBtn">Pass</button>
+          </div>` : `<p class="pt-lobby-hint">You're out of this auction.</p>`}
+      </div>`;
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.className = "pt-modal-overlay";
+      overlay.id = "auctionOverlay";
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = html;
+    if (canAct) {
+      overlay.querySelector("#bidBtn").addEventListener("click", () => {
+        const val = parseInt(document.getElementById("bidAmount").value, 10);
+        if (!val) return toast("Enter a bid amount", "error");
+        runAction(() => act("auction_bid", { amount: val }));
+      });
+      overlay.querySelector("#auctionPassBtn").addEventListener("click", () => runAction(() => act("auction_pass")));
+    }
+  }
+
+  // ── Manage Properties modal ────────────────────────────────────────
+  function openManageModal() {
+    const m = me();
+    const mine = Object.entries(state.properties)
+      .filter(([idx, p]) => p.owner === m.id)
+      .map(([idx, p]) => ({ idx: parseInt(idx, 10), prop: p, sp: boardByIdx[idx] }));
+
+    const rows = mine.length ? mine.map(({ idx, prop, sp }) => {
+      const fullGroup = sp.type === "property" && board.spaces
+        .filter(s => s.group === sp.group)
+        .every(s => state.properties[s.idx].owner === m.id);
+      let levelLabel = "";
+      if (sp.type === "property") {
+        levelLabel = prop.level === 5 ? "Hotel" : prop.level > 0 ? `${prop.level} house${prop.level > 1 ? "s" : ""}` : "Unimproved";
+      }
+      let buttons = "";
+      if (prop.mortgaged) {
+        buttons += `<button class="pt-btn pt-btn-outline pt-btn-small" data-unmortgage="${idx}">Unmortgage ($${Math.round(sp.mortgage * 1.1)})</button>`;
+      } else {
+        if (prop.level === 0) buttons += `<button class="pt-btn pt-btn-outline pt-btn-small" data-mortgage="${idx}">Mortgage ($${sp.mortgage})</button>`;
+        if (sp.type === "property" && fullGroup && prop.level < 5) buttons += `<button class="pt-btn pt-btn-small" data-build="${idx}">Build ($${sp.house_cost})</button>`;
+        if (sp.type === "property" && prop.level > 0) buttons += `<button class="pt-btn pt-btn-outline pt-btn-small" data-sell="${idx}">Sell Building</button>`;
+      }
+      return `<div class="pt-manage-row">
+        <span class="mname">${escHtml(sp.name)} <span class="mlevel">${levelLabel}</span></span>
+        <div class="pt-btn-row">${buttons}</div>
+      </div>`;
+    }).join("") : `<p class="pt-lobby-hint">You don't own any properties yet.</p>`;
+
+    openModal(`
+      <button class="pt-modal-close" data-close>&times;</button>
+      <h3>Your Properties</h3>
+      ${rows}
+    `, overlay => {
+      overlay.querySelectorAll("[data-mortgage]").forEach(b => b.addEventListener("click", () => runAction(() => act("mortgage", { idx: +b.dataset.mortgage })).then(refreshModal)));
+      overlay.querySelectorAll("[data-unmortgage]").forEach(b => b.addEventListener("click", () => runAction(() => act("unmortgage", { idx: +b.dataset.unmortgage })).then(refreshModal)));
+      overlay.querySelectorAll("[data-build]").forEach(b => b.addEventListener("click", () => runAction(() => act("build", { idx: +b.dataset.build })).then(refreshModal)));
+      overlay.querySelectorAll("[data-sell]").forEach(b => b.addEventListener("click", () => runAction(() => act("sell_building", { idx: +b.dataset.sell })).then(refreshModal)));
+      function refreshModal() { if (document.getElementById("modalOverlay")) openManageModal(); }
+    });
+  }
+
+  // ── Trade modal ────────────────────────────────────────────────────
+  function openTradeModal() {
+    const m = me();
+    const others = state.players.filter(p => p.id !== m.id && !p.bankrupt);
+    if (!tradeTargetId || !others.find(p => p.id === tradeTargetId)) {
+      tradeTargetId = others[0] ? others[0].id : null;
+    }
+    const target = others.find(p => p.id === tradeTargetId);
+
+    const myTradeable = Object.entries(state.properties)
+      .filter(([idx, p]) => p.owner === m.id && p.level === 0)
+      .map(([idx]) => ({ idx: parseInt(idx, 10), sp: boardByIdx[idx] }));
+    const theirTradeable = target ? Object.entries(state.properties)
+      .filter(([idx, p]) => p.owner === target.id && p.level === 0)
+      .map(([idx]) => ({ idx: parseInt(idx, 10), sp: boardByIdx[idx] })) : [];
+
+    const pending = state.pending_trades.filter(t => t.to === m.id || t.from === m.id);
+    const pendingHtml = pending.length ? pending.map(t => {
+      const fromP = state.players.find(p => p.id === t.from);
+      const toP = state.players.find(p => p.id === t.to);
+      const desc = tradeSideDesc(t.offer) + " ↔ " + tradeSideDesc(t.request);
+      let btns = "";
+      if (t.to === m.id) {
+        btns = `<button class="pt-btn pt-btn-small" data-accept="${t.id}">Accept</button>
+                <button class="pt-btn pt-btn-outline pt-btn-small" data-decline="${t.id}">Decline</button>`;
+      } else if (t.from === m.id) {
+        btns = `<button class="pt-btn pt-btn-outline pt-btn-small" data-cancel="${t.id}">Cancel</button>`;
+      }
+      return `<div class="pt-pending-trade">
+        <strong>${escHtml(fromP.name)} → ${escHtml(toP.name)}</strong><br>${desc}
+        <div class="pt-btn-row" style="margin-top:6px;">${btns}</div>
+      </div>`;
+    }).join("") : `<p class="pt-lobby-hint">No pending trades.</p>`;
+
+    if (!target) {
+      openModal(`<button class="pt-modal-close" data-close>&times;</button><h3>Trade</h3>
+        <p class="pt-lobby-hint">No other active players to trade with.</p>
+        <h5 style="margin-top:14px;">Pending Trades</h5>${pendingHtml}`, () => {});
+      return;
+    }
+
+    openModal(`
+      <button class="pt-modal-close" data-close>&times;</button>
+      <h3>Propose a Trade</h3>
+      <label style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">Trade with</label>
+      <select class="pt-select" id="tradeTargetSelect">
+        ${others.map(p => `<option value="${p.id}" ${p.id === tradeTargetId ? "selected" : ""}>${escHtml(p.name)}</option>`).join("")}
+      </select>
+      <div class="pt-trade-cols">
+        <div class="pt-trade-col">
+          <h5>You Offer</h5>
+          Cash: <input type="number" class="pt-num-input" id="offerCash" min="0" max="${m.cash}" value="0"><br><br>
+          ${myTradeable.map(({ idx, sp }) => `<label class="pt-prop-check"><input type="checkbox" data-offer-prop value="${idx}"> ${escHtml(sp.name)}</label>`).join("") || '<span class="pt-lobby-hint">No tradeable properties</span>'}
+          ${m.jail_cards > 0 ? `<br><label class="pt-prop-check"><input type="checkbox" id="offerJailCard"> Get Out of Jail Free card</label>` : ""}
+        </div>
+        <div class="pt-trade-col">
+          <h5>You Request</h5>
+          Cash: <input type="number" class="pt-num-input" id="requestCash" min="0" max="${target.cash}" value="0"><br><br>
+          ${theirTradeable.map(({ idx, sp }) => `<label class="pt-prop-check"><input type="checkbox" data-request-prop value="${idx}"> ${escHtml(sp.name)}</label>`).join("") || '<span class="pt-lobby-hint">No tradeable properties</span>'}
+          ${target.jail_cards > 0 ? `<br><label class="pt-prop-check"><input type="checkbox" id="requestJailCard"> Get Out of Jail Free card</label>` : ""}
+        </div>
+      </div>
+      <button class="pt-btn" id="sendTradeBtn">Send Trade Offer</button>
+      <h5 style="margin-top:18px; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted);">Pending Trades</h5>
+      ${pendingHtml}
+    `, overlay => {
+      overlay.querySelector("#tradeTargetSelect").addEventListener("change", e => {
+        tradeTargetId = e.target.value;
+        openTradeModal();
+      });
+      overlay.querySelector("#sendTradeBtn").addEventListener("click", () => {
+        const offer = {
+          cash: parseInt(overlay.querySelector("#offerCash").value, 10) || 0,
+          properties: [...overlay.querySelectorAll("[data-offer-prop]:checked")].map(el => parseInt(el.value, 10)),
+          jail_cards: overlay.querySelector("#offerJailCard") && overlay.querySelector("#offerJailCard").checked ? 1 : 0,
+        };
+        const request = {
+          cash: parseInt(overlay.querySelector("#requestCash").value, 10) || 0,
+          properties: [...overlay.querySelectorAll("[data-request-prop]:checked")].map(el => parseInt(el.value, 10)),
+          jail_cards: overlay.querySelector("#requestJailCard") && overlay.querySelector("#requestJailCard").checked ? 1 : 0,
+        };
+        runAction(() => act("propose_trade", { to: tradeTargetId, offer, request })).then(() => openTradeModal());
+      });
+      overlay.querySelectorAll("[data-accept]").forEach(b => b.addEventListener("click", () => runAction(() => act("respond_trade", { trade_id: +b.dataset.accept, accept: true })).then(() => openTradeModal())));
+      overlay.querySelectorAll("[data-decline]").forEach(b => b.addEventListener("click", () => runAction(() => act("respond_trade", { trade_id: +b.dataset.decline, accept: false })).then(() => openTradeModal())));
+      overlay.querySelectorAll("[data-cancel]").forEach(b => b.addEventListener("click", () => runAction(() => act("cancel_trade", { trade_id: +b.dataset.cancel })).then(() => openTradeModal())));
+    });
+  }
+
+  function tradeSideDesc(side) {
+    const parts = [];
+    if (side.cash) parts.push(`$${side.cash}`);
+    if (side.properties && side.properties.length) parts.push(side.properties.map(i => boardByIdx[i].name).join(", "));
+    if (side.jail_cards) parts.push(`${side.jail_cards} jail card`);
+    return parts.length ? parts.join(" + ") : "nothing";
+  }
+
+  // ── Generic modal helper ───────────────────────────────────────────
+  function openModal(innerHtml, wireUp) {
+    closeModal();
+    const overlay = document.createElement("div");
+    overlay.className = "pt-modal-overlay";
+    overlay.id = "modalOverlay";
+    overlay.innerHTML = `<div class="pt-modal">${innerHtml}</div>`;
+    overlay.addEventListener("click", e => { if (e.target === overlay) closeModal(); });
+    document.body.appendChild(overlay);
+    overlay.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", closeModal));
+    wireUp(overlay);
+  }
+  function closeModal() {
+    const el = document.getElementById("modalOverlay");
+    if (el) el.remove();
+  }
+
+  // ── Game over ──────────────────────────────────────────────────────
+  function renderGameOver() {
+    const winner = state.players.find(p => p.id === state.winner);
+    document.getElementById("winnerName").textContent = winner ? `${winner.piece} ${winner.name} wins!` : "Game Over";
+    const standings = state.players.slice().sort((a, b) => b.cash - a.cash)
+      .map(p => `${p.piece} ${p.name}: $${p.cash.toLocaleString()}`).join(" · ");
+    document.getElementById("finalStandings").textContent = standings;
+    stopPolling();
+  }
+
+  // ── Boot ───────────────────────────────────────────────────────────
+  (async function boot() {
+    if (session) {
+      try {
+        board = await api("/board");
+        indexBoard();
+        state = await api(`/rooms/${session.code}/state`);
+        if (!state.players.some(p => p.id === session.playerId)) throw new Error("session no longer valid");
+        lastLogLen = state.log.length; // don't toast the entire history on load
+        render();
+        startPolling();
+        return;
+      } catch (e) {
+        clearSession();
+      }
+    }
+    showScreen("landing");
+  })();
+})();
+</script>
+
+</body>
+</html>
