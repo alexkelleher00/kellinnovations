@@ -161,11 +161,11 @@
   .pt-cell .cell-owner-dot { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,0.5); }
   .pt-cell .cell-mortgage-badge { position: absolute; top: 2px; left: 2px; font-size: 0.6rem; display: none; filter: drop-shadow(0 0 2px #000); }
   .pt-cell.mortgaged .cell-mortgage-badge { display: block; }
-  .pt-cell .cell-tokens { position: absolute; bottom: 2px; left: 2px; right: 2px; display: flex; flex-wrap: wrap; gap: 2px; z-index: 2; }
+  .pt-cell .cell-tokens { position: absolute; bottom: 1px; left: 1px; right: 1px; display: flex; flex-wrap: wrap; gap: 2px; z-index: 2; }
   .pt-cell .cell-tokens span {
-    font-size: 0.72rem; line-height: 1; width: 16px; height: 16px; min-width: 16px;
+    font-size: 1.05rem; line-height: 1; width: 24px; height: 24px; min-width: 24px;
     display: flex; align-items: center; justify-content: center; border-radius: 50%;
-    background: rgba(15,15,28,0.9); border: 1.5px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    background: rgba(15,15,28,0.92); border: 2px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,0.65);
   }
   .pt-cell.mortgaged { opacity: 0.7; }
   .pt-cell.mortgaged .grp-bar { background-image: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0,0,0,0.4) 4px 8px); }
@@ -251,8 +251,8 @@
     box-shadow: 0 2px 10px rgba(0,0,0,0.3);
   }
   .pt-hud-player-chip .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .pt-hud-player-chip .piece { font-size: 0.9rem; }
-  .pt-hud-player-chip .cash { color: var(--text); font-variant-numeric: tabular-nums; }
+  .pt-hud-player-chip .piece { font-size: 1rem; }
+  .pt-hud-player-chip .pname { color: var(--text); max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pt-hud-player-chip.current { border-color: var(--accent); color: var(--text); }
   .pt-hud-player-chip.bankrupt { opacity: 0.4; text-decoration: line-through; }
 
@@ -388,6 +388,18 @@
     width: 100%; margin-top: 8px; padding: 10px; background: var(--bg2); border-radius: 8px; font-size: 0.78rem;
   }
   .pt-pending-trade { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-top: 8px; font-size: 0.82rem; }
+
+  /* ── Color swatches + color-grouped headings (Manage Properties / Trade) ── */
+  .pt-color-swatch {
+    display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 7px;
+    vertical-align: middle; flex-shrink: 0; box-shadow: 0 0 0 1px rgba(255,255,255,0.18);
+  }
+  .pt-color-swatch.pt-swatch-icon { width: auto; height: auto; box-shadow: none; font-size: 0.85rem; border-radius: 0; }
+  .pt-group-heading {
+    font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--muted); margin: 10px 0 4px; padding-top: 8px; border-top: 1px solid var(--border);
+  }
+  .pt-group-heading:first-child { margin-top: 0; padding-top: 0; border-top: none; }
 
   /* ── Rent table (property card) ── */
   .pt-rent-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.83rem; }
@@ -563,7 +575,38 @@
     brown: "Brown", lightblue: "Light Blue", pink: "Pink", orange: "Orange",
     red: "Red", yellow: "Yellow", green: "Green", darkblue: "Dark Blue",
   };
+  const GROUP_ORDER = ["brown", "lightblue", "pink", "orange", "red", "yellow", "green", "darkblue"];
   const PLAYER_COLORS = ["#00c8c8", "#ff6b6b", "#f2c744", "#8080ff", "#3ddc84"];
+
+  // ── Shared color-grouping helpers (Manage Properties tab + Trade modal) ──
+  // Sorts properties by color group (in board order), then railroads, then
+  // utilities, so same-colored properties always sit together — makes it
+  // possible to actually recognize what you're trading at a glance instead
+  // of hunting through a flat alphabetical-ish list of names.
+  function propertySortKey(sp) {
+    if (sp.type === "property") return [0, GROUP_ORDER.indexOf(sp.group), sp.idx];
+    if (sp.type === "railroad") return [1, 0, sp.idx];
+    return [2, 0, sp.idx]; // utility
+  }
+  function sortPropList(list) {
+    return list.slice().sort((a, b) => {
+      const ka = propertySortKey(a.sp), kb = propertySortKey(b.sp);
+      for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return ka[i] - kb[i];
+      return 0;
+    });
+  }
+  function groupKeyOf(sp) { return sp.type === "property" ? sp.group : sp.type; }
+  function groupLabelOf(sp) {
+    if (sp.type === "property") return GROUP_LABELS[sp.group];
+    return sp.type === "railroad" ? "Railroads" : "Utilities";
+  }
+  function swatchHtml(sp) {
+    if (sp.type === "property") {
+      return `<span class="pt-color-swatch" style="background:${board.groups[sp.group].color}" title="${GROUP_LABELS[sp.group]}"></span>`;
+    }
+    if (sp.type === "railroad") return `<span class="pt-color-swatch pt-swatch-icon" title="Railroad">🚉</span>`;
+    return `<span class="pt-color-swatch pt-swatch-icon" title="Utility">💡</span>`;
+  }
 
   // ── State ───────────────────────────────────────────────────────────
   let board = null;         // { spaces, groups, ... } from GET /board
@@ -626,7 +669,7 @@
     el.textContent = msg;
     wrap.appendChild(el);
     while (wrap.children.length > MAX_TOASTS) wrap.removeChild(wrap.firstChild);
-    setTimeout(() => el.remove(), 3500);
+    setTimeout(() => el.remove(), 5500);
   }
 
   // ── Screen switching ────────────────────────────────────────────────
@@ -887,7 +930,12 @@
         renderBoard();
         if (p.id === session.playerId) {
           const sp = boardByIdx[p.position];
-          if (sp && ["property", "railroad", "utility"].includes(sp.type)) showAutoPropertyCard(p.position);
+          const prop = state.properties[p.position];
+          // only flash the card for a space you could actually buy — landing on
+          // something already owned would pop it on every single turn otherwise
+          if (sp && prop && !prop.owner && ["property", "railroad", "utility"].includes(sp.type)) {
+            showAutoPropertyCard(p.position);
+          }
         }
       });
     });
@@ -1126,6 +1174,8 @@
     const pot = document.getElementById("hudPot");
     pot.textContent = `🅿️ $${(state.free_parking_pot || 0).toLocaleString()}`;
 
+    // Only your own cash is shown (in #hudMoney, above) — other players' totals stay hidden,
+    // this strip is just for seeing at a glance whose turn it is / who's out.
     const strip = document.getElementById("hudPlayers");
     strip.innerHTML = state.players.map(p => {
       const pIdx = state.turn_order.indexOf(p.id);
@@ -1134,7 +1184,7 @@
       return `<div class="pt-hud-player-chip ${isCurrent ? "current" : ""} ${p.bankrupt ? "bankrupt" : ""}">
         <span class="dot" style="background:${color}"></span>
         <span class="piece">${p.piece}</span>
-        <span class="cash">$${p.cash.toLocaleString()}</span>
+        <span class="pname">${escHtml(p.name)}</span>
       </div>`;
     }).join("");
   }
@@ -1354,11 +1404,18 @@
   // ── Manage Properties modal ────────────────────────────────────────
   function openManageModal() {
     const m = me();
-    const mine = Object.entries(state.properties)
+    const mine = sortPropList(Object.entries(state.properties)
       .filter(([idx, p]) => p.owner === m.id)
-      .map(([idx, p]) => ({ idx: parseInt(idx, 10), prop: p, sp: boardByIdx[idx] }));
+      .map(([idx, p]) => ({ idx: parseInt(idx, 10), prop: p, sp: boardByIdx[idx] })));
 
-    const rows = mine.length ? mine.map(({ idx, prop, sp }) => {
+    let rows = "";
+    let lastGroup = null;
+    mine.forEach(({ idx, prop, sp }) => {
+      const gk = groupKeyOf(sp);
+      if (gk !== lastGroup) {
+        rows += `<div class="pt-group-heading">${groupLabelOf(sp)}</div>`;
+        lastGroup = gk;
+      }
       const fullGroup = sp.type === "property" && board.spaces
         .filter(s => s.group === sp.group)
         .every(s => state.properties[s.idx].owner === m.id);
@@ -1375,8 +1432,8 @@
         if (sp.type === "property" && prop.level > 0) buttons += `<button class="pt-btn pt-btn-outline pt-btn-small" data-sell="${idx}">Sell Building</button>`;
       }
       buttons += `<button class="pt-manage-expand-btn" data-expand="${idx}">Details ▾</button>`;
-      return `<div class="pt-manage-row">
-        <span class="mname">${escHtml(sp.name)} <span class="mlevel">${levelLabel}</span>
+      rows += `<div class="pt-manage-row">
+        <span class="mname">${swatchHtml(sp)}${escHtml(sp.name)} <span class="mlevel">${levelLabel}</span>
           <span class="mrent">${currentRentLabel(prop, sp)}</span>
         </span>
         <div class="pt-btn-row">${buttons}</div>
@@ -1385,7 +1442,8 @@
           ${sp.type === "property" ? `House cost: $${sp.house_cost} · ` : ""}Mortgage value: $${sp.mortgage}
         </div>
       </div>`;
-    }).join("") : `<p class="pt-lobby-hint">You don't own any properties yet.</p>`;
+    });
+    if (!mine.length) rows = `<p class="pt-lobby-hint">You don't own any properties yet.</p>`;
 
     openModal(`
       <button class="pt-modal-close" data-close>&times;</button>
@@ -1421,6 +1479,23 @@
     const theirTradeable = target ? Object.entries(state.properties)
       .filter(([idx, p]) => p.owner === target.id && p.level === 0)
       .map(([idx]) => ({ idx: parseInt(idx, 10), sp: boardByIdx[idx] })) : [];
+
+    // grouped by color so it's obvious what's what when picking properties to trade —
+    // a flat list of names is hard to place without memorizing the whole board
+    function tradeChecklistHtml(list, dataAttr) {
+      if (!list.length) return '<span class="pt-lobby-hint">No tradeable properties</span>';
+      let html = "";
+      let lastGroup = null;
+      sortPropList(list).forEach(({ idx, sp }) => {
+        const gk = groupKeyOf(sp);
+        if (gk !== lastGroup) {
+          html += `<div class="pt-group-heading">${groupLabelOf(sp)}</div>`;
+          lastGroup = gk;
+        }
+        html += `<label class="pt-prop-check">${swatchHtml(sp)}<input type="checkbox" ${dataAttr} value="${idx}"> ${escHtml(sp.name)}</label>`;
+      });
+      return html;
+    }
 
     const pending = state.pending_trades.filter(t => t.to === m.id || t.from === m.id);
     const pendingHtml = pending.length ? pending.map(t => {
@@ -1458,13 +1533,13 @@
         <div class="pt-trade-col">
           <h5>You Offer</h5>
           Cash: <input type="number" class="pt-num-input" id="offerCash" min="0" max="${m.cash}" value="0"><br><br>
-          ${myTradeable.map(({ idx, sp }) => `<label class="pt-prop-check"><input type="checkbox" data-offer-prop value="${idx}"> ${escHtml(sp.name)}</label>`).join("") || '<span class="pt-lobby-hint">No tradeable properties</span>'}
+          ${tradeChecklistHtml(myTradeable, "data-offer-prop")}
           ${m.jail_cards > 0 ? `<br><label class="pt-prop-check"><input type="checkbox" id="offerJailCard"> Get Out of Jail Free card</label>` : ""}
         </div>
         <div class="pt-trade-col">
           <h5>You Request</h5>
           Cash: <input type="number" class="pt-num-input" id="requestCash" min="0" max="${target.cash}" value="0"><br><br>
-          ${theirTradeable.map(({ idx, sp }) => `<label class="pt-prop-check"><input type="checkbox" data-request-prop value="${idx}"> ${escHtml(sp.name)}</label>`).join("") || '<span class="pt-lobby-hint">No tradeable properties</span>'}
+          ${tradeChecklistHtml(theirTradeable, "data-request-prop")}
           ${target.jail_cards > 0 ? `<br><label class="pt-prop-check"><input type="checkbox" id="requestJailCard"> Get Out of Jail Free card</label>` : ""}
         </div>
       </div>
