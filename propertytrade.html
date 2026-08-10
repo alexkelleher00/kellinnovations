@@ -151,34 +151,45 @@
     align-items: center;
     justify-content: flex-end;
     padding: 2px;
+    /* reserve a thin strip at the bottom for tokens so one landing here doesn't
+       cover the name/price text (both used to fight for the same bottom-anchored
+       space) — sized small on purpose: an 11x11 grid cell is only ~30-40px tall
+       in "fit board" view, so anything bigger squeezes the text out entirely */
+    padding-bottom: clamp(9px, 3.4vw, 15px);
     overflow: hidden;
     cursor: pointer;
-    font-size: 0.5rem;
+    font-size: clamp(0.4rem, 1.5vw, 0.56rem);
     line-height: 1.15;
     text-align: center;
     color: var(--muted);
     transition: background 0.15s;
+    box-sizing: border-box;
   }
   .pt-cell:hover { background: var(--surface2); }
-  .pt-cell.corner { justify-content: center; color: var(--text); font-weight: 700; padding: 3px; gap: 2px; }
+  .pt-cell.corner { justify-content: center; color: var(--text); font-weight: 700; padding: 3px; padding-bottom: clamp(9px, 3.4vw, 15px); gap: 2px; }
   .pt-cell.here { box-shadow: inset 0 0 0 2px var(--accent); }
   .pt-cell .grp-bar { position: absolute; top: 0; left: 0; right: 0; height: 6px; }
-  .pt-cell .cell-name { font-weight: 600; color: var(--text); padding: 0 1px; }
-  .pt-cell .cell-price { color: var(--dim); font-size: 0.48rem; }
+  .pt-cell .cell-name {
+    font-weight: 600; color: var(--text); padding: 0 1px;
+    font-size: clamp(0.4rem, 1.55vw, 0.58rem);
+    max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pt-cell .cell-price { color: var(--dim); font-size: clamp(0.38rem, 1.35vw, 0.5rem); }
   .pt-cell .cell-owner-dot { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,0.5); }
   .pt-cell .cell-mortgage-badge { position: absolute; top: 2px; left: 2px; font-size: 0.6rem; display: none; filter: drop-shadow(0 0 2px #000); }
   .pt-cell.mortgaged .cell-mortgage-badge { display: block; }
   .pt-cell .cell-tokens { position: absolute; bottom: 1px; left: 1px; right: 1px; display: flex; flex-wrap: wrap; gap: 2px; z-index: 2; }
   .pt-cell .cell-tokens span {
-    font-size: 1.05rem; line-height: 1; width: 24px; height: 24px; min-width: 24px;
+    font-size: clamp(0.5rem, 2vw, 0.8rem); line-height: 1;
+    width: clamp(10px, 3.8vw, 17px); height: clamp(10px, 3.8vw, 17px); min-width: clamp(10px, 3.8vw, 17px);
     display: flex; align-items: center; justify-content: center; border-radius: 50%;
     background: rgba(15,15,28,0.92); border: 2px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,0.65);
   }
   .pt-cell.mortgaged { opacity: 0.7; }
   .pt-cell.mortgaged .grp-bar { background-image: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0,0,0,0.4) 4px 8px); }
   .pt-cell .cell-build {
-    position: absolute; top: 8px; left: 2px; right: 2px; display: flex; flex-wrap: wrap; gap: 1px;
-    font-size: 0.85rem; line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.85)); z-index: 1;
+    position: absolute; top: 7px; left: 2px; right: 2px; display: flex; flex-wrap: wrap; gap: 1px;
+    font-size: clamp(0.5rem, 2vw, 0.78rem); line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.85)); z-index: 1;
   }
   .pt-cell .corner-icon { font-size: clamp(1.05rem, 3.4vw, 1.7rem); line-height: 1; }
   .pt-cell .corner-label { font-size: clamp(0.5rem, 1.4vw, 0.66rem); font-weight: 800; letter-spacing: 0.03em; text-align: center; }
@@ -186,9 +197,11 @@
   .pt-cell .corner-pot { font-size: 0.5rem; color: var(--accent); font-weight: 800; }
 
   .pt-token-ghost {
-    position: absolute; width: 24px; height: 24px; margin-left: -12px; margin-top: -12px;
+    position: absolute;
+    width: clamp(10px, 3.8vw, 17px); height: clamp(10px, 3.8vw, 17px);
+    transform: translate(-50%, -50%);
     border-radius: 50%; background: rgba(12,12,22,0.92); border: 2px solid #fff;
-    display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    display: flex; align-items: center; justify-content: center; font-size: clamp(0.5rem, 2vw, 0.8rem);
     z-index: 60; pointer-events: none; box-shadow: 0 3px 10px rgba(0,0,0,0.55);
     transition-property: left, top; transition-timing-function: linear;
   }
@@ -524,6 +537,9 @@
         </div>
         <div id="lobbyWaitMsg" class="pt-lobby-hint" style="display:none;">Waiting for the host to start the game…</div>
         <div class="pt-error" id="lobbyError"></div>
+        <div class="pt-btn-row" style="justify-content:center; margin-top:6px;">
+          <button class="pt-btn pt-btn-outline pt-btn-small" id="leaveLobbyBtn">&larr; Exit Room</button>
+        </div>
       </div>
     </div>
   </section>
@@ -814,6 +830,9 @@
   document.getElementById("leaveGameBtn").addEventListener("click", () => {
     if (confirm("Leave this game? You can rejoin later with the room code.")) returnToLanding();
   });
+  document.getElementById("leaveLobbyBtn").addEventListener("click", () => {
+    if (confirm("Exit this room? Anyone still waiting will need a new game.")) returnToLanding();
+  });
   document.getElementById("playAgainBtn").addEventListener("click", returnToLanding);
 
   // ── Board zoom ───────────────────────────────────────────────────────
@@ -1053,7 +1072,20 @@
   }
 
   function shortName(name) {
-    return name.length > 14 ? name.slice(0, 13) + "…" : name;
+    // Word-boundary-aware truncation (cell-name also wraps to 2 lines via CSS,
+    // so this is mostly a safety net for names longer than that can hold) —
+    // cuts at the last whole word that fits rather than mid-word.
+    const LIMIT = 22;
+    if (name.length <= LIMIT) return name;
+    const words = name.split(" ");
+    let out = "";
+    for (const w of words) {
+      const candidate = out ? out + " " + w : w;
+      if (candidate.length > LIMIT) break;
+      out = candidate;
+    }
+    if (!out) out = name.slice(0, LIMIT - 1); // single word longer than the limit
+    return out + "…";
   }
 
   function showSpaceInfo(idx) {
