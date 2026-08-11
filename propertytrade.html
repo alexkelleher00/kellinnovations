@@ -334,6 +334,47 @@
   .pt-debt-banner { border: 1px solid #e03131; color: #ff9494; }
   .pt-buy-banner { border: 1px solid var(--accent); color: var(--text); }
 
+  /* ── Emoji reactions ── */
+  .pt-reaction-btn {
+    position: fixed; right: 14px; bottom: 18px; z-index: 160;
+    width: 46px; height: 46px; border-radius: 50%;
+    background: rgba(23,23,42,0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border); color: var(--text);
+    font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  }
+  .pt-reaction-picker {
+    position: fixed; right: 14px; bottom: 72px; z-index: 160;
+    display: none; grid-template-columns: repeat(4, 1fr); gap: 4px;
+    background: rgba(23,23,42,0.94); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border); border-radius: 16px; padding: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .pt-reaction-picker.open { display: grid; }
+  .pt-reaction-picker button {
+    background: none; border: none; font-size: 1.4rem; padding: 6px; cursor: pointer;
+    border-radius: 8px; transition: background 0.15s, transform 0.15s; font-family: inherit;
+  }
+  .pt-reaction-picker button:hover { background: rgba(255,255,255,0.1); transform: scale(1.15); }
+
+  .pt-reaction-float-layer { position: fixed; inset: 0; z-index: 155; pointer-events: none; overflow: hidden; }
+  .pt-reaction-bubble {
+    position: absolute; bottom: 80px; right: 20px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    animation: pt-reaction-rise 2.6s ease-out forwards;
+  }
+  .pt-reaction-bubble .emoji { font-size: 1.8rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+  .pt-reaction-bubble .who {
+    font-size: 0.6rem; color: var(--text); background: rgba(0,0,0,0.55);
+    padding: 1px 6px; border-radius: 8px; white-space: nowrap;
+  }
+  @keyframes pt-reaction-rise {
+    0% { transform: translateY(0) scale(0.5); opacity: 0; }
+    15% { transform: translateY(-20px) scale(1.1); opacity: 1; }
+    80% { transform: translateY(-170px) scale(1); opacity: 1; }
+    100% { transform: translateY(-210px) scale(0.9); opacity: 0; }
+  }
+
   /* ── Hamburger drawer ── */
   .pt-drawer-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300;
@@ -571,6 +612,10 @@
       <div class="pt-center-action" id="centerAction"></div>
       <div class="pt-floating-actions" id="floatingActions"></div>
 
+      <div class="pt-reaction-float-layer" id="reactionFloatLayer"></div>
+      <div class="pt-reaction-picker" id="reactionPicker"></div>
+      <button class="pt-reaction-btn" id="reactionBtn" aria-label="Send a reaction">😀</button>
+
       <div class="pt-drawer-overlay" id="drawerOverlay">
         <div class="pt-drawer">
           <button class="pt-modal-close" id="closeDrawerBtn">&times;</button>
@@ -667,6 +712,7 @@
   let state = null;         // last GET /rooms/<code>/state
   let pollTimer = null;
   let lastLogLen = -1;
+  let lastReactionTime = null; // null until first render after entering a room (skip replaying history)
   let selectedCreatePiece = null;
   let selectedJoinPiece = null;
   let tradeTargetId = null;
@@ -829,6 +875,8 @@
       try { board = await api("/board"); indexBoard(); } catch (e) { toast(e.message, "error"); return; }
     }
     lastLogLen = -1;
+    lastReactionTime = null;
+    buildReactionPicker();
     applySessionUiForRole();
     closeDrawer();
     render();
@@ -1285,6 +1333,7 @@
     renderFloatingActions();
     renderLeaderboard();
     renderLog();
+    renderReactions();
     renderAuctionModal();
     renderCardModal();
     applyBoardZoom();
@@ -1460,6 +1509,51 @@
       state.log.slice(lastLogLen).forEach(e => { if (!e.silent) toast(e.msg, "info"); });
     }
     lastLogLen = state.log.length;
+  }
+
+  // ── Emoji reactions ───────────────────────────────────────────────
+  // Fire-and-forget: anyone can send one any time during play, no turn required —
+  // e.g. reacting while someone else is rolling. Kept out of the activity log
+  // entirely (see send_reaction server-side) since these are pure flavor, not
+  // game events, so they just float up and fade rather than sitting in history.
+  let reactionPickerOpen = false;
+  function buildReactionPicker() {
+    const picker = document.getElementById("reactionPicker");
+    const list = (board && board.reactions) || ["😂", "😱", "🔥", "👏", "😭", "💀", "🎉", "👀"];
+    picker.innerHTML = list.map(e => `<button type="button">${e}</button>`).join("");
+    picker.querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        runAction(() => act("react", { emoji: btn.textContent }));
+        reactionPickerOpen = false;
+        picker.classList.remove("open");
+      });
+    });
+  }
+  document.getElementById("reactionBtn").addEventListener("click", () => {
+    reactionPickerOpen = !reactionPickerOpen;
+    document.getElementById("reactionPicker").classList.toggle("open", reactionPickerOpen);
+  });
+
+  function renderReactions() {
+    const reactions = state.reactions || [];
+    if (lastReactionTime === null) {
+      // first render after entering the room — note where we are, don't replay history
+      lastReactionTime = reactions.length ? reactions[reactions.length - 1].t : 0;
+      return;
+    }
+    reactions.filter(r => r.t > lastReactionTime).forEach(showReactionBubble);
+    if (reactions.length) lastReactionTime = reactions[reactions.length - 1].t;
+  }
+
+  function showReactionBubble(r) {
+    const layer = document.getElementById("reactionFloatLayer");
+    const sender = state.players.find(p => p.id === r.player);
+    const bubble = document.createElement("div");
+    bubble.className = "pt-reaction-bubble";
+    bubble.style.right = (20 + Math.random() * 50 - 25) + "px"; // slight horizontal jitter so a burst doesn't stack perfectly
+    bubble.innerHTML = `<span class="emoji">${r.emoji}</span>${sender ? `<span class="who">${escHtml(sender.name)}</span>` : ""}`;
+    layer.appendChild(bubble);
+    setTimeout(() => bubble.remove(), 2700);
   }
 
   // ── Auction modal ──────────────────────────────────────────────────
@@ -1778,6 +1872,9 @@
         state = await api(`/rooms/${session.code}/state`);
         if (!session.spectator && !state.players.some(p => p.id === session.playerId)) throw new Error("session no longer valid");
         lastLogLen = state.log.length; // don't toast the entire history on load
+        const rx = state.reactions || [];
+        lastReactionTime = rx.length ? rx[rx.length - 1].t : 0; // don't replay old reactions on load
+        buildReactionPicker();
         applySessionUiForRole();
         render();
         startPolling();
