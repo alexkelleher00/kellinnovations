@@ -530,6 +530,9 @@
         <div class="pt-lobby-hint">Share this code — up to 5 players can join</div>
         <div class="pt-player-list" id="lobbyPlayers"></div>
         <div id="lobbyHostControls" style="display:none;">
+          <div class="pt-btn-row" style="justify-content:center; margin-bottom:10px;">
+            <button class="pt-btn pt-btn-outline pt-btn-small" id="addBotBtn">+ Add CPU Player</button>
+          </div>
           <label class="pt-easy-mono-toggle">
             <input type="checkbox" id="easyMonopoliesToggle">
             <span>🎲 Easy Monopolies <em>— wonky house rule: everyone starts owning one free color-group monopoly</em></span>
@@ -810,6 +813,16 @@
   }
   document.getElementById("startGameBtn").addEventListener("click", startGame);
 
+  document.getElementById("addBotBtn").addEventListener("click", async () => {
+    const errEl = document.getElementById("lobbyError");
+    errEl.textContent = "";
+    const hasBot = state.players.some(p => p.is_bot);
+    try {
+      state = await act(hasBot ? "remove_bot" : "add_bot");
+      render();
+    } catch (e) { errEl.textContent = e.message; }
+  });
+
   // ── Enter room / polling ───────────────────────────────────────────
   async function enterRoom() {
     if (!board) {
@@ -967,6 +980,7 @@
         <span class="piece">${p.piece}</span>
         <span class="name">${escHtml(p.name)}</span>
         ${p.id === state.host_id ? '<span class="pt-badge">Host</span>' : ""}
+        ${p.is_bot ? '<span class="pt-badge">CPU</span>' : ""}
       </div>`).join("");
     const isHost = !session.spectator && session.playerId === state.host_id;
     document.getElementById("lobbyHostControls").style.display = isHost ? "block" : "none";
@@ -977,6 +991,11 @@
       : "Waiting for the host to start the game…";
     const startBtn = document.getElementById("startGameBtn");
     startBtn.disabled = state.players.length < 2;
+
+    const hasBot = state.players.some(p => p.is_bot);
+    const botBtn = document.getElementById("addBotBtn");
+    botBtn.textContent = hasBot ? "− Remove CPU Player" : "+ Add CPU Player";
+    botBtn.disabled = !hasBot && state.players.length >= 5;
   }
 
   // ── Board rendering ────────────────────────────────────────────────
@@ -1290,7 +1309,7 @@
       return `<div class="pt-hud-player-chip ${isCurrent ? "current" : ""} ${p.bankrupt ? "bankrupt" : ""}">
         <span class="dot" style="background:${color}"></span>
         <span class="piece">${p.piece}</span>
-        <span class="pname">${escHtml(p.name)}</span>
+        <span class="pname">${escHtml(p.name)}${p.is_bot ? " (CPU)" : ""}</span>
       </div>`;
     }).join("");
   }
@@ -1325,7 +1344,7 @@
       <div class="pt-lb-row ${p.id === session.playerId ? "you" : ""} ${p.bankrupt ? "bankrupt" : ""}">
         <span class="pt-lb-rank">#${i + 1}</span>
         <span class="piece">${p.piece}</span>
-        <span class="pname">${escHtml(p.name)}${p.id === state.current_player ? " 🎯" : ""}</span>
+        <span class="pname">${escHtml(p.name)}${p.is_bot ? " (CPU)" : ""}${p.id === state.current_player ? " 🎯" : ""}</span>
         ${p.in_jail ? '<span class="pt-jailtag">JAIL</span>' : ""}
         <span class="pworth">$${netWorth(p).toLocaleString()}</span>
       </div>`).join("");
