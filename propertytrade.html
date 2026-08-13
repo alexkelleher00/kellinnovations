@@ -422,18 +422,71 @@
   .pt-chat-history-entry .who { color: var(--accent); font-weight: 700; margin-right: 4px; }
 
   /* ── Roulette ── */
-  .pt-roulette-ball {
-    width: 64px; height: 64px; border-radius: 50%; margin: 14px auto 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.6rem; font-weight: 800; color: #fff;
-    border: 3px solid rgba(255,255,255,0.25); box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-    animation: pt-card-pop 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .pt-roulette-result { text-align: center; }
-  .pt-roulette-win { color: #2f9e44; font-weight: 800; font-size: 1.1rem; margin-top: 4px; }
-  .pt-roulette-lose { color: #ff6b6b; font-weight: 800; font-size: 1.1rem; margin-top: 4px; }
   @keyframes pt-spin-anim { from { transform: rotate(0deg); } to { transform: rotate(720deg); } }
   .pt-spin-anim { animation: pt-spin-anim 1.1s cubic-bezier(0.15, 0.6, 0.3, 1); }
+
+  /* Betting popup: number grid (0 + 1-36, laid out to match the real table — 3
+     columns, numbers increasing left-to-right per row) + outside/column/dozen
+     buttons + a staged-bets list so a spin can combine any mix of real bet types. */
+  .pt-roulette-grid {
+    display: grid; grid-template-columns: 34px repeat(3, 1fr); grid-auto-rows: 26px;
+    gap: 3px; margin: 10px 0;
+  }
+  .pt-roulette-cell {
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; font-size: 0.72rem; font-weight: 700; color: #fff; cursor: pointer;
+    user-select: none; border: 2px solid transparent;
+  }
+  .pt-roulette-cell.red { background: #7a1f1f; }
+  .pt-roulette-cell.black { background: #1a1a1a; }
+  .pt-roulette-cell.green { background: #1f6b3a; }
+  .pt-roulette-cell:hover { filter: brightness(1.3); }
+  .pt-roulette-cell.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,200,200,0.35) inset; }
+  .pt-roulette-staged-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem;
+  }
+  .pt-roulette-staged-row:last-child { border-bottom: none; }
+
+  /* Big shared wheel — visible to every player, not just whoever is spinning */
+  .pt-wheel-overlay {
+    position: fixed; inset: 0; z-index: 700; display: none;
+    align-items: center; justify-content: center; flex-direction: column; gap: 20px;
+    background: rgba(0,0,0,0.82); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  }
+  .pt-wheel-overlay.open { display: flex; }
+  .pt-wheel-stage {
+    position: relative; width: min(80vw, 68vh, 620px); height: min(80vw, 68vh, 620px); flex-shrink: 0;
+  }
+  .pt-wheel-disc {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 6px solid #3a2b12; box-shadow: 0 0 0 3px #caa24a, 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .pt-wheel-num {
+    position: absolute; top: 50%; left: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; font-weight: 800; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  }
+  .pt-wheel-ball-orbit { position: absolute; inset: 0; pointer-events: none; }
+  .pt-wheel-ball {
+    position: absolute; top: 2%; left: 50%; width: 4%; height: 4%; margin-left: -2%;
+    border-radius: 50%; background: #fff;
+    box-shadow: 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.5);
+  }
+  .pt-wheel-hub {
+    position: absolute; top: 50%; left: 50%; width: 20%; height: 20%; margin: -10% 0 0 -10%;
+    border-radius: 50%; background: radial-gradient(circle at 35% 30%, #3a3a4a, #101018);
+    display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 4px 14px rgba(0,0,0,0.5);
+  }
+  .pt-wheel-caption { color: #fff; text-align: center; }
+  .pt-wheel-caption .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 50%; margin-right: 8px;
+    font-weight: 800; color: #fff; vertical-align: middle; font-size: 1rem;
+  }
+  .pt-wheel-caption .title { font-size: 1.15rem; font-weight: 800; }
+  .pt-wheel-caption .net { font-size: 1rem; font-weight: 700; margin-top: 6px; }
 
   /* ── Hamburger drawer ── */
   .pt-drawer-overlay {
@@ -640,7 +693,7 @@
           </label>
           <label class="pt-easy-mono-toggle" style="margin-top:6px;">
             <input type="checkbox" id="rouletteToggle">
-            <span>🎰 Roulette <em>— wonky house rule: anyone can spin any time to gamble their cash on red/black or a number</em></span>
+            <span>🎰 Roulette <em>— wonky house rule: anyone can spin any time, full real-table bet menu, everyone watches the wheel</em></span>
           </label>
           <div class="pt-btn-row" style="justify-content:center; margin-top:10px;">
             <button class="pt-btn" id="startGameBtn">Start Game</button>
@@ -677,6 +730,16 @@
       <div class="pt-floating-actions" id="floatingActions"></div>
 
       <div class="pt-reaction-float-layer" id="reactionFloatLayer"></div>
+
+      <div class="pt-wheel-overlay" id="rouletteWheelOverlay">
+        <div class="pt-wheel-stage">
+          <div class="pt-wheel-disc" id="wheelDisc"></div>
+          <div class="pt-wheel-ball-orbit" id="wheelBallOrbit"><div class="pt-wheel-ball"></div></div>
+          <div class="pt-wheel-hub">🎡</div>
+        </div>
+        <div class="pt-wheel-caption" id="wheelCaption"></div>
+      </div>
+
       <div class="pt-reaction-picker" id="reactionPicker"></div>
       <div class="pt-chat-panel" id="chatPanel">
         <input type="text" id="chatInput" maxlength="200" placeholder="Say something…" autocomplete="off">
@@ -788,6 +851,7 @@
   let lastLogLen = -1;
   let lastReactionTime = null; // null until first render after entering a room (skip replaying history)
   let lastChatTime = null;     // same idea, for chat flashes
+  let lastSpinTime = null;     // same idea, for roulette spins — drives the shared wheel animation
   let selectedCreatePiece = null;
   let selectedJoinPiece = null;
   let tradeTargetId = null;
@@ -1427,6 +1491,7 @@
     renderLog();
     renderReactions();
     renderChat();
+    renderRouletteSpins();
     document.getElementById("rouletteBtn").style.display = state.roulette_enabled ? "flex" : "none";
     renderAuctionModal();
     renderCardModal();
@@ -1531,8 +1596,12 @@
     } else if (isMyTurn && state.pending_card) {
       html = `<div class="pt-buy-banner">A card is waiting — see the popup.</div>`;
     } else if (isMyTurn && state.debts[m.id]) {
+      const debt = state.debts[m.id];
+      const creditorName = debt.creditor === "bank" ? "the bank"
+        : (state.players.find(p => p.id === debt.creditor)?.name || "the bank");
       html = `<div class="pt-debt-banner">
-        You owe money and can't cover it. Mortgage or sell buildings, or declare bankruptcy.
+        You still owe <strong>$${debt.remaining.toLocaleString()}</strong> to ${escHtml(creditorName)}.
+        Mortgage or sell buildings to raise cash, or declare bankruptcy.
         <div class="pt-btn-row">
           <button class="pt-btn pt-btn-small" data-open-manage>Manage Properties</button>
           <button class="pt-btn pt-btn-danger pt-btn-small" data-bankrupt>Declare Bankruptcy</button>
@@ -1712,102 +1781,301 @@
   }
 
   // ── Roulette (wonky house rule) ──────────────────────────────────────
+  // Full real-table bet menu: straight/split/street/corner/six-line/column/dozen
+  // (inside bets) plus red/black/odd/even/low/high (outside bets), any combo in
+  // one spin. The spinner stages bets client-side, then one spin_roulette call
+  // places them all at once. The resulting spin is broadcast to every client via
+  // state.roulette_spins (see renderRouletteSpins below) so everyone watches the
+  // same big wheel animate together, not just whoever pressed spin.
+  const ROULETTE_INSIDE_SIZES = { straight: 1, split: 2, street: 3, corner: 4, six_line: 6 };
+  function inferInsideKind(nums) {
+    return Object.keys(ROULETTE_INSIDE_SIZES).find(k => ROULETTE_INSIDE_SIZES[k] === nums.length) || null;
+  }
+  function insideNumbersValid(kind, nums) {
+    const s = nums.slice().sort((a, b) => a - b);
+    if (kind === "straight") return true;
+    if (kind === "split") {
+      const [a, b] = s;
+      const sameRow = Math.floor((a - 1) / 3) === Math.floor((b - 1) / 3);
+      return (b - a === 1 && sameRow) || b - a === 3;
+    }
+    if (kind === "street") return s[0] % 3 === 1 && s[1] === s[0] + 1 && s[2] === s[0] + 2;
+    if (kind === "corner") { const a = s[0]; return a % 3 !== 0 && s.join(",") === [a, a + 1, a + 3, a + 4].join(","); }
+    if (kind === "six_line") { const a = s[0]; return a % 3 === 1 && s.join(",") === [a, a + 1, a + 2, a + 3, a + 4, a + 5].join(","); }
+    return false;
+  }
+  function rouletteBetLabel(b) {
+    if (b.kind === "straight") return `Straight #${b.numbers[0]}`;
+    if (b.kind === "split") return `Split ${b.numbers.join("-")}`;
+    if (b.kind === "street") return `Street ${b.numbers.join("-")}`;
+    if (b.kind === "corner") return `Corner ${b.numbers.join("-")}`;
+    if (b.kind === "six_line") return `Six Line ${b.numbers.join("-")}`;
+    if (b.kind === "column") return `Column ${b.target}`;
+    if (b.kind === "dozen") return `Dozen ${b.target}`;
+    const OUTSIDE_LABELS = { red: "Red", black: "Black", odd: "Odd", even: "Even", low: "1-18", high: "19-36" };
+    return OUTSIDE_LABELS[b.kind] || b.kind;
+  }
+  function rouletteGridHtml() {
+    const redSet = new Set((board && board.roulette_red_numbers) || []);
+    let cells = `<div class="pt-roulette-cell green" data-num="0" style="grid-row:1 / span 12;">0</div>`;
+    for (let row = 0; row < 12; row++) {
+      for (let col = 0; col < 3; col++) {
+        const n = row * 3 + col + 1;
+        cells += `<div class="pt-roulette-cell ${redSet.has(n) ? "red" : "black"}" data-num="${n}"
+          style="grid-row:${row + 1}; grid-column:${col + 2};">${n}</div>`;
+      }
+    }
+    return cells;
+  }
+
   function openRouletteModal() {
     const m = me();
     if (!m) return;
-    let betType = "color", betValue = "red";
+    let selected = []; // numbers currently picked on the grid, building toward one inside bet
+    let staged = [];   // bets queued for this spin: {kind, numbers?, target?, amount}
+
     const html = `
       <button class="pt-modal-close" data-close>&times;</button>
       <h3>🎰 Roulette</h3>
-      <p class="pt-lobby-hint">Bet on red or black (even money) or a single number 0-36 (35:1). Spin any time — it's not turn-gated.</p>
-      <div class="pt-btn-row" id="rouletteBetTypeRow">
-        <button type="button" class="pt-btn pt-btn-small" data-bettype="color" data-betvalue="red">Red</button>
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-bettype="color" data-betvalue="black">Black</button>
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-bettype="number">Number</button>
+      <p class="pt-lobby-hint">Stage any combo of real bets, then spin — everyone at the table watches the same wheel. Not turn-gated.</p>
+
+      <div class="pt-roulette-grid" id="rouletteGrid">${rouletteGridHtml()}</div>
+      <div id="rouletteInsideHint" style="font-size:0.78rem; color:var(--muted); min-height:1.2em;"></div>
+      <button type="button" class="pt-btn pt-btn-outline pt-btn-small" id="addInsideBetBtn" style="width:100%; margin-top:4px;" disabled>Stage Selected Numbers</button>
+
+      <div class="pt-btn-row" style="margin-top:12px;">
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="red">Red</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="black">Black</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="odd">Odd</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="even">Even</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="low">1-18</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="high">19-36</button>
       </div>
-      <div id="rouletteNumberRow" style="display:none; margin-top:8px;">
-        <input type="number" class="pt-num-input" id="rouletteNumberInput" min="0" max="36" placeholder="0-36" style="width:100%; box-sizing:border-box;">
+      <div class="pt-btn-row" style="margin-top:6px;">
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-column="1">Col 1</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-column="2">Col 2</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-column="3">Col 3</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-dozen="1">1st 12</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-dozen="2">2nd 12</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-dozen="3">3rd 12</button>
       </div>
-      <label style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-top:14px;">Bet amount (you have $${m.cash.toLocaleString()})</label>
-      <input type="number" class="pt-num-input" id="rouletteAmount" min="1" max="${m.cash}" value="${Math.max(1, Math.min(50, m.cash))}" style="width:100%; box-sizing:border-box;">
+
+      <label style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-top:14px;">
+        Amount for next bet (you have $${m.cash.toLocaleString()})</label>
+      <input type="number" class="pt-num-input" id="rouletteAmount" min="1" max="${m.cash}" value="${Math.max(1, Math.min(25, m.cash))}" style="width:100%; box-sizing:border-box;">
       <div class="pt-btn-row" style="margin-top:8px;">
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-preset="0.1">10%</button>
         <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-preset="0.25">25%</button>
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-preset="0.5">50%</button>
         <button type="button" class="pt-btn pt-btn-danger pt-btn-small" data-preset="1">ALL IN</button>
       </div>
-      <button class="pt-btn" id="spinBtn" style="width:100%; margin-top:14px;">🎡 Spin</button>
-      <div id="rouletteResult"></div>
+
+      <div id="rouletteStagedBets" style="margin-top:14px;"></div>
+      <button class="pt-btn" id="spinBtn" style="width:100%; margin-top:10px;" disabled>🎡 Spin Wheel</button>
     `;
     openModal(html, overlay => {
-      function selectBetType(type, value) {
-        betType = type;
-        betValue = value;
-        overlay.querySelectorAll("#rouletteBetTypeRow button[data-bettype]").forEach(b => {
-          const active = b.dataset.bettype === type && (type !== "color" || b.dataset.betvalue === value);
-          b.classList.toggle("pt-btn-outline", !active);
-        });
-        overlay.querySelector("#rouletteNumberRow").style.display = type === "number" ? "block" : "none";
+      const amountInput = overlay.querySelector("#rouletteAmount");
+      const spinBtn = overlay.querySelector("#spinBtn");
+      const addBtn = overlay.querySelector("#addInsideBetBtn");
+      const hint = overlay.querySelector("#rouletteInsideHint");
+
+      function currentAmount() {
+        const v = parseInt(amountInput.value, 10);
+        return (v && v > 0) ? v : 0;
       }
-      selectBetType("color", "red");
-      overlay.querySelectorAll("#rouletteBetTypeRow button[data-bettype]").forEach(b => {
-        b.addEventListener("click", () => selectBetType(b.dataset.bettype, b.dataset.betvalue || null));
+      function stagedTotal() { return staged.reduce((s, b) => s + b.amount, 0); }
+
+      function renderGridSelection() {
+        overlay.querySelectorAll(".pt-roulette-cell").forEach(cell => {
+          cell.classList.toggle("selected", selected.includes(parseInt(cell.dataset.num, 10)));
+        });
+        const kind = inferInsideKind(selected);
+        if (!selected.length) hint.textContent = "Click numbers on the grid: 1 = straight, 2 adjacent = split, a row of 3 = street, a 2x2 block = corner, two rows of 6 = six-line.";
+        else if (!kind) hint.textContent = `${selected.length} number(s) selected — needs to be 1, 2, 3, 4, or 6 to form a valid bet.`;
+        else if (!insideNumbersValid(kind, selected)) hint.textContent = `${selected.length} numbers selected, but they're not adjacent on the table for a ${kind.replace("_", "-")} bet.`;
+        else hint.textContent = `Ready: ${kind.replace("_", "-")} bet on ${selected.slice().sort((a,b)=>a-b).join(", ")}.`;
+        addBtn.disabled = !(kind && insideNumbersValid(kind, selected));
+      }
+
+      function renderStaged() {
+        const box = overlay.querySelector("#rouletteStagedBets");
+        const total = stagedTotal();
+        box.innerHTML = staged.length ? `
+          <div style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px;">
+            Staged bets — total $${total.toLocaleString()}
+          </div>
+          ${staged.map((b, i) => `
+            <div class="pt-roulette-staged-row">
+              <span>${escHtml(rouletteBetLabel(b))} — $${b.amount.toLocaleString()}</span>
+              <button type="button" class="pt-manage-expand-btn" data-remove-bet="${i}">Remove</button>
+            </div>`).join("")}
+        ` : `<p class="pt-lobby-hint" style="margin:0;">No bets staged yet.</p>`;
+        box.querySelectorAll("[data-remove-bet]").forEach(b => {
+          b.addEventListener("click", () => {
+            staged.splice(parseInt(b.dataset.removeBet, 10), 1);
+            renderStaged();
+          });
+        });
+        spinBtn.disabled = !staged.length || total > m.cash;
+      }
+
+      function stageBet(bet) {
+        const amt = currentAmount();
+        if (!amt) return toast("Enter a bet amount first", "error");
+        if (stagedTotal() + amt > m.cash) return toast("That would bet more than you have", "error");
+        staged.push({ ...bet, amount: amt });
+        renderStaged();
+      }
+
+      overlay.querySelectorAll(".pt-roulette-cell").forEach(cell => {
+        cell.addEventListener("click", () => {
+          const n = parseInt(cell.dataset.num, 10);
+          const i = selected.indexOf(n);
+          if (i >= 0) selected.splice(i, 1);
+          else if (selected.length < 6) selected.push(n);
+          renderGridSelection();
+        });
+      });
+      addBtn.addEventListener("click", () => {
+        const kind = inferInsideKind(selected);
+        if (!kind || !insideNumbersValid(kind, selected)) return;
+        stageBet({ kind, numbers: selected.slice() });
+        selected = [];
+        renderGridSelection();
+      });
+      overlay.querySelectorAll("[data-outside]").forEach(b => {
+        b.addEventListener("click", () => stageBet({ kind: b.dataset.outside }));
+      });
+      overlay.querySelectorAll("[data-column]").forEach(b => {
+        b.addEventListener("click", () => stageBet({ kind: "column", target: parseInt(b.dataset.column, 10) }));
+      });
+      overlay.querySelectorAll("[data-dozen]").forEach(b => {
+        b.addEventListener("click", () => stageBet({ kind: "dozen", target: parseInt(b.dataset.dozen, 10) }));
       });
       overlay.querySelectorAll("[data-preset]").forEach(b => {
         b.addEventListener("click", () => {
-          const amt = Math.max(1, Math.floor(m.cash * parseFloat(b.dataset.preset)));
-          overlay.querySelector("#rouletteAmount").value = amt;
+          amountInput.value = Math.max(1, Math.floor((m.cash - stagedTotal()) * parseFloat(b.dataset.preset)));
         });
       });
-      overlay.querySelector("#spinBtn").addEventListener("click", async () => {
-        const amount = parseInt(overlay.querySelector("#rouletteAmount").value, 10);
-        if (!amount || amount <= 0) return toast("Enter a bet amount", "error");
-        let value = betValue;
-        if (betType === "number") {
-          value = parseInt(overlay.querySelector("#rouletteNumberInput").value, 10);
-          if (isNaN(value) || value < 0 || value > 36) return toast("Enter a number 0-36", "error");
-        }
-        const spinBtn = overlay.querySelector("#spinBtn");
+
+      spinBtn.addEventListener("click", async () => {
+        if (!staged.length) return;
+        const payload = staged.map(b => {
+          if (b.kind === "column" || b.kind === "dozen") return { kind: b.kind, target: b.target, amount: b.amount };
+          if (b.numbers) return { kind: b.kind, numbers: b.numbers, amount: b.amount };
+          return { kind: b.kind, amount: b.amount };
+        });
         spinBtn.disabled = true;
         spinBtn.textContent = "🎡 Spinning…";
-        spinBtn.classList.add("pt-spin-anim");
         try {
-          const [data] = await Promise.all([
-            act("spin_roulette", { bet_type: betType, bet_value: value, amount }),
-            new Promise(r => setTimeout(r, 1100)), // minimum spin time so it doesn't just instantly flash a result
-          ]);
+          const data = await act("spin_roulette", { bets: payload });
+          const spin = data.action_result;
+          // Mark it seen BEFORE render() — otherwise renderRouletteSpins() sees this
+          // same spin as "new" during render() and queues it a second time, on top
+          // of the explicit queue call below, replaying the wheel animation twice.
+          if (spin) lastSpinTime = spin.t;
           state = data;
           render();
-          const freshOverlay = document.getElementById("modalOverlay");
-          if (freshOverlay) showRouletteResult(freshOverlay, data.action_result);
+          closeModal();
+          if (spin) queueRouletteAnimations([spin]);
         } catch (e) {
           toast(e.message, "error");
-        } finally {
-          const btn = document.getElementById("spinBtn");
-          if (btn) {
-            btn.disabled = false;
-            btn.textContent = "🎡 Spin Again";
-            btn.classList.remove("pt-spin-anim");
-          }
+          spinBtn.disabled = false;
+          spinBtn.textContent = "🎡 Spin Wheel";
         }
       });
+
+      renderGridSelection();
+      renderStaged();
     });
   }
-
-  function showRouletteResult(overlay, result) {
-    if (!result) return;
-    const box = overlay.querySelector("#rouletteResult");
-    if (!box) return;
-    const colorHex = result.result_color === "red" ? "#e03131" : result.result_color === "black" ? "#1a1a1a" : "#2f9e44";
-    box.innerHTML = `
-      <div class="pt-roulette-result">
-        <div class="pt-roulette-ball" style="background:${colorHex};">${result.result}</div>
-        <div>${result.result_color.toUpperCase()}</div>
-        <div class="${result.won ? "pt-roulette-win" : "pt-roulette-lose"}">
-          ${result.won ? "🎉 You won!" : "😬 You lost."}
-        </div>
-      </div>`;
-  }
   document.getElementById("rouletteBtn").addEventListener("click", () => { closeAllFabPanels(); openRouletteModal(); });
+
+  // ── Shared wheel animation — every client plays the same spin ──────────
+  function renderRouletteSpins() {
+    const spins = state.roulette_spins || [];
+    if (lastSpinTime === null) {
+      lastSpinTime = spins.length ? spins[spins.length - 1].t : 0;
+      return;
+    }
+    const fresh = spins.filter(s => s.t > lastSpinTime);
+    if (fresh.length) {
+      lastSpinTime = spins[spins.length - 1].t;
+      queueRouletteAnimations(fresh);
+    }
+  }
+
+  let wheelQueue = [];
+  let wheelAnimating = false;
+  function queueRouletteAnimations(spins) {
+    wheelQueue.push(...spins);
+    if (!wheelAnimating) playNextWheelAnimation();
+  }
+  function playNextWheelAnimation() {
+    const spin = wheelQueue.shift();
+    if (!spin) { wheelAnimating = false; return; }
+    wheelAnimating = true;
+    playRouletteWheelAnimation(spin, () => setTimeout(playNextWheelAnimation, 300));
+  }
+
+  let wheelBuilt = false;
+  function buildRouletteWheelDom() {
+    if (wheelBuilt || !board || !board.roulette_wheel_order) return;
+    const disc = document.getElementById("wheelDisc");
+    if (!disc) return;
+    const order = board.roulette_wheel_order;
+    const redSet = new Set(board.roulette_red_numbers || []);
+    const step = 360 / order.length;
+    disc.style.background = "conic-gradient(" + order.map((n, i) => {
+      const color = n === 0 ? "#1f6b3a" : redSet.has(n) ? "#a1222b" : "#171717";
+      return `${color} ${(i * step).toFixed(3)}deg ${((i + 1) * step).toFixed(3)}deg`;
+    }).join(", ") + ")";
+    const radius = (disc.getBoundingClientRect().width || 320) * 0.42;
+    disc.innerHTML = order.map((n, i) => {
+      const angle = i * step + step / 2;
+      return `<div class="pt-wheel-num" style="transform:rotate(${angle}deg) translate(0, -${radius}px) rotate(${-angle}deg);">${n}</div>`;
+    }).join("");
+    wheelBuilt = true;
+  }
+
+  function playRouletteWheelAnimation(spin, onDone) {
+    const overlay = document.getElementById("rouletteWheelOverlay");
+    const orbit = document.getElementById("wheelBallOrbit");
+    const caption = document.getElementById("wheelCaption");
+    const sender = state.players.find(p => p.id === spin.player);
+    overlay.classList.add("open");
+    buildRouletteWheelDom(); // first open lays out the stage, so build/measure now
+    caption.innerHTML = `<div class="title">${sender ? escHtml(sender.name) : "Someone"} spins…</div>`;
+
+    const order = (board && board.roulette_wheel_order) || [];
+    const idx = order.indexOf(spin.result);
+    const step = 360 / (order.length || 37);
+    const landing = (idx >= 0 ? idx : 0) * step + step / 2 + 360 * 6;
+    orbit.style.transition = "none";
+    orbit.style.transform = "rotate(0deg)";
+    void orbit.offsetWidth; // force reflow so the reset above isn't merged into the animated transition
+    requestAnimationFrame(() => {
+      orbit.style.transition = "transform 4.2s cubic-bezier(0.12, 0.72, 0.24, 1)";
+      orbit.style.transform = `rotate(${landing}deg)`;
+    });
+
+    setTimeout(() => {
+      const redSet = new Set((board && board.roulette_red_numbers) || []);
+      const color = spin.result === 0 ? "green" : redSet.has(spin.result) ? "red" : "black";
+      const colorHex = color === "red" ? "#a1222b" : color === "black" ? "#171717" : "#1f6b3a";
+      const isMe = spin.player === session.playerId;
+      const netHtml = spin.net >= 0
+        ? `<span style="color:#4ee08a;">+$${spin.net.toLocaleString()}</span>`
+        : `<span style="color:#ff6b6b;">-$${Math.abs(spin.net).toLocaleString()}</span>`;
+      caption.innerHTML = `
+        <div class="title"><span class="num" style="background:${colorHex};">${spin.result}</span>${color.toUpperCase()}</div>
+        <div class="net">${isMe ? "You" : escHtml(sender ? sender.name : "They")} net ${netHtml}</div>
+      `;
+      setTimeout(() => {
+        overlay.classList.remove("open");
+        onDone();
+      }, 2400);
+    }, 4300);
+  }
 
   // ── Auction modal ──────────────────────────────────────────────────
   // Rebuilding the modal's innerHTML every poll tick (1s) would blow away the
@@ -2129,6 +2397,8 @@
         lastReactionTime = rx.length ? rx[rx.length - 1].t : 0; // don't replay old reactions on load
         const cx = state.chat || [];
         lastChatTime = cx.length ? cx[cx.length - 1].t : 0;
+        const sx = state.roulette_spins || [];
+        lastSpinTime = sx.length ? sx[sx.length - 1].t : 0;
         buildReactionPicker();
         applySessionUiForRole();
         render();
