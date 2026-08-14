@@ -1,6 +1,6 @@
 # Property Empire — batch of updates (working doc)
 
-Status: **items 1-5 and 7-8 shipped and verified** (113 backend tests passing, live
+Status: **items 1-5 and 7-9 shipped and verified** (121 backend tests passing, live
 browser smoke test of every feature). Item 6 is still a follow-up, not done — see bottom.
 
 ## 1. Bankruptcy payout change (3+ player games) — done
@@ -107,3 +107,39 @@ front, never $2,000.
       closes cleanly after one animation cycle (caught and fixed a real
       double-queue bug during this test — the spinner's own render() call was
       independently re-detecting its own spin as a "new" broadcast).
+
+## 9. Roulette-only debt rule: mortgage-then-gamble, pay off manually — done
+New request: when the roulette rule is on, raising cash (mortgaging, selling a
+building, a trade, being paid rent) should NOT auto-pay down a tracked debt —
+the player can deliberately gamble that cash on the wheel first, and only settle
+up via a manual "Pay Debt" button, for exactly as long as they choose to risk it.
+Normal (non-roulette) games keep the auto-sweep-as-you-mortgage behavior from
+item 7 completely unchanged.
+- [x] `_maybe_clear_debt` (the auto-sweep hook called from mortgage/sell/trade/
+      incoming-rent) is now a no-op whenever `self.roulette_enabled` is true.
+      Extracted the actual settle logic into `_settle_debt`, shared with the new
+      manual action.
+- [x] New `pay_debt` action/method: sweeps whatever cash the player currently has
+      toward their tracked debt on demand. Works in both modes, but it's the
+      *only* way to pay down debt when roulette is on. Rejects if nothing's owed
+      or there's no cash to pay with.
+- [x] Bots never gamble — `_bot_resolve_debt` explicitly calls `_settle_debt`
+      after every mortgage/sale regardless of the roulette flag, so bot behavior
+      is identical in both modes.
+- [x] Frontend debt banner: shows a "Pay Debt" button (only when there's cash on
+      hand to pay with) plus mode-specific copy explaining whether cash auto-pays
+      or has to be paid manually.
+- [x] Fixed a pre-existing visual bug flagged during this pass: the reaction
+      picker (now 14 emoji, 4 rows) was anchored low enough that its top rows sat
+      behind the chat/roulette FAB buttons, which paint on top since they're
+      later in the DOM — silently hiding 🍑 (and partly 🍒/🍌) behind the
+      roulette button whenever the picker was open. Repositioned the picker
+      above the whole FAB stack (same anchor the chat panel already uses).
+- [x] Backend tests: auto-sweep disabled when roulette is on (mortgage, incoming
+      rent), manual pay_debt pays correctly and rejects invalid cases, normal
+      games unaffected, bots still self-settle under roulette. 121 tests passing.
+- [x] Live browser test: forced a debt scenario via a debug-only endpoint (dev
+      server only, not shipped), confirmed the Pay Debt button appears/disappears
+      based on cash on hand, actually pays down the debt when clicked, and
+      confirmed via bounding-box math that the peach emoji no longer overlaps
+      the roulette/chat buttons.

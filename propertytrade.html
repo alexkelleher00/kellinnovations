@@ -350,7 +350,12 @@
     box-shadow: 0 4px 16px rgba(0,0,0,0.35);
   }
   .pt-reaction-picker {
-    position: fixed; right: 14px; bottom: 72px; z-index: 160;
+    /* Anchored above the whole FAB stack (reaction/chat/roulette buttons, tallest
+       at bottom:126px), same as the chat panel — otherwise a taller grid (now 14
+       emoji = 4 rows) has its bottom rows sitting right where the chat/roulette
+       buttons are, and since those buttons come later in the DOM they paint on
+       top and visually block whichever emoji falls under them (bit us with 🍑). */
+    position: fixed; right: 14px; bottom: 180px; z-index: 160;
     display: none; grid-template-columns: repeat(4, 1fr); gap: 4px;
     background: rgba(23,23,42,0.94); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--border); border-radius: 16px; padding: 8px;
@@ -1599,11 +1604,16 @@
       const debt = state.debts[m.id];
       const creditorName = debt.creditor === "bank" ? "the bank"
         : (state.players.find(p => p.id === debt.creditor)?.name || "the bank");
+      // Roulette rule: cash you raise isn't auto-paid toward this — you have to press
+      // Pay Debt yourself, so there's room to gamble it first if you want to.
+      const rouletteHint = state.roulette_enabled
+        ? `Cash you raise stays in your hand — spend or gamble it however you like, then hit <strong>Pay Debt</strong> when you're ready (or when you're out of options).`
+        : `Cash you raise pays this off automatically as you mortgage or sell.`;
       html = `<div class="pt-debt-banner">
-        You still owe <strong>$${debt.remaining.toLocaleString()}</strong> to ${escHtml(creditorName)}.
-        Mortgage or sell buildings to raise cash, or declare bankruptcy.
+        You still owe <strong>$${debt.remaining.toLocaleString()}</strong> to ${escHtml(creditorName)}. ${rouletteHint}
         <div class="pt-btn-row">
           <button class="pt-btn pt-btn-small" data-open-manage>Manage Properties</button>
+          ${m.cash > 0 ? '<button class="pt-btn pt-btn-outline pt-btn-small" data-pay-debt>Pay Debt</button>' : ""}
           <button class="pt-btn pt-btn-danger pt-btn-small" data-bankrupt>Declare Bankruptcy</button>
         </div>
       </div>`;
@@ -1645,6 +1655,7 @@
     on("[data-bankrupt]", () => {
       if (confirm("Declare bankruptcy? You'll be out of the game.")) runAction(() => act("declare_bankruptcy"));
     });
+    on("[data-pay-debt]", () => runAction(() => act("pay_debt")));
     on("[data-open-manage]", openManageModal);
   }
 
