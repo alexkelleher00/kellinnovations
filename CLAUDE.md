@@ -17,6 +17,9 @@ No build step — plain HTML/CSS/JS, deploy by pushing to git (auto-deploys via 
 | `slide.html` | Presentation / slide viewer |
 | `3man.html` | Three.js 3D bar/dice game |
 | `letterfall.html` | Letterfall word game |
+| `propertytrade.html` | **Property Empire** — online property-trading board game, up to 5 players |
+| `2048.html` | 2048 tile-merging game with a global leaderboard |
+| `uno.html` | **Uno** — online card game, 2-10 players, polls `kellinnovations-server`'s `uno_game` blueprint |
 | `style.css` | Global dark theme; all CSS variables defined here |
 | `portfolio.css` | Portfolio-specific styles |
 
@@ -116,6 +119,38 @@ const ROUND_ROBIN_PTS   = [10, 8, 6, 5, 4, 3, 2, 1]; // rank >= 8 → 1 pt
   the route — otherwise long routes like the 354 (Woburn) or Red Line (Alewife–Braintree) would zoom
   the map out past the point of being useful. Full route paths/vehicles are still drawn, just
   pannable/zoomable into from the default local view.
+
+## Uno (`uno.html`)
+
+Same overall shape as Property Empire (`propertytrade.html`) — room-code multiplayer, a
+`token` in `localStorage` (`uno_session`), 1s state polling — but unlike Property Empire,
+Uno hands are **hidden information**, not public board state.
+
+- **API base:** `https://api.kellinnovations.com/uno` (`http://localhost:4567/uno` on localhost)
+- **Auth:** no passwords — `POST /rooms` (create) / `POST /rooms/<code>/join` returns a
+  session `token`; `POST /rooms/<code>/rejoin` recovers a lost session with just the room
+  code + the exact name you were already using (same no-real-auth model as Property Empire)
+- **Per-player state:** `GET /rooms/<code>/state?token=...` returns *your* hand under
+  `your_hand`, but only card **counts** for every other player (`players[].hand_count`) —
+  the server builds this response per-requester (`Game.to_state(pid)`), it's never a single
+  shared blob like Property Empire's. Polling without a token (or with an invalid one)
+  returns a valid spectator view (`your_hand: null`) rather than an error, so "Watch" works.
+- **Turns:** `draw_card` → `play_card` (wild/wild4 require a `color`) → `end_turn` (only
+  legal right after a voluntary draw you choose not to play). One action funnels through
+  `POST /rooms/<code>/action` same as Property Empire.
+- **Declaring UNO:** dropping to 1 card puts your `id` in the room's vulnerable set
+  (`players[].pending_uno`) until your own next turn starts. `declare_uno` clears it safely;
+  any other player can `catch_uno` (`{target_id}`) before then for a 2-card penalty — CPU
+  players do this opportunistically too (and occasionally "forget" to self-declare, on
+  purpose, so there's something to catch).
+- **Bots:** unlike Property Empire's one-CPU cap, any number of `CPU N` players can be
+  added in the lobby (host-only). They resolve their entire turn instantly when polled,
+  same tick-driven pattern as Property Empire's `_maybe_take_bot_turn`.
+- **Scoring:** first to empty their hand wins the round (+ opponents' remaining card
+  points); first to the lobby's configurable `target_score` (default 500) wins the match.
+  The host advances `next_round` from the round-over screen; hands reshuffle, scores carry over.
+- Chat + emoji reactions are a straight port of Property Empire's FAB pattern (`.pt-*` →
+  `.un-*`), including the "flash on screen + separate persistent history in the drawer" split.
 
 ## Common Pitfalls
 
