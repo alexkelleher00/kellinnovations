@@ -1,6 +1,6 @@
 # Property Empire — batch of updates (working doc)
 
-Status: **items 1-5 and 7-9 shipped and verified** (121 backend tests passing, live
+Status: **items 1-5 and 7-10 shipped and verified** (131 backend tests passing, live
 browser smoke test of every feature). Item 6 is still a follow-up, not done — see bottom.
 
 ## 1. Bankruptcy payout change (3+ player games) — done
@@ -143,3 +143,74 @@ item 7 completely unchanged.
       based on cash on hand, actually pays down the debt when clicked, and
       confirmed via bounding-box math that the peach emoji no longer overlaps
       the roulette/chat buttons.
+
+## 10. CPU bot fixes + rejoin-a-game — done
+New request: "the CPU seems to freeze for ~20s then jump ahead, I missed an
+auction", "it bids on auctions it can't afford", "make the CPU better in
+general", plus a standalone ask for a way to rejoin a game after losing your
+session (refresh, cleared storage, new device).
+
+**Found and fixed the actual root cause of the freeze/missed-auction report** —
+a real, serious bug, not a misunderstanding:
+- When the bot's *own* turn triggers an auction (it declines to buy), the
+  auction's first bidder is the human — not the bot — per `_rotated_order_from`
+  (whoever passed bids last). But `turn_order[current_idx]` still points at the
+  bot until the auction resolves. `_bot_step()` didn't have an explicit "an
+  auction is active and it's not my turn in it" check, so execution fell through
+  to the bot's normal turn logic (build → end_turn) *while the auction was still
+  waiting on the human*. `end_turn()` raises `GameError("An auction is in
+  progress")` in that case — uncaught, which crashed `tick()`, which runs at the
+  top of **every single poll and action from every connected browser**. Every
+  request 500'd until the human's 20-second auction timer expired and
+  auto-passed them, at which point the auction resolved and ticks stopped
+  crashing — explaining exactly what was reported: total freeze, then a sudden
+  jump once the (unseen) auction had already resolved.
+- Fixed: `_bot_step()` now explicitly returns (does nothing) whenever there's an
+  active auction that isn't the bot's turn to act in, instead of falling through.
+- Verified the bug was real by reverting just this fix and re-running the new
+  regression test — it reproduced the exact `GameError` and traceback described
+  above. Reinstated the fix, test now passes.
+- Found and fixed a second, unrelated live bug while smoke-testing this: the
+  "Add CPU Player" button in the lobby also 500'd (`add_bot()` returns a live
+  `Player` object, which isn't JSON-serializable) — the bot still got added
+  server-side, but the click always errored and only looked like it worked once
+  the next poll silently picked up the change. Fixed by converting to a plain
+  dict at the HTTP boundary, without changing what the engine method itself
+  hands back to in-process callers (test suite still uses the live object).
+- Auction affordability: the existing cash-reserve check (`BOT_CASH_RESERVE`)
+  was actually already correct on inspection — a cash-poor bot already passes
+  even on a $1 bid. Added explicit tests locking this in (a poor bot passes, a
+  healthy one bids) since the crash bug above was very likely what actually made
+  bidding look erratic/unaffordable in practice.
+- General bot improvement: bots now proactively propose a trade (fair cash
+  premium, capped by what they can spare) whenever they're exactly one property
+  short of a monopoly and the last piece is a plain, unbuilt, unmortgaged
+  property held by a single human opponent — previously bots only ever
+  responded to trades offered *to* them, never initiated one, so a bot holding
+  the last piece of someone else's color group would sit on it forever.
+- Roulette's full real bet menu (item 8) was already complete from a prior
+  pass — verified intact, no regressions. Added payout odds (e.g. "17:1") next
+  to every bet button/hint in the UI so "all the correct odds" is visibly
+  confirmable, not just functionally correct under the hood.
+- New `POST /rooms/<code>/rejoin` endpoint: given a room code + the exact name
+  you were already using (case-insensitive, names are already unique per room),
+  issues a fresh session token for that player. Works in any game phase, and
+  bots can't be rejoined into (nobody "was" the CPU). New "Rejoin as that
+  Player" button on the landing screen's Join panel.
+- Backend tests: the exact auction-freeze regression (reproduced against the
+  unfixed code first, to confirm it's real), the auction still resolves on
+  timeout, add_bot serialization isn't retested at the unit level (no existing
+  HTTP-level test suite — see note below), bot trade-proposal behavior (proposes
+  correctly, skips duplicates/built/mortgaged/unaffordable/unowned cases), and
+  auction affordability. 131 tests passing (up from 121).
+- Live browser verification: 100+ cumulative seconds of a bot playing a full
+  game with zero server errors (previously would reliably 500 within the first
+  auction); full rejoin flow including a cleared-session reload and a
+  wrong-name rejection.
+- **Note for later**: there's still no HTTP/route-level test suite for this
+  project — only the `Game` engine class itself is unit-tested. The add_bot bug
+  above is exactly the kind of thing that only shows up at the JSON-serialization
+  boundary, which engine-level tests can't catch. Worth a dedicated follow-up to
+  add a small Flask-test-client suite (with the room-persistence directory
+  properly redirected to a temp dir for test isolation) rather than folding it
+  into this fix.

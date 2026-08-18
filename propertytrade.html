@@ -676,6 +676,11 @@
           <button class="pt-btn pt-btn-outline" id="watchRoomBtn">&#128065; Watch as Spectator</button>
         </div>
         <div class="pt-error" id="joinError"></div>
+        <p class="pt-lobby-hint" style="margin:10px 0 4px;">
+          Already a player in this room but lost your session (refresh, cleared browser data, new device)?
+          Enter the same code + the exact name you used above, then:
+        </p>
+        <button class="pt-btn pt-btn-outline pt-btn-small" id="rejoinRoomBtn" style="width:100%;">&#8635; Rejoin as that Player</button>
       </div>
     </div>
   </section>
@@ -988,6 +993,21 @@
     try {
       state = await api(`/rooms/${code}/state`);
       saveSpectatorSession(code);
+      enterRoom();
+    } catch (e) { errEl.textContent = e.message; }
+  });
+
+  document.getElementById("rejoinRoomBtn").addEventListener("click", async () => {
+    const errEl = document.getElementById("joinError");
+    errEl.textContent = "";
+    const code = document.getElementById("joinCode").value.trim().toUpperCase();
+    const name = document.getElementById("joinName").value.trim();
+    if (!code) return errEl.textContent = "Enter a room code";
+    if (!name) return errEl.textContent = "Enter the name you were using";
+    try {
+      const data = await api(`/rooms/${code}/rejoin`, { name });
+      saveSession(data.code, data.token, data.player_id);
+      state = data.state;
       enterRoom();
     } catch (e) { errEl.textContent = e.message; }
   });
@@ -1799,6 +1819,17 @@
   // state.roulette_spins (see renderRouletteSpins below) so everyone watches the
   // same big wheel animate together, not just whoever pressed spin.
   const ROULETTE_INSIDE_SIZES = { straight: 1, split: 2, street: 3, corner: 4, six_line: 6 };
+  const ROULETTE_PAYOUTS_FALLBACK = {
+    straight: 35, split: 17, street: 11, corner: 8, six_line: 5, column: 2, dozen: 2,
+    red: 1, black: 1, odd: 1, even: 1, low: 1, high: 1,
+  };
+  function payoutOdds(kind) {
+    const table = (board && board.roulette_payouts) || ROULETTE_PAYOUTS_FALLBACK;
+    return table[kind];
+  }
+  function oddsTag(kind) {
+    return `<span style="opacity:0.65; font-size:0.85em;">${payoutOdds(kind)}:1</span>`;
+  }
   function inferInsideKind(nums) {
     return Object.keys(ROULETTE_INSIDE_SIZES).find(k => ROULETTE_INSIDE_SIZES[k] === nums.length) || null;
   }
@@ -1816,15 +1847,16 @@
     return false;
   }
   function rouletteBetLabel(b) {
-    if (b.kind === "straight") return `Straight #${b.numbers[0]}`;
-    if (b.kind === "split") return `Split ${b.numbers.join("-")}`;
-    if (b.kind === "street") return `Street ${b.numbers.join("-")}`;
-    if (b.kind === "corner") return `Corner ${b.numbers.join("-")}`;
-    if (b.kind === "six_line") return `Six Line ${b.numbers.join("-")}`;
-    if (b.kind === "column") return `Column ${b.target}`;
-    if (b.kind === "dozen") return `Dozen ${b.target}`;
+    const suffix = ` (${payoutOdds(b.kind)}:1)`;
+    if (b.kind === "straight") return `Straight #${b.numbers[0]}${suffix}`;
+    if (b.kind === "split") return `Split ${b.numbers.join("-")}${suffix}`;
+    if (b.kind === "street") return `Street ${b.numbers.join("-")}${suffix}`;
+    if (b.kind === "corner") return `Corner ${b.numbers.join("-")}${suffix}`;
+    if (b.kind === "six_line") return `Six Line ${b.numbers.join("-")}${suffix}`;
+    if (b.kind === "column") return `Column ${b.target}${suffix}`;
+    if (b.kind === "dozen") return `Dozen ${b.target}${suffix}`;
     const OUTSIDE_LABELS = { red: "Red", black: "Black", odd: "Odd", even: "Even", low: "1-18", high: "19-36" };
-    return OUTSIDE_LABELS[b.kind] || b.kind;
+    return `${OUTSIDE_LABELS[b.kind] || b.kind}${suffix}`;
   }
   function rouletteGridHtml() {
     const redSet = new Set((board && board.roulette_red_numbers) || []);
@@ -1851,24 +1883,24 @@
       <p class="pt-lobby-hint">Stage any combo of real bets, then spin — everyone at the table watches the same wheel. Not turn-gated.</p>
 
       <div class="pt-roulette-grid" id="rouletteGrid">${rouletteGridHtml()}</div>
-      <div id="rouletteInsideHint" style="font-size:0.78rem; color:var(--muted); min-height:1.2em;"></div>
+      <div id="rouletteInsideHint" style="font-size:0.78rem; color:var(--muted); min-height:2.4em;"></div>
       <button type="button" class="pt-btn pt-btn-outline pt-btn-small" id="addInsideBetBtn" style="width:100%; margin-top:4px;" disabled>Stage Selected Numbers</button>
 
       <div class="pt-btn-row" style="margin-top:12px;">
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="red">Red</button>
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="black">Black</button>
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="odd">Odd</button>
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="even">Even</button>
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="low">1-18</button>
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="high">19-36</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="red">Red ${oddsTag("red")}</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="black">Black ${oddsTag("black")}</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="odd">Odd ${oddsTag("odd")}</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="even">Even ${oddsTag("even")}</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="low">1-18 ${oddsTag("low")}</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-outside="high">19-36 ${oddsTag("high")}</button>
       </div>
       <div class="pt-btn-row" style="margin-top:6px;">
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-column="1">Col 1</button>
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-column="2">Col 2</button>
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-column="3">Col 3</button>
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-dozen="1">1st 12</button>
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-dozen="2">2nd 12</button>
-        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-dozen="3">3rd 12</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-column="1">Col 1 ${oddsTag("column")}</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-column="2">Col 2 ${oddsTag("column")}</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-column="3">Col 3 ${oddsTag("column")}</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-dozen="1">1st 12 ${oddsTag("dozen")}</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-dozen="2">2nd 12 ${oddsTag("dozen")}</button>
+        <button type="button" class="pt-btn pt-btn-outline pt-btn-small" data-dozen="3">3rd 12 ${oddsTag("dozen")}</button>
       </div>
 
       <label style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-top:14px;">
@@ -1900,10 +1932,18 @@
           cell.classList.toggle("selected", selected.includes(parseInt(cell.dataset.num, 10)));
         });
         const kind = inferInsideKind(selected);
-        if (!selected.length) hint.textContent = "Click numbers on the grid: 1 = straight, 2 adjacent = split, a row of 3 = street, a 2x2 block = corner, two rows of 6 = six-line.";
-        else if (!kind) hint.textContent = `${selected.length} number(s) selected — needs to be 1, 2, 3, 4, or 6 to form a valid bet.`;
-        else if (!insideNumbersValid(kind, selected)) hint.textContent = `${selected.length} numbers selected, but they're not adjacent on the table for a ${kind.replace("_", "-")} bet.`;
-        else hint.textContent = `Ready: ${kind.replace("_", "-")} bet on ${selected.slice().sort((a,b)=>a-b).join(", ")}.`;
+        if (!selected.length) {
+          hint.innerHTML = `Click numbers on the grid to build a bet:<br>
+            1 = straight (${payoutOdds("straight")}:1) · 2 adjacent = split (${payoutOdds("split")}:1) ·
+            a row of 3 = street (${payoutOdds("street")}:1) · a 2×2 block = corner (${payoutOdds("corner")}:1) ·
+            two rows of 6 = six-line (${payoutOdds("six_line")}:1).`;
+        } else if (!kind) {
+          hint.textContent = `${selected.length} number(s) selected — needs to be 1, 2, 3, 4, or 6 to form a valid bet.`;
+        } else if (!insideNumbersValid(kind, selected)) {
+          hint.textContent = `${selected.length} numbers selected, but they're not adjacent on the table for a ${kind.replace("_", "-")} bet.`;
+        } else {
+          hint.textContent = `Ready: ${kind.replace("_", "-")} bet (${payoutOdds(kind)}:1) on ${selected.slice().sort((a,b)=>a-b).join(", ")}.`;
+        }
         addBtn.disabled = !(kind && insideNumbersValid(kind, selected));
       }
 
