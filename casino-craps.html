@@ -141,7 +141,7 @@
     </div>
 
     <h2 style="margin-bottom:14px;">🎲 Craps</h2>
-    <p class="cs-hint" style="margin-bottom:14px;">You're always the shooter. Pass line and don't pass only before the come-out roll; place bets only once a point is on.</p>
+    <p class="cs-hint" style="margin-bottom:14px;">You're always the shooter. Pass/don't pass and come/don't come only take new bets before their come-out roll; odds and place bets need a point on the board already; hardways are live any time.</p>
 
     <div class="cs-craps-table">
       <div class="cs-point-indicator">
@@ -155,28 +155,7 @@
       <div class="cs-hint" id="phaseHint"></div>
     </div>
 
-    <div class="cs-bet-grid">
-      <div class="cs-bet-spot" id="spotPass">
-        <h4>Pass Line</h4>
-        <div class="staked" id="stakedPass"></div>
-        <button class="cs-btn-small cs-btn-outline" data-bet="pass">Bet 🪙<span class="unit-amount"></span></button>
-      </div>
-      <div class="cs-bet-spot" id="spotDontPass">
-        <h4>Don't Pass</h4>
-        <div class="staked" id="stakedDontPass"></div>
-        <button class="cs-btn-small cs-btn-outline" data-bet="dont_pass">Bet 🪙<span class="unit-amount"></span></button>
-      </div>
-      <div class="cs-bet-spot" id="spotField">
-        <h4>Field <span class="cs-hint">(1 roll)</span></h4>
-        <div class="staked" id="stakedField"></div>
-        <button class="cs-btn-small cs-btn-outline" data-bet="field">Bet 🪙<span class="unit-amount"></span></button>
-      </div>
-    </div>
-
-    <h3 style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); margin:18px 0 8px;">Place Bets (point phase only)</h3>
-    <div class="cs-place-numbers" id="placeNumbers"></div>
-
-    <div class="cs-controls-row">
+    <div class="cs-controls-row" style="margin-top:0; margin-bottom:16px;">
       <div class="cs-field">
         <label>Bet unit</label>
         <input type="number" id="betUnit" min="1" value="10">
@@ -185,6 +164,56 @@
       <button class="cs-btn-outline" id="clearBtn">Clear Bets</button>
       <div class="cs-error" id="crapsError"></div>
     </div>
+
+    <h3 style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); margin:0 0 8px;">Line Bets</h3>
+    <div class="cs-bet-grid">
+      <div class="cs-bet-spot" id="spotPass">
+        <h4>Pass Line</h4>
+        <div class="staked" id="stakedPass"></div>
+        <button class="cs-btn-small cs-btn-outline" data-bet="pass">Bet 🪙<span class="unit-amount"></span></button>
+      </div>
+      <div class="cs-bet-spot" id="spotPassOdds">
+        <h4>Odds behind Pass <span class="cs-hint">(true odds)</span></h4>
+        <div class="staked" id="stakedPassOdds"></div>
+        <button class="cs-btn-small cs-btn-outline" data-bet="pass_odds">Bet 🪙<span class="unit-amount"></span></button>
+      </div>
+      <div class="cs-bet-spot" id="spotDontPass">
+        <h4>Don't Pass</h4>
+        <div class="staked" id="stakedDontPass"></div>
+        <button class="cs-btn-small cs-btn-outline" data-bet="dont_pass">Bet 🪙<span class="unit-amount"></span></button>
+      </div>
+      <div class="cs-bet-spot" id="spotDontPassOdds">
+        <h4>Lay Odds behind Don't Pass</h4>
+        <div class="staked" id="stakedDontPassOdds"></div>
+        <button class="cs-btn-small cs-btn-outline" data-bet="dont_pass_odds">Bet 🪙<span class="unit-amount"></span></button>
+      </div>
+      <div class="cs-bet-spot" id="spotField">
+        <h4>Field <span class="cs-hint">(1 roll)</span></h4>
+        <div class="staked" id="stakedField"></div>
+        <button class="cs-btn-small cs-btn-outline" data-bet="field">Bet 🪙<span class="unit-amount"></span></button>
+      </div>
+    </div>
+
+    <h3 style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); margin:18px 0 8px;">Come / Don't Come</h3>
+    <div class="cs-bet-grid" style="margin-bottom:10px;">
+      <div class="cs-bet-spot" id="spotCome">
+        <h4>Come</h4>
+        <div class="staked" id="stakedComePending"></div>
+        <button class="cs-btn-small cs-btn-outline" data-bet="come">Bet 🪙<span class="unit-amount"></span></button>
+      </div>
+      <div class="cs-bet-spot" id="spotDontCome">
+        <h4>Don't Come</h4>
+        <div class="staked" id="stakedDontComePending"></div>
+        <button class="cs-btn-small cs-btn-outline" data-bet="dont_come">Bet 🪙<span class="unit-amount"></span></button>
+      </div>
+    </div>
+    <div id="comePointsList" class="cs-hint" style="margin-bottom:10px;"></div>
+
+    <h3 style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); margin:18px 0 8px;">Place Bets (point phase only)</h3>
+    <div class="cs-place-numbers" id="placeNumbers"></div>
+
+    <h3 style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); margin:18px 0 8px;">Hardways</h3>
+    <div class="cs-place-numbers" id="hardNumbers"></div>
 
     <div class="cs-resolved-list" id="resolvedList"></div>
   </div>
@@ -211,6 +240,8 @@
   let currentUser = null;
   let craps = null; // { phase, point, bets, last_roll, last_total }
   const PLACE_NUMBERS = [4, 5, 6, 8, 9, 10];
+  const HARD_NUMBERS = [4, 6, 8, 10];
+  const HARD_PAYOUT = { 4: 7, 10: 7, 6: 9, 8: 9 };
 
   async function boot() {
     try {
@@ -225,6 +256,7 @@
     document.getElementById("gameWrap").style.display = "block";
     renderUser();
     buildPlaceGrid();
+    buildHardGrid();
     const res = await api("/craps/state");
     craps = res.state;
     render();
@@ -246,6 +278,7 @@
       document.getElementById("gameWrap").style.display = "block";
       renderUser();
       buildPlaceGrid();
+      buildHardGrid();
       const res = await api("/craps/state");
       craps = res.state;
       render();
@@ -265,6 +298,20 @@
     `).join("");
     box.querySelectorAll("[data-place]").forEach(btn => {
       btn.addEventListener("click", () => placeBet("place", parseInt(btn.dataset.place, 10)));
+    });
+  }
+
+  function buildHardGrid() {
+    const box = document.getElementById("hardNumbers");
+    box.innerHTML = HARD_NUMBERS.map(n => `
+      <div class="cs-bet-spot" id="spotHard${n}">
+        <h4>Hard ${n} <span class="cs-hint">(${HARD_PAYOUT[n]}:1)</span></h4>
+        <div class="staked" id="stakedHard${n}"></div>
+        <button class="cs-btn-small cs-btn-outline" data-hard="${n}">Bet 🪙<span class="unit-amount"></span></button>
+      </div>
+    `).join("");
+    box.querySelectorAll("[data-hard]").forEach(btn => {
+      btn.addEventListener("click", () => placeBet("hard", parseInt(btn.dataset.hard, 10)));
     });
   }
 
@@ -350,6 +397,24 @@
     document.querySelector('[data-bet="pass"]').disabled = craps.phase !== "come_out";
     document.querySelector('[data-bet="dont_pass"]').disabled = craps.phase !== "come_out";
 
+    const passOddsOk = craps.phase === "point" && craps.bets.pass > 0;
+    const dontPassOddsOk = craps.phase === "point" && craps.bets.dont_pass > 0;
+    document.getElementById("stakedPassOdds").textContent = craps.bets.pass_odds ? `🪙${craps.bets.pass_odds.toLocaleString()}` : "";
+    document.getElementById("stakedDontPassOdds").textContent = craps.bets.dont_pass_odds ? `🪙${craps.bets.dont_pass_odds.toLocaleString()}` : "";
+    document.getElementById("spotPassOdds").classList.toggle("disabled", !passOddsOk);
+    document.getElementById("spotDontPassOdds").classList.toggle("disabled", !dontPassOddsOk);
+    document.querySelector('[data-bet="pass_odds"]').disabled = !passOddsOk;
+    document.querySelector('[data-bet="dont_pass_odds"]').disabled = !dontPassOddsOk;
+
+    const comeOk = craps.phase === "point";
+    document.getElementById("stakedComePending").textContent = craps.bets.come_pending ? `🪙${craps.bets.come_pending.toLocaleString()} (waiting)` : "";
+    document.getElementById("stakedDontComePending").textContent = craps.bets.dont_come_pending ? `🪙${craps.bets.dont_come_pending.toLocaleString()} (waiting)` : "";
+    document.getElementById("spotCome").classList.toggle("disabled", !comeOk);
+    document.getElementById("spotDontCome").classList.toggle("disabled", !comeOk);
+    document.querySelector('[data-bet="come"]').disabled = !comeOk;
+    document.querySelector('[data-bet="dont_come"]').disabled = !comeOk;
+    renderComePoints();
+
     PLACE_NUMBERS.forEach(n => {
       const staked = craps.bets.place[String(n)] || 0;
       document.getElementById(`stakedPlace${n}`).textContent = staked ? `🪙${staked.toLocaleString()}` : "";
@@ -357,14 +422,44 @@
       const btn = document.querySelector(`[data-place="${n}"]`);
       if (btn) btn.disabled = craps.phase !== "point";
     });
+
+    HARD_NUMBERS.forEach(n => {
+      const staked = craps.bets.hard[String(n)] || 0;
+      document.getElementById(`stakedHard${n}`).textContent = staked ? `🪙${staked.toLocaleString()}` : "";
+    });
+  }
+
+  function renderComePoints() {
+    const box = document.getElementById("comePointsList");
+    const comeRows = Object.entries(craps.bets.come_points).map(([pt, entry]) => ({ side: "come", pt, entry }));
+    const dontComeRows = Object.entries(craps.bets.dont_come_points).map(([pt, entry]) => ({ side: "dont_come", pt, entry }));
+    const rows = comeRows.concat(dontComeRows);
+    if (!rows.length) { box.innerHTML = ""; return; }
+    box.innerHTML = rows.map(({ side, pt, entry }) => {
+      const label = side === "come" ? "Come" : "Don't come";
+      const oddsKind = side === "come" ? "come_odds" : "dont_come_odds";
+      return `<div class="cs-resolved-row">
+        <span>${label} ${pt} — 🪙${entry.amount.toLocaleString()}${entry.odds ? ` (+🪙${entry.odds.toLocaleString()} odds)` : ""}</span>
+        <button type="button" class="cs-btn-outline cs-btn-small" data-odds-kind="${oddsKind}" data-odds-target="${pt}">Add Odds</button>
+      </div>`;
+    }).join("");
+    box.querySelectorAll("[data-odds-kind]").forEach(btn => {
+      btn.addEventListener("click", () => placeBet(btn.dataset.oddsKind, parseInt(btn.dataset.oddsTarget, 10)));
+    });
   }
 
   function renderResolved(resolved) {
     const box = document.getElementById("resolvedList");
     if (!resolved || !resolved.length) { box.innerHTML = ""; return; }
+    const LABELS = {
+      pass: "Pass line", dont_pass: "Don't pass", pass_odds: "Pass odds", dont_pass_odds: "Don't pass odds",
+      field: "Field", place: "Place", hard: "Hard", come: "Come", dont_come: "Don't come",
+      come_odds: "Come odds", dont_come_odds: "Don't come odds",
+    };
     box.innerHTML = resolved.map(r => {
       const net = r.payout - r.amount;
-      const label = r.kind === "place" ? `Place ${r.target}` : r.kind.replace("_", " ");
+      const base = LABELS[r.kind] || r.kind;
+      const label = r.target !== null && r.target !== undefined ? `${base} ${r.target}` : base;
       return `<div class="cs-resolved-row">
         <span>${label} — bet 🪙${r.amount.toLocaleString()}</span>
         <span class="${net >= 0 ? "pos" : "neg"}">${net >= 0 ? "+" : ""}${net.toLocaleString()}</span>
