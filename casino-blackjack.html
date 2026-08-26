@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blackjack — Kelleher Innovations Casino</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* ══════════════════════════════════════
+     Casino Blackjack — prefix .cs- (shared chrome styles match
+     casino.html / casino-roulette.html so the three feel like one app).
+  ══════════════════════════════════════ */
+  .cs-topbar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: 12px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 22px;
+  }
+  .cs-topbar-user { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .cs-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .cs-chip.balance { color: #ffd166; }
+  .cs-btn {
+    padding: 9px 18px; background: var(--accent); color: #000; border: none;
+    border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    font-family: inherit; transition: background 0.2s, transform 0.15s;
+  }
+  .cs-btn:hover { background: #00e0e0; transform: translateY(-1px); }
+  .cs-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .cs-btn-outline {
+    background: none; border: 1px solid var(--border); color: var(--text);
+    padding: 9px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+    cursor: pointer; font-family: inherit; transition: border-color 0.2s;
+  }
+  .cs-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .cs-btn-small { padding: 6px 12px; font-size: 0.78rem; }
+  .cs-btn-danger { background: #7a1f1f; color: #fff; }
+
+  .cs-auth-wrap { max-width: 420px; margin: 40px auto; }
+  .cs-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .cs-panel h2 { font-size: 1.3rem; text-align: center; }
+  .cs-field { display: flex; flex-direction: column; gap: 4px; }
+  .cs-field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .cs-field input {
+    padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 0.9rem; font-family: inherit;
+  }
+  .cs-field input:focus { outline: none; border-color: var(--accent); }
+  .cs-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; }
+  .cs-hint { color: var(--muted); font-size: 0.78rem; }
+
+  /* ── Felt table ── */
+  .cs-felt {
+    background: radial-gradient(ellipse at 50% 0%, #0f3d2a, #0a2419 70%);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 28px 20px; min-height: 380px; display: flex; flex-direction: column;
+    align-items: center; gap: 26px;
+  }
+  .cs-hand-block { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
+  .cs-hand-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.65); }
+  .cs-hand-value { font-weight: 800; color: #fff; }
+  .cs-cards { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .cs-card {
+    width: 54px; height: 76px; border-radius: 7px; background: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1.15rem; box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  }
+  .cs-card.red { color: #c11f1f; }
+  .cs-card.black { color: #101010; }
+  .cs-card.hidden { background: repeating-linear-gradient(45deg, #1d3a63, #1d3a63 6px, #234a7d 6px, #234a7d 12px); }
+  .cs-hand-badges { display: flex; gap: 6px; }
+  .cs-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.14); color: #fff; }
+  .cs-badge.bust { background: #7a1f1f; }
+  .cs-badge.bj { background: #ffd166; color: #000; font-weight: 700; }
+  .cs-badge.active { background: var(--accent); color: #000; font-weight: 700; }
+
+  .cs-controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 18px; }
+  .cs-deal-box { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-top: 18px; }
+  .cs-deal-box .cs-field { width: 140px; }
+  .cs-result-banner {
+    text-align: center; padding: 10px 16px; border-radius: 8px; font-weight: 700; margin-top: 10px;
+  }
+  .cs-result-banner.win { background: rgba(78,224,138,0.15); color: #4ee08a; }
+  .cs-result-banner.lose { background: rgba(255,107,107,0.15); color: #ff6b6b; }
+  .cs-result-banner.push { background: rgba(255,209,102,0.15); color: #ffd166; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="portfolio.html">Portfolio</a>
+      <a href="https://kelleherworkshop.com" target="_blank" rel="noopener">Woodwork</a>
+      <a href="psg.html">Punk Squad Games</a>
+      <a href="transit.html">Transit</a>
+      <a href="casino.html" class="active">Casino</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div id="authWrap" class="cs-auth-wrap" style="display:none;">
+    <div class="cs-panel">
+      <h2>🂡 Log in to play Blackjack</h2>
+      <div class="cs-field">
+        <label for="authUsername">Username</label>
+        <input type="text" id="authUsername" autocomplete="username">
+      </div>
+      <div class="cs-field">
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" autocomplete="current-password">
+      </div>
+      <div class="cs-error" id="authError"></div>
+      <button class="cs-btn" id="authSubmitBtn">Log In</button>
+      <p class="cs-hint">No account yet? Head to the <a href="casino.html">Casino hub</a> to register.</p>
+    </div>
+  </div>
+
+  <div id="gameWrap" style="display:none;">
+    <div class="cs-topbar">
+      <div class="cs-topbar-user">
+        <a href="casino.html" class="cs-btn-outline cs-btn-small">&larr; Casino</a>
+        <span class="cs-chip">👤 <span id="userName"></span></span>
+        <span class="cs-chip balance">🪙 <span id="userBalance"></span></span>
+      </div>
+    </div>
+
+    <h2 style="margin-bottom:14px;">🂡 Blackjack</h2>
+    <p class="cs-hint" style="margin-bottom:14px;">6-deck shoe · dealer stands on all 17s · blackjack pays 3:2 · one split allowed, no re-split · no insurance.</p>
+
+    <div class="cs-felt">
+      <div class="cs-hand-block">
+        <div class="cs-hand-label">Dealer <span class="cs-hand-value" id="dealerValue"></span></div>
+        <div class="cs-cards" id="dealerCards"></div>
+      </div>
+      <div id="playerHands" style="display:flex; gap:24px; flex-wrap:wrap; justify-content:center;"></div>
+      <div id="resultBanner"></div>
+    </div>
+
+    <div class="cs-deal-box" id="dealBox">
+      <div class="cs-field">
+        <label>Bet amount</label>
+        <input type="number" id="betInput" min="1" value="25">
+      </div>
+      <button class="cs-btn" id="dealBtn">Deal</button>
+      <div class="cs-error" id="dealError"></div>
+    </div>
+
+    <div class="cs-controls" id="actionControls" style="display:none;">
+      <button class="cs-btn" id="hitBtn">Hit</button>
+      <button class="cs-btn-outline" id="standBtn">Stand</button>
+      <button class="cs-btn-outline" id="doubleBtn">Double</button>
+      <button class="cs-btn-outline" id="splitBtn">Split</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/casino" : "https://api.kellinnovations.com/casino";
+
+  async function api(path, opts) {
+    opts = opts || {};
+    const res = await fetch(API + path, {
+      method: opts.method || "GET",
+      credentials: "include",
+      headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    return data;
+  }
+  function escHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  let currentUser = null;
+  let handState = null;
+
+  async function boot() {
+    try {
+      currentUser = await api("/auth/me");
+    } catch (e) {
+      currentUser = null;
+    }
+    if (!currentUser) {
+      document.getElementById("authWrap").style.display = "block";
+      return;
+    }
+    document.getElementById("gameWrap").style.display = "block";
+    renderUser();
+    const res = await api("/blackjack/state");
+    handState = res.state;
+    render();
+  }
+
+  function renderUser() {
+    document.getElementById("userName").textContent = currentUser.username;
+    document.getElementById("userBalance").textContent = currentUser.balance.toLocaleString();
+  }
+
+  document.getElementById("authSubmitBtn").addEventListener("click", async () => {
+    const username = document.getElementById("authUsername").value.trim();
+    const password = document.getElementById("authPassword").value;
+    const errEl = document.getElementById("authError");
+    errEl.textContent = "";
+    try {
+      currentUser = await api("/auth/login", { method: "POST", body: { username, password } });
+      document.getElementById("authWrap").style.display = "none";
+      document.getElementById("gameWrap").style.display = "block";
+      renderUser();
+      const res = await api("/blackjack/state");
+      handState = res.state;
+      render();
+    } catch (e) {
+      errEl.textContent = e.message;
+    }
+  });
+
+  function cardHtml(card, hidden) {
+    if (hidden || card.r === "?") return `<div class="cs-card hidden"></div>`;
+    const red = card.s === "♥" || card.s === "♦";
+    return `<div class="cs-card ${red ? "red" : "black"}">${card.r}${card.s}</div>`;
+  }
+
+  function render() {
+    const s = handState;
+    const dealerHidden = s.dealer && s.dealer.some(c => c.r === "?");
+    document.getElementById("dealerCards").innerHTML = (s.dealer || []).map(c => cardHtml(c, false)).join("");
+    document.getElementById("dealerValue").textContent = s.dealer_value !== null && s.dealer_value !== undefined
+      ? `(${s.dealer_value})` : dealerHidden ? "" : "";
+
+    const handsBox = document.getElementById("playerHands");
+    handsBox.innerHTML = (s.hands || []).map((h, i) => {
+      const badges = [];
+      if (i === s.active && s.phase === "player_turn") badges.push(`<span class="cs-badge active">Playing</span>`);
+      if (h.busted) badges.push(`<span class="cs-badge bust">Bust</span>`);
+      if (h.blackjack) badges.push(`<span class="cs-badge bj">Blackjack!</span>`);
+      const result = s.result ? s.result[i] : null;
+      return `
+        <div class="cs-hand-block">
+          <div class="cs-hand-label">Hand ${(s.hands.length > 1) ? i + 1 : ""} <span class="cs-hand-value">(${h.value}${h.soft ? " soft" : ""})</span></div>
+          <div class="cs-cards">${h.cards.map(c => cardHtml(c, false)).join("")}</div>
+          <div class="cs-hand-badges">
+            <span class="cs-badge">Bet 🪙${h.bet.toLocaleString()}</span>
+            ${badges.join("")}
+            ${result ? `<span class="cs-badge ${result.net > 0 ? "bj" : ""}">${result.net > 0 ? "+" : ""}${result.net.toLocaleString()}</span>` : ""}
+          </div>
+        </div>`;
+    }).join("");
+
+    const banner = document.getElementById("resultBanner");
+    if (s.phase === "settled" && s.result) {
+      const totalNet = s.result.reduce((sum, r) => sum + r.net, 0);
+      const cls = totalNet > 0 ? "win" : totalNet < 0 ? "lose" : "push";
+      const msg = totalNet > 0 ? `You won 🪙${totalNet.toLocaleString()}!` : totalNet < 0 ? `You lost 🪙${Math.abs(totalNet).toLocaleString()}.` : "Push — bet returned.";
+      banner.innerHTML = `<div class="cs-result-banner ${cls}">${msg}</div>`;
+    } else {
+      banner.innerHTML = "";
+    }
+
+    const inHand = s.phase === "player_turn" || s.phase === "dealer_turn";
+    document.getElementById("dealBox").style.display = inHand ? "none" : "flex";
+    document.getElementById("actionControls").style.display = s.phase === "player_turn" ? "flex" : "none";
+    if (s.phase === "player_turn") {
+      const hand = s.hands[s.active];
+      document.getElementById("doubleBtn").disabled = hand.cards.length !== 2;
+      document.getElementById("splitBtn").disabled = !(s.hands.length < 2 && hand.cards.length === 2 && hand.cards[0].r === hand.cards[1].r);
+    }
+    document.getElementById("dealBtn").textContent = s.phase === "settled" ? "Deal Again" : "Deal";
+  }
+
+  async function doAction(path) {
+    try {
+      const res = await api(`/blackjack/${path}`, { method: "POST" });
+      currentUser.balance = res.balance;
+      renderUser();
+      handState = res.state;
+      render();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  document.getElementById("dealBtn").addEventListener("click", async () => {
+    const bet = parseInt(document.getElementById("betInput").value, 10);
+    const errEl = document.getElementById("dealError");
+    errEl.textContent = "";
+    if (!bet || bet <= 0) { errEl.textContent = "Enter a bet amount"; return; }
+    try {
+      const res = await api("/blackjack/deal", { method: "POST", body: { bet } });
+      currentUser.balance = res.balance;
+      renderUser();
+      handState = res.state;
+      render();
+    } catch (e) {
+      errEl.textContent = e.message;
+    }
+  });
+  document.getElementById("hitBtn").addEventListener("click", () => doAction("hit"));
+  document.getElementById("standBtn").addEventListener("click", () => doAction("stand"));
+  document.getElementById("doubleBtn").addEventListener("click", () => doAction("double"));
+  document.getElementById("splitBtn").addEventListener("click", () => doAction("split"));
+
+  boot();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Craps — Kelleher Innovations Casino</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* ══════════════════════════════════════
+     Casino Craps — prefix .cs- (shared chrome styles match the other
+     casino pages so the three feel like one app).
+  ══════════════════════════════════════ */
+  .cs-topbar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: 12px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 22px;
+  }
+  .cs-topbar-user { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .cs-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .cs-chip.balance { color: #ffd166; }
+  .cs-btn {
+    padding: 9px 18px; background: var(--accent); color: #000; border: none;
+    border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    font-family: inherit; transition: background 0.2s, transform 0.15s;
+  }
+  .cs-btn:hover { background: #00e0e0; transform: translateY(-1px); }
+  .cs-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .cs-btn-outline {
+    background: none; border: 1px solid var(--border); color: var(--text);
+    padding: 9px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+    cursor: pointer; font-family: inherit; transition: border-color 0.2s;
+  }
+  .cs-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .cs-btn-small { padding: 6px 12px; font-size: 0.78rem; }
+  .cs-field { display: flex; flex-direction: column; gap: 4px; }
+  .cs-field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .cs-field input {
+    padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 0.9rem; font-family: inherit;
+  }
+  .cs-field input:focus { outline: none; border-color: var(--accent); }
+  .cs-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; }
+  .cs-hint { color: var(--muted); font-size: 0.78rem; }
+
+  .cs-auth-wrap { max-width: 420px; margin: 40px auto; }
+  .cs-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .cs-panel h2 { font-size: 1.3rem; text-align: center; }
+
+  /* ── Table ── */
+  .cs-craps-table {
+    background: radial-gradient(ellipse at 50% 0%, #0f3d2a, #0a2419 70%);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 24px;
+    display: flex; flex-direction: column; align-items: center; gap: 18px; margin-bottom: 20px;
+  }
+  .cs-point-indicator { display: flex; align-items: center; gap: 10px; color: #fff; }
+  .cs-point-num {
+    width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1.1rem; background: rgba(255,255,255,0.12); border: 2px solid transparent;
+  }
+  .cs-point-num.active { background: #ffd166; color: #000; border-color: #fff; }
+  .cs-dice { display: flex; gap: 12px; }
+  .cs-die {
+    width: 56px; height: 56px; border-radius: 10px; background: #fff; color: #111;
+    display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 800;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .cs-die.rolling { animation: cs-die-roll 0.5s ease; }
+  @keyframes cs-die-roll { 0% { transform: rotate(0deg); } 50% { transform: rotate(180deg) scale(1.1); } 100% { transform: rotate(360deg); } }
+
+  /* ── Betting spots ── */
+  .cs-bet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; width: 100%; max-width: 640px; }
+  .cs-bet-spot {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; display: flex; flex-direction: column; gap: 6px; text-align: center;
+  }
+  .cs-bet-spot h4 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); }
+  .cs-bet-spot .staked { font-size: 0.82rem; color: #ffd166; font-weight: 700; min-height: 1.2em; }
+  .cs-bet-spot button { margin-top: 2px; }
+  .cs-bet-spot.disabled { opacity: 0.4; }
+  .cs-place-numbers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 640px; }
+
+  .cs-controls-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-top: 10px; }
+  .cs-resolved-list { margin-top: 16px; }
+  .cs-resolved-row { display: flex; justify-content: space-between; font-size: 0.83rem; padding: 4px 0; border-bottom: 1px solid var(--border); }
+  .cs-resolved-row .pos { color: #4ee08a; font-weight: 700; }
+  .cs-resolved-row .neg { color: #ff6b6b; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="portfolio.html">Portfolio</a>
+      <a href="https://kelleherworkshop.com" target="_blank" rel="noopener">Woodwork</a>
+      <a href="psg.html">Punk Squad Games</a>
+      <a href="transit.html">Transit</a>
+      <a href="casino.html" class="active">Casino</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div id="authWrap" class="cs-auth-wrap" style="display:none;">
+    <div class="cs-panel">
+      <h2>🎲 Log in to play Craps</h2>
+      <div class="cs-field">
+        <label for="authUsername">Username</label>
+        <input type="text" id="authUsername" autocomplete="username">
+      </div>
+      <div class="cs-field">
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" autocomplete="current-password">
+      </div>
+      <div class="cs-error" id="authError"></div>
+      <button class="cs-btn" id="authSubmitBtn">Log In</button>
+      <p class="cs-hint">No account yet? Head to the <a href="casino.html">Casino hub</a> to register.</p>
+    </div>
+  </div>
+
+  <div id="gameWrap" style="display:none;">
+    <div class="cs-topbar">
+      <div class="cs-topbar-user">
+        <a href="casino.html" class="cs-btn-outline cs-btn-small">&larr; Casino</a>
+        <span class="cs-chip">👤 <span id="userName"></span></span>
+        <span class="cs-chip balance">🪙 <span id="userBalance"></span></span>
+      </div>
+    </div>
+
+    <h2 style="margin-bottom:14px;">🎲 Craps</h2>
+    <p class="cs-hint" style="margin-bottom:14px;">You're always the shooter. Pass line and don't pass only before the come-out roll; place bets only once a point is on.</p>
+
+    <div class="cs-craps-table">
+      <div class="cs-point-indicator">
+        <span>Point:</span>
+        <div class="cs-point-num" id="pointIndicator">—</div>
+      </div>
+      <div class="cs-dice" id="diceBox">
+        <div class="cs-die">—</div>
+        <div class="cs-die">—</div>
+      </div>
+      <div class="cs-hint" id="phaseHint"></div>
+    </div>
+
+    <div class="cs-bet-grid">
+      <div class="cs-bet-spot" id="spotPass">
+        <h4>Pass Line</h4>
+        <div class="staked" id="stakedPass"></div>
+        <button class="cs-btn-small cs-btn-outline" data-bet="pass">Bet 🪙<span class="unit-amount"></span></button>
+      </div>
+      <div class="cs-bet-spot" id="spotDontPass">
+        <h4>Don't Pass</h4>
+        <div class="staked" id="stakedDontPass"></div>
+        <button class="cs-btn-small cs-btn-outline" data-bet="dont_pass">Bet 🪙<span class="unit-amount"></span></button>
+      </div>
+      <div class="cs-bet-spot" id="spotField">
+        <h4>Field <span class="cs-hint">(1 roll)</span></h4>
+        <div class="staked" id="stakedField"></div>
+        <button class="cs-btn-small cs-btn-outline" data-bet="field">Bet 🪙<span class="unit-amount"></span></button>
+      </div>
+    </div>
+
+    <h3 style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); margin:18px 0 8px;">Place Bets (point phase only)</h3>
+    <div class="cs-place-numbers" id="placeNumbers"></div>
+
+    <div class="cs-controls-row">
+      <div class="cs-field">
+        <label>Bet unit</label>
+        <input type="number" id="betUnit" min="1" value="10">
+      </div>
+      <button class="cs-btn" id="rollBtn">🎲 Roll</button>
+      <button class="cs-btn-outline" id="clearBtn">Clear Bets</button>
+      <div class="cs-error" id="crapsError"></div>
+    </div>
+
+    <div class="cs-resolved-list" id="resolvedList"></div>
+  </div>
+
+</main>
+
+<script>
+  const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/casino" : "https://api.kellinnovations.com/casino";
+
+  async function api(path, opts) {
+    opts = opts || {};
+    const res = await fetch(API + path, {
+      method: opts.method || "GET",
+      credentials: "include",
+      headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    return data;
+  }
+
+  let currentUser = null;
+  let craps = null; // { phase, point, bets, last_roll, last_total }
+  const PLACE_NUMBERS = [4, 5, 6, 8, 9, 10];
+
+  async function boot() {
+    try {
+      currentUser = await api("/auth/me");
+    } catch (e) {
+      currentUser = null;
+    }
+    if (!currentUser) {
+      document.getElementById("authWrap").style.display = "block";
+      return;
+    }
+    document.getElementById("gameWrap").style.display = "block";
+    renderUser();
+    buildPlaceGrid();
+    const res = await api("/craps/state");
+    craps = res.state;
+    render();
+  }
+
+  function renderUser() {
+    document.getElementById("userName").textContent = currentUser.username;
+    document.getElementById("userBalance").textContent = currentUser.balance.toLocaleString();
+  }
+
+  document.getElementById("authSubmitBtn").addEventListener("click", async () => {
+    const username = document.getElementById("authUsername").value.trim();
+    const password = document.getElementById("authPassword").value;
+    const errEl = document.getElementById("authError");
+    errEl.textContent = "";
+    try {
+      currentUser = await api("/auth/login", { method: "POST", body: { username, password } });
+      document.getElementById("authWrap").style.display = "none";
+      document.getElementById("gameWrap").style.display = "block";
+      renderUser();
+      buildPlaceGrid();
+      const res = await api("/craps/state");
+      craps = res.state;
+      render();
+    } catch (e) {
+      errEl.textContent = e.message;
+    }
+  });
+
+  function buildPlaceGrid() {
+    const box = document.getElementById("placeNumbers");
+    box.innerHTML = PLACE_NUMBERS.map(n => `
+      <div class="cs-bet-spot" id="spotPlace${n}">
+        <h4>${n}</h4>
+        <div class="staked" id="stakedPlace${n}"></div>
+        <button class="cs-btn-small cs-btn-outline" data-place="${n}">Bet 🪙<span class="unit-amount"></span></button>
+      </div>
+    `).join("");
+    box.querySelectorAll("[data-place]").forEach(btn => {
+      btn.addEventListener("click", () => placeBet("place", parseInt(btn.dataset.place, 10)));
+    });
+  }
+
+  document.querySelectorAll("[data-bet]").forEach(btn => {
+    btn.addEventListener("click", () => placeBet(btn.dataset.bet));
+  });
+
+  function unitAmount() {
+    const v = parseInt(document.getElementById("betUnit").value, 10);
+    return (v && v > 0) ? v : 0;
+  }
+
+  function updateUnitLabels() {
+    document.querySelectorAll(".unit-amount").forEach(el => { el.textContent = unitAmount().toLocaleString(); });
+  }
+  document.getElementById("betUnit").addEventListener("input", updateUnitLabels);
+
+  async function placeBet(kind, target) {
+    const amount = unitAmount();
+    const errEl = document.getElementById("crapsError");
+    errEl.textContent = "";
+    if (!amount) { errEl.textContent = "Enter a bet unit first"; return; }
+    try {
+      const res = await api("/craps/bet", { method: "POST", body: { kind, amount, target } });
+      currentUser.balance = res.balance;
+      renderUser();
+      craps = res.state;
+      render();
+    } catch (e) {
+      errEl.textContent = e.message;
+    }
+  }
+
+  document.getElementById("clearBtn").addEventListener("click", async () => {
+    try {
+      const res = await api("/craps/clear_bets", { method: "POST" });
+      currentUser.balance = res.balance;
+      renderUser();
+      craps = res.state;
+      render();
+    } catch (e) { /* nothing to clear */ }
+  });
+
+  document.getElementById("rollBtn").addEventListener("click", async () => {
+    const dice = document.querySelectorAll(".cs-die");
+    dice.forEach(d => d.classList.add("rolling"));
+    try {
+      const res = await api("/craps/roll", { method: "POST" });
+      setTimeout(() => {
+        dice.forEach(d => d.classList.remove("rolling"));
+        currentUser.balance = res.balance;
+        renderUser();
+        craps = res.state;
+        render();
+        renderResolved(res.resolved);
+      }, 350);
+    } catch (e) {
+      dice.forEach(d => d.classList.remove("rolling"));
+      document.getElementById("crapsError").textContent = e.message;
+    }
+  });
+
+  function render() {
+    updateUnitLabels();
+    const pointEl = document.getElementById("pointIndicator");
+    pointEl.textContent = craps.point || "—";
+    pointEl.classList.toggle("active", !!craps.point);
+
+    if (craps.last_roll) {
+      document.querySelectorAll(".cs-die")[0].textContent = craps.last_roll[0];
+      document.querySelectorAll(".cs-die")[1].textContent = craps.last_roll[1];
+    }
+
+    document.getElementById("phaseHint").textContent = craps.phase === "come_out"
+      ? "Come-out roll — pass/don't pass are open."
+      : `Point is ${craps.point} — rolling for the point or a 7-out.`;
+
+    document.getElementById("stakedPass").textContent = craps.bets.pass ? `🪙${craps.bets.pass.toLocaleString()}` : "";
+    document.getElementById("stakedDontPass").textContent = craps.bets.dont_pass ? `🪙${craps.bets.dont_pass.toLocaleString()}` : "";
+    document.getElementById("stakedField").textContent = craps.bets.field ? `🪙${craps.bets.field.toLocaleString()}` : "";
+    document.getElementById("spotPass").classList.toggle("disabled", craps.phase !== "come_out");
+    document.getElementById("spotDontPass").classList.toggle("disabled", craps.phase !== "come_out");
+    document.querySelector('[data-bet="pass"]').disabled = craps.phase !== "come_out";
+    document.querySelector('[data-bet="dont_pass"]').disabled = craps.phase !== "come_out";
+
+    PLACE_NUMBERS.forEach(n => {
+      const staked = craps.bets.place[String(n)] || 0;
+      document.getElementById(`stakedPlace${n}`).textContent = staked ? `🪙${staked.toLocaleString()}` : "";
+      document.getElementById(`spotPlace${n}`).classList.toggle("disabled", craps.phase !== "point");
+      const btn = document.querySelector(`[data-place="${n}"]`);
+      if (btn) btn.disabled = craps.phase !== "point";
+    });
+  }
+
+  function renderResolved(resolved) {
+    const box = document.getElementById("resolvedList");
+    if (!resolved || !resolved.length) { box.innerHTML = ""; return; }
+    box.innerHTML = resolved.map(r => {
+      const net = r.payout - r.amount;
+      const label = r.kind === "place" ? `Place ${r.target}` : r.kind.replace("_", " ");
+      return `<div class="cs-resolved-row">
+        <span>${label} — bet 🪙${r.amount.toLocaleString()}</span>
+        <span class="${net >= 0 ? "pos" : "neg"}">${net >= 0 ? "+" : ""}${net.toLocaleString()}</span>
+      </div>`;
+    }).join("");
+  }
+
+  boot();
+</script>
+
+</body>
+</html>

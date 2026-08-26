@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casino — Kelleher Innovations</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* ══════════════════════════════════════
+     Casino hub — page-scoped styles, prefix .cs- (same conventions as
+     uno.html's .un- / propertytrade.html's .pt-, new game, new prefix).
+  ══════════════════════════════════════ */
+
+  .cs-topbar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: 12px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 28px;
+  }
+  .cs-topbar-user { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .cs-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .cs-chip.balance { color: #ffd166; }
+  .cs-btn {
+    padding: 9px 18px; background: var(--accent); color: #000; border: none;
+    border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    font-family: inherit; transition: background 0.2s, transform 0.15s;
+  }
+  .cs-btn:hover { background: #00e0e0; transform: translateY(-1px); }
+  .cs-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .cs-btn-outline {
+    background: none; border: 1px solid var(--border); color: var(--text);
+    padding: 9px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+    cursor: pointer; font-family: inherit; transition: border-color 0.2s;
+  }
+  .cs-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Auth panel (logged out) ── */
+  .cs-auth-wrap { max-width: 420px; margin: 40px auto; }
+  .cs-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .cs-panel h2 { font-size: 1.3rem; text-align: center; margin-bottom: 2px; }
+  .cs-panel p.cs-sub { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; }
+  .cs-tabs { display: flex; gap: 4px; background: var(--bg2); border-radius: 8px; padding: 4px; }
+  .cs-tab {
+    flex: 1; text-align: center; padding: 8px; border-radius: 6px; cursor: pointer;
+    font-size: 0.85rem; font-weight: 700; color: var(--muted); transition: background 0.2s, color 0.2s;
+  }
+  .cs-tab.active { background: var(--accent); color: #000; }
+  .cs-field { display: flex; flex-direction: column; gap: 4px; }
+  .cs-field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .cs-field input {
+    padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 0.9rem; font-family: inherit;
+  }
+  .cs-field input:focus { outline: none; border-color: var(--accent); }
+  .cs-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; }
+  .cs-hint { color: var(--muted); font-size: 0.78rem; text-align: center; }
+
+  /* ── Game menu ── */
+  .cs-games {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--gap);
+  }
+  .cs-game-card.disabled { opacity: 0.45; pointer-events: none; }
+  .cs-game-card .project-card-icon { font-size: 3.8rem; }
+
+  .cs-history { margin-top: 40px; }
+  .cs-history h3 {
+    font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--accent); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .cs-hist-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem;
+  }
+  .cs-hist-row:last-child { border-bottom: none; }
+  .cs-hist-game { color: var(--muted); text-transform: capitalize; }
+  .cs-hist-delta.pos { color: #4ee08a; font-weight: 700; }
+  .cs-hist-delta.neg { color: #ff6b6b; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="portfolio.html">Portfolio</a>
+      <a href="https://kelleherworkshop.com" target="_blank" rel="noopener">Woodwork</a>
+      <a href="psg.html">Punk Squad Games</a>
+      <a href="transit.html">Transit</a>
+      <a href="casino.html" class="active">Casino</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div id="authWrap" class="cs-auth-wrap" style="display:none;">
+    <div class="cs-panel">
+      <h2>🎰 Casino</h2>
+      <p class="cs-sub">Play-money chips only — nothing here is real gambling. Make an account to keep a running balance across visits.</p>
+      <div class="cs-tabs">
+        <div class="cs-tab active" data-tab="login">Log In</div>
+        <div class="cs-tab" data-tab="register">Register</div>
+      </div>
+      <div class="cs-field">
+        <label for="authUsername">Username</label>
+        <input type="text" id="authUsername" autocomplete="username" maxlength="20">
+      </div>
+      <div class="cs-field">
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" autocomplete="current-password">
+      </div>
+      <div class="cs-error" id="authError"></div>
+      <button class="cs-btn" id="authSubmitBtn">Log In</button>
+      <p class="cs-hint" id="authHint">New here? Registering gives you 1,000 starting chips.</p>
+    </div>
+  </div>
+
+  <div id="lobbyWrap" style="display:none;">
+    <div class="cs-topbar">
+      <div class="cs-topbar-user">
+        <span class="cs-chip">👤 <span id="userName"></span></span>
+        <span class="cs-chip balance">🪙 <span id="userBalance"></span></span>
+        <button class="cs-btn" id="bonusBtn" style="display:none;">Claim free chips</button>
+      </div>
+      <button class="cs-btn-outline" id="logoutBtn">Log Out</button>
+    </div>
+
+    <div class="section-hdr">
+      <span class="section-hdr-icon">🎲</span>
+      <span class="section-hdr-label">Games</span>
+    </div>
+    <section class="cs-games">
+      <a href="casino-roulette.html" class="project-card cs-game-card">
+        <div class="project-card-icon">🎡</div>
+        <div class="project-card-body">
+          <h3>Roulette</h3>
+          <p>Full real-table bet menu. Spin solo or open a table and play with friends.</p>
+        </div>
+      </a>
+      <a href="casino-blackjack.html" class="project-card cs-game-card">
+        <div class="project-card-icon">🂡</div>
+        <div class="project-card-body">
+          <h3>Blackjack</h3>
+          <p>6-deck shoe, dealer stands on 17, blackjack pays 3:2. Hit, stand, double, split.</p>
+        </div>
+      </a>
+      <a href="casino-craps.html" class="project-card cs-game-card">
+        <div class="project-card-icon">🎲</div>
+        <div class="project-card-body">
+          <h3>Craps</h3>
+          <p>Pass line, don't pass, field, and place bets. You're always the shooter.</p>
+        </div>
+      </a>
+      <div class="project-card cs-game-card disabled">
+        <div class="project-card-icon">🃏</div>
+        <div class="project-card-body">
+          <h3>More coming soon</h3>
+          <p>Poker and slots are on the table for a future update.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="cs-history">
+      <h3>Recent Activity</h3>
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/casino" : "https://api.kellinnovations.com/casino";
+
+  async function api(path, opts) {
+    opts = opts || {};
+    const res = await fetch(API + path, {
+      method: opts.method || "GET",
+      credentials: "include",
+      headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    return data;
+  }
+
+  let currentUser = null;
+  let authMode = "login";
+
+  async function refreshUser() {
+    try {
+      currentUser = await api("/auth/me");
+    } catch (e) {
+      currentUser = null;
+    }
+    renderAuthState();
+  }
+
+  function renderAuthState() {
+    document.getElementById("authWrap").style.display = currentUser ? "none" : "block";
+    document.getElementById("lobbyWrap").style.display = currentUser ? "block" : "none";
+    if (currentUser) {
+      document.getElementById("userName").textContent = currentUser.username;
+      document.getElementById("userBalance").textContent = currentUser.balance.toLocaleString();
+      document.getElementById("bonusBtn").style.display = currentUser.balance < 25 ? "inline-block" : "none";
+      loadHistory();
+    }
+  }
+
+  document.querySelectorAll(".cs-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".cs-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      authMode = tab.dataset.tab;
+      document.getElementById("authSubmitBtn").textContent = authMode === "login" ? "Log In" : "Create Account";
+      document.getElementById("authHint").textContent = authMode === "login"
+        ? "New here? Switch to Register — it gives you 1,000 starting chips."
+        : "3-20 characters, letters/numbers/underscore. Password needs 6+ characters.";
+      document.getElementById("authError").textContent = "";
+    });
+  });
+
+  document.getElementById("authSubmitBtn").addEventListener("click", async () => {
+    const username = document.getElementById("authUsername").value.trim();
+    const password = document.getElementById("authPassword").value;
+    const errEl = document.getElementById("authError");
+    errEl.textContent = "";
+    try {
+      currentUser = await api(authMode === "login" ? "/auth/login" : "/auth/register", {
+        method: "POST", body: { username, password },
+      });
+      renderAuthState();
+    } catch (e) {
+      errEl.textContent = e.message;
+    }
+  });
+
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    await api("/auth/logout", { method: "POST" }).catch(() => {});
+    currentUser = null;
+    renderAuthState();
+  });
+
+  document.getElementById("bonusBtn").addEventListener("click", async () => {
+    try {
+      const res = await api("/wallet/claim_bonus", { method: "POST" });
+      currentUser.balance = res.balance;
+      renderAuthState();
+    } catch (e) {
+      alert(e.message);
+    }
+  });
+
+  async function loadHistory() {
+    try {
+      const { entries } = await api("/wallet/history");
+      const list = document.getElementById("historyList");
+      if (!entries.length) {
+        list.innerHTML = `<p class="cs-hint">No activity yet — go play something.</p>`;
+        return;
+      }
+      list.innerHTML = entries.slice(0, 15).map(e => `
+        <div class="cs-hist-row">
+          <span class="cs-hist-game">${e.game}</span>
+          <span class="cs-hist-delta ${e.delta >= 0 ? "pos" : "neg"}">
+            ${e.delta >= 0 ? "+" : ""}${e.delta.toLocaleString()}
+          </span>
+        </div>
+      `).join("");
+    } catch (e) { /* not fatal — leave the section empty */ }
+  }
+
+  refreshUser();
+</script>
+
+</body>
+</html>

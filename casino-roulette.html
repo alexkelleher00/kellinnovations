@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roulette — Kelleher Innovations Casino</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* ══════════════════════════════════════
+     Casino Roulette — prefix .cs-. The bet grid / staged-bets / wheel
+     animation are ported from propertytrade.html's roulette house rule
+     (.pt-roulette-*, .pt-wheel-*) since that engine and this one share the
+     exact same wheel, bet menu, and payout table.
+  ══════════════════════════════════════ */
+
+  .cs-topbar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: 12px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 22px;
+  }
+  .cs-topbar-user { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .cs-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .cs-chip.balance { color: #ffd166; }
+  .cs-btn {
+    padding: 9px 18px; background: var(--accent); color: #000; border: none;
+    border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    font-family: inherit; transition: background 0.2s, transform 0.15s;
+  }
+  .cs-btn:hover { background: #00e0e0; transform: translateY(-1px); }
+  .cs-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .cs-btn-outline {
+    background: none; border: 1px solid var(--border); color: var(--text);
+    padding: 9px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+    cursor: pointer; font-family: inherit; transition: border-color 0.2s;
+  }
+  .cs-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .cs-btn-small { padding: 6px 12px; font-size: 0.78rem; }
+
+  .cs-auth-wrap { max-width: 420px; margin: 40px auto; }
+  .cs-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .cs-panel h2 { font-size: 1.3rem; text-align: center; }
+  .cs-field { display: flex; flex-direction: column; gap: 4px; }
+  .cs-field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .cs-field input {
+    padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 0.9rem; font-family: inherit;
+  }
+  .cs-field input:focus { outline: none; border-color: var(--accent); }
+  .cs-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; }
+  .cs-hint { color: var(--muted); font-size: 0.78rem; }
+
+  /* ── Mode switch ── */
+  .cs-mode-tabs { display: flex; gap: 4px; background: var(--bg2); border-radius: 8px; padding: 4px; max-width: 360px; margin-bottom: 20px; }
+  .cs-mode-tab {
+    flex: 1; text-align: center; padding: 9px; border-radius: 6px; cursor: pointer;
+    font-size: 0.85rem; font-weight: 700; color: var(--muted); transition: background 0.2s, color 0.2s;
+  }
+  .cs-mode-tab.active { background: var(--accent); color: #000; }
+
+  .cs-table-join { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 18px; }
+  .cs-table-join input {
+    padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 0.95rem; font-family: inherit; text-transform: uppercase;
+    letter-spacing: 0.15em; width: 120px; text-align: center;
+  }
+  .cs-seats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .cs-seat {
+    padding: 6px 12px; border-radius: 999px; background: var(--bg2); border: 1px solid var(--border);
+    font-size: 0.8rem;
+  }
+  .cs-seat.bet { border-color: var(--accent); color: var(--accent); }
+  .cs-countdown { font-size: 0.85rem; color: var(--muted); margin-bottom: 14px; }
+  .cs-countdown strong { color: var(--accent); }
+
+  /* ── Bet grid (ported from propertytrade .pt-roulette-*) ── */
+  .cs-roulette-grid {
+    display: grid; grid-template-columns: 40px repeat(3, 1fr); grid-auto-rows: 30px;
+    gap: 3px; margin: 10px 0; max-width: 480px;
+  }
+  .cs-roulette-cell {
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; font-size: 0.78rem; font-weight: 700; color: #fff; cursor: pointer;
+    user-select: none; border: 2px solid transparent;
+  }
+  .cs-roulette-cell.red { background: #7a1f1f; }
+  .cs-roulette-cell.black { background: #1a1a1a; }
+  .cs-roulette-cell.green { background: #1f6b3a; }
+  .cs-roulette-cell:hover { filter: brightness(1.3); }
+  .cs-roulette-cell.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,200,200,0.35) inset; }
+  .cs-btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cs-staged-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem;
+  }
+  .cs-staged-row:last-child { border-bottom: none; }
+  .cs-remove-bet { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.75rem; text-decoration: underline; }
+
+  .cs-layout { display: grid; grid-template-columns: minmax(280px, 520px) 1fr; gap: 28px; align-items: start; }
+  @media (max-width: 900px) { .cs-layout { grid-template-columns: 1fr; } }
+
+  .cs-history-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px;
+  }
+  .cs-history-box h3 {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--accent); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .cs-spin-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 0.83rem; border-bottom: 1px solid var(--border); }
+  .cs-spin-row:last-child { border-bottom: none; }
+  .cs-spin-num {
+    width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 0.75rem; color: #fff; flex-shrink: 0;
+  }
+  .cs-spin-net.pos { color: #4ee08a; font-weight: 700; }
+  .cs-spin-net.neg { color: #ff6b6b; font-weight: 700; }
+
+  /* ── Wheel overlay (ported from propertytrade .pt-wheel-*) ── */
+  @keyframes cs-spin-anim { from { transform: rotate(0deg); } to { transform: rotate(720deg); } }
+  .cs-wheel-overlay {
+    position: fixed; inset: 0; z-index: 700; display: none;
+    align-items: center; justify-content: center; flex-direction: column; gap: 20px;
+    background: rgba(0,0,0,0.82); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  }
+  .cs-wheel-overlay.open { display: flex; }
+  .cs-wheel-stage { position: relative; width: min(80vw, 68vh, 560px); height: min(80vw, 68vh, 560px); flex-shrink: 0; }
+  .cs-wheel-disc {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 6px solid #3a2b12; box-shadow: 0 0 0 3px #caa24a, 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .cs-wheel-num {
+    position: absolute; top: 50%; left: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; font-weight: 800; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  }
+  .cs-wheel-ball-orbit { position: absolute; inset: 0; pointer-events: none; }
+  .cs-wheel-ball {
+    position: absolute; top: 2%; left: 50%; width: 4%; height: 4%; margin-left: -2%;
+    border-radius: 50%; background: #fff;
+    box-shadow: 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.5);
+  }
+  .cs-wheel-hub {
+    position: absolute; top: 50%; left: 50%; width: 20%; height: 20%; margin: -10% 0 0 -10%;
+    border-radius: 50%; background: radial-gradient(circle at 35% 30%, #3a3a4a, #101018);
+    display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 4px 14px rgba(0,0,0,0.5);
+  }
+  .cs-wheel-caption { color: #fff; text-align: center; }
+  .cs-wheel-caption .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 50%; margin-right: 8px;
+    font-weight: 800; color: #fff; vertical-align: middle; font-size: 1rem;
+  }
+  .cs-wheel-caption .title { font-size: 1.15rem; font-weight: 800; }
+  .cs-wheel-caption .net { font-size: 1rem; font-weight: 700; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="portfolio.html">Portfolio</a>
+      <a href="https://kelleherworkshop.com" target="_blank" rel="noopener">Woodwork</a>
+      <a href="psg.html">Punk Squad Games</a>
+      <a href="transit.html">Transit</a>
+      <a href="casino.html" class="active">Casino</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div id="authWrap" class="cs-auth-wrap" style="display:none;">
+    <div class="cs-panel">
+      <h2>🎡 Log in to play Roulette</h2>
+      <div class="cs-field">
+        <label for="authUsername">Username</label>
+        <input type="text" id="authUsername" autocomplete="username">
+      </div>
+      <div class="cs-field">
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" autocomplete="current-password">
+      </div>
+      <div class="cs-error" id="authError"></div>
+      <button class="cs-btn" id="authSubmitBtn">Log In</button>
+      <p class="cs-hint">No account yet? Head to the <a href="casino.html">Casino hub</a> to register.</p>
+    </div>
+  </div>
+
+  <div id="gameWrap" style="display:none;">
+    <div class="cs-topbar">
+      <div class="cs-topbar-user">
+        <a href="casino.html" class="cs-btn-outline cs-btn-small">&larr; Casino</a>
+        <span class="cs-chip">👤 <span id="userName"></span></span>
+        <span class="cs-chip balance">🪙 <span id="userBalance"></span></span>
+      </div>
+    </div>
+
+    <h2 style="margin-bottom:14px;">🎡 Roulette</h2>
+
+    <div class="cs-mode-tabs">
+      <div class="cs-mode-tab active" data-mode="solo">Solo</div>
+      <div class="cs-mode-tab" data-mode="table">Play with others</div>
+    </div>
+
+    <div id="tableJoinBox" class="cs-table-join" style="display:none;">
+      <button class="cs-btn-small cs-btn" id="createTableBtn">Create a table</button>
+      <span class="cs-hint">or</span>
+      <input type="text" id="joinCodeInput" placeholder="CODE" maxlength="4">
+      <button class="cs-btn-small cs-btn-outline" id="joinTableBtn">Join</button>
+      <button class="cs-btn-small cs-btn-outline" id="leaveTableBtn" style="display:none;">Leave table</button>
+      <span class="cs-hint" id="tableCodeLabel"></span>
+    </div>
+    <div id="tableStatusBox" style="display:none;">
+      <div class="cs-seats" id="tableSeats"></div>
+      <div class="cs-countdown" id="tableCountdown"></div>
+    </div>
+
+    <div class="cs-layout">
+      <div>
+        <div class="cs-roulette-grid" id="rouletteGrid"></div>
+        <div id="insideHint" class="cs-hint" style="min-height:2.4em; margin-bottom:8px;"></div>
+        <button type="button" class="cs-btn-outline cs-btn-small" id="addInsideBetBtn" style="width:100%; margin-bottom:12px;" disabled>Stage Selected Numbers</button>
+
+        <div class="cs-btn-row" style="margin-bottom:6px;">
+          <button type="button" class="cs-btn-outline cs-btn-small" data-outside="red">Red <span id="oddsRed"></span></button>
+          <button type="button" class="cs-btn-outline cs-btn-small" data-outside="black">Black <span id="oddsBlack"></span></button>
+          <button type="button" class="cs-btn-outline cs-btn-small" data-outside="odd">Odd</button>
+          <button type="button" class="cs-btn-outline cs-btn-small" data-outside="even">Even</button>
+          <button type="button" class="cs-btn-outline cs-btn-small" data-outside="low">1-18</button>
+          <button type="button" class="cs-btn-outline cs-btn-small" data-outside="high">19-36</button>
+        </div>
+        <div class="cs-btn-row" style="margin-bottom:14px;">
+          <button type="button" class="cs-btn-outline cs-btn-small" data-column="1">Col 1</button>
+          <button type="button" class="cs-btn-outline cs-btn-small" data-column="2">Col 2</button>
+          <button type="button" class="cs-btn-outline cs-btn-small" data-column="3">Col 3</button>
+          <button type="button" class="cs-btn-outline cs-btn-small" data-dozen="1">1st 12</button>
+          <button type="button" class="cs-btn-outline cs-btn-small" data-dozen="2">2nd 12</button>
+          <button type="button" class="cs-btn-outline cs-btn-small" data-dozen="3">3rd 12</button>
+        </div>
+
+        <div class="cs-field">
+          <label>Amount for next bet</label>
+          <input type="number" id="betAmount" min="1" value="10">
+        </div>
+        <div class="cs-btn-row" style="margin:8px 0 14px;">
+          <button type="button" class="cs-btn-outline cs-btn-small" data-preset="0.1">10%</button>
+          <button type="button" class="cs-btn-outline cs-btn-small" data-preset="0.25">25%</button>
+          <button type="button" class="cs-btn-outline cs-btn-small" data-preset="1">ALL IN</button>
+        </div>
+
+        <div id="stagedBets"></div>
+        <div class="cs-error" id="betError"></div>
+        <button class="cs-btn" id="spinBtn" style="width:100%; margin-top:10px;" disabled>🎡 Spin</button>
+      </div>
+
+      <div class="cs-history-box">
+        <h3>Recent Spins</h3>
+        <div id="spinHistory"><p class="cs-hint">No spins yet.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cs-wheel-overlay" id="wheelOverlay">
+    <div class="cs-wheel-stage">
+      <div class="cs-wheel-disc" id="wheelDisc"></div>
+      <div class="cs-wheel-ball-orbit" id="wheelBallOrbit"><div class="cs-wheel-ball"></div></div>
+      <div class="cs-wheel-hub">🎡</div>
+    </div>
+    <div class="cs-wheel-caption" id="wheelCaption"></div>
+  </div>
+
+</main>
+
+<script>
+  const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/casino" : "https://api.kellinnovations.com/casino";
+
+  async function api(path, opts) {
+    opts = opts || {};
+    const res = await fetch(API + path, {
+      method: opts.method || "GET",
+      credentials: "include",
+      headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    return data;
+  }
+  function escHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  let currentUser = null;
+  let meta = null; // { wheel_order, red_numbers, payouts }
+
+  async function boot() {
+    try {
+      currentUser = await api("/auth/me");
+    } catch (e) {
+      currentUser = null;
+    }
+    if (!currentUser) {
+      document.getElementById("authWrap").style.display = "block";
+      return;
+    }
+    meta = await api("/roulette/meta");
+    document.getElementById("gameWrap").style.display = "block";
+    renderUser();
+    buildGrid();
+    renderStaged();
+  }
+
+  function renderUser() {
+    document.getElementById("userName").textContent = currentUser.username;
+    document.getElementById("userBalance").textContent = currentUser.balance.toLocaleString();
+  }
+
+  document.getElementById("authSubmitBtn").addEventListener("click", async () => {
+    const username = document.getElementById("authUsername").value.trim();
+    const password = document.getElementById("authPassword").value;
+    const errEl = document.getElementById("authError");
+    errEl.textContent = "";
+    try {
+      currentUser = await api("/auth/login", { method: "POST", body: { username, password } });
+      document.getElementById("authWrap").style.display = "none";
+      document.getElementById("gameWrap").style.display = "block";
+      meta = await api("/roulette/meta");
+      renderUser();
+      buildGrid();
+      renderStaged();
+    } catch (e) {
+      errEl.textContent = e.message;
+    }
+  });
+
+  // ── Bet grid + staging (ported from propertytrade.html's roulette module) ──
+  const INSIDE_SIZES = { straight: 1, split: 2, street: 3, corner: 4, six_line: 6 };
+  let selected = [];
+  let staged = [];
+
+  function payoutOdds(kind) { return meta.payouts[kind]; }
+  function inferInsideKind(nums) {
+    return Object.keys(INSIDE_SIZES).find(k => INSIDE_SIZES[k] === nums.length) || null;
+  }
+  function insideNumbersValid(kind, nums) {
+    const s = nums.slice().sort((a, b) => a - b);
+    if (kind === "straight") return true;
+    if (kind === "split") {
+      const [a, b] = s;
+      const sameRow = Math.floor((a - 1) / 3) === Math.floor((b - 1) / 3);
+      return (b - a === 1 && sameRow) || b - a === 3;
+    }
+    if (kind === "street") return s[0] % 3 === 1 && s[1] === s[0] + 1 && s[2] === s[0] + 2;
+    if (kind === "corner") { const a = s[0]; return a % 3 !== 0 && s.join(",") === [a, a + 1, a + 3, a + 4].join(","); }
+    if (kind === "six_line") { const a = s[0]; return a % 3 === 1 && s.join(",") === [a, a + 1, a + 2, a + 3, a + 4, a + 5].join(","); }
+    return false;
+  }
+  function betLabel(b) {
+    const suffix = ` (${payoutOdds(b.kind)}:1)`;
+    if (b.kind === "straight") return `Straight #${b.numbers[0]}${suffix}`;
+    if (b.kind === "split") return `Split ${b.numbers.join("-")}${suffix}`;
+    if (b.kind === "street") return `Street ${b.numbers.join("-")}${suffix}`;
+    if (b.kind === "corner") return `Corner ${b.numbers.join("-")}${suffix}`;
+    if (b.kind === "six_line") return `Six Line ${b.numbers.join("-")}${suffix}`;
+    if (b.kind === "column") return `Column ${b.target}${suffix}`;
+    if (b.kind === "dozen") return `Dozen ${b.target}${suffix}`;
+    const OUTSIDE_LABELS = { red: "Red", black: "Black", odd: "Odd", even: "Even", low: "1-18", high: "19-36" };
+    return `${OUTSIDE_LABELS[b.kind] || b.kind}${suffix}`;
+  }
+
+  function buildGrid() {
+    const redSet = new Set(meta.red_numbers);
+    document.getElementById("oddsRed").textContent = `(${payoutOdds("red")}:1)`;
+    document.getElementById("oddsBlack").textContent = `(${payoutOdds("black")}:1)`;
+    let cells = `<div class="cs-roulette-cell green" data-num="0" style="grid-row:1 / span 12;">0</div>`;
+    for (let row = 0; row < 12; row++) {
+      for (let col = 0; col < 3; col++) {
+        const n = row * 3 + col + 1;
+        cells += `<div class="cs-roulette-cell ${redSet.has(n) ? "red" : "black"}" data-num="${n}"
+          style="grid-row:${row + 1}; grid-column:${col + 2};">${n}</div>`;
+      }
+    }
+    document.getElementById("rouletteGrid").innerHTML = cells;
+    document.querySelectorAll(".cs-roulette-cell").forEach(cell => {
+      cell.addEventListener("click", () => {
+        const n = parseInt(cell.dataset.num, 10);
+        const i = selected.indexOf(n);
+        if (i >= 0) selected.splice(i, 1);
+        else if (selected.length < 6) selected.push(n);
+        renderGridSelection();
+      });
+    });
+    document.getElementById("addInsideBetBtn").addEventListener("click", () => {
+      const kind = inferInsideKind(selected);
+      if (!kind || !insideNumbersValid(kind, selected)) return;
+      stageBet({ kind, numbers: selected.slice() });
+      selected = [];
+      renderGridSelection();
+    });
+    document.querySelectorAll("[data-outside]").forEach(b => {
+      b.addEventListener("click", () => stageBet({ kind: b.dataset.outside }));
+    });
+    document.querySelectorAll("[data-column]").forEach(b => {
+      b.addEventListener("click", () => stageBet({ kind: "column", target: parseInt(b.dataset.column, 10) }));
+    });
+    document.querySelectorAll("[data-dozen]").forEach(b => {
+      b.addEventListener("click", () => stageBet({ kind: "dozen", target: parseInt(b.dataset.dozen, 10) }));
+    });
+    document.querySelectorAll("[data-preset]").forEach(b => {
+      b.addEventListener("click", () => {
+        const amountInput = document.getElementById("betAmount");
+        amountInput.value = Math.max(1, Math.floor((currentUser.balance - stagedTotal()) * parseFloat(b.dataset.preset)));
+      });
+    });
+    renderGridSelection();
+  }
+
+  function renderGridSelection() {
+    document.querySelectorAll(".cs-roulette-cell").forEach(cell => {
+      cell.classList.toggle("selected", selected.includes(parseInt(cell.dataset.num, 10)));
+    });
+    const hint = document.getElementById("insideHint");
+    const kind = inferInsideKind(selected);
+    if (!selected.length) {
+      hint.innerHTML = `Click numbers on the grid to build a bet: 1 = straight, 2 adjacent = split, a row of 3 = street, a 2×2 block = corner, two rows of 6 = six-line.`;
+    } else if (!kind) {
+      hint.textContent = `${selected.length} number(s) selected — needs to be 1, 2, 3, 4, or 6.`;
+    } else if (!insideNumbersValid(kind, selected)) {
+      hint.textContent = `Not adjacent on the table for a ${kind.replace("_", "-")} bet.`;
+    } else {
+      hint.textContent = `Ready: ${kind.replace("_", "-")} bet (${payoutOdds(kind)}:1) on ${selected.slice().sort((a, b) => a - b).join(", ")}.`;
+    }
+    document.getElementById("addInsideBetBtn").disabled = !(kind && insideNumbersValid(kind, selected));
+  }
+
+  function currentAmount() {
+    const v = parseInt(document.getElementById("betAmount").value, 10);
+    return (v && v > 0) ? v : 0;
+  }
+  function stagedTotal() { return staged.reduce((s, b) => s + b.amount, 0); }
+
+  function stageBet(bet) {
+    const amt = currentAmount();
+    const errEl = document.getElementById("betError");
+    errEl.textContent = "";
+    if (!amt) { errEl.textContent = "Enter a bet amount first"; return; }
+    if (stagedTotal() + amt > currentUser.balance) { errEl.textContent = "That would bet more than you have"; return; }
+    staged.push({ ...bet, amount: amt });
+    renderStaged();
+  }
+
+  function renderStaged() {
+    const box = document.getElementById("stagedBets");
+    const total = stagedTotal();
+    box.innerHTML = staged.length ? `
+      <div class="cs-hint" style="text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px;">
+        Staged bets — total 🪙${total.toLocaleString()}
+      </div>
+      ${staged.map((b, i) => `
+        <div class="cs-staged-row">
+          <span>${escHtml(betLabel(b))} — 🪙${b.amount.toLocaleString()}</span>
+          <button type="button" class="cs-remove-bet" data-remove-bet="${i}">Remove</button>
+        </div>`).join("")}
+    ` : `<p class="cs-hint">No bets staged yet.</p>`;
+    box.querySelectorAll("[data-remove-bet]").forEach(b => {
+      b.addEventListener("click", () => {
+        staged.splice(parseInt(b.dataset.removeBet, 10), 1);
+        renderStaged();
+      });
+    });
+    const spinBtn = document.getElementById("spinBtn");
+    spinBtn.disabled = !staged.length || total > currentUser.balance;
+    spinBtn.textContent = mode === "table" ? "🎡 Place Bets" : "🎡 Spin";
+  }
+
+  function betsPayload() {
+    return staged.map(b => {
+      if (b.kind === "column" || b.kind === "dozen") return { kind: b.kind, target: b.target, amount: b.amount };
+      if (b.numbers) return { kind: b.kind, numbers: b.numbers, amount: b.amount };
+      return { kind: b.kind, amount: b.amount };
+    });
+  }
+
+  // ── Mode: solo vs table ──────────────────────────────────────────────
+  let mode = "solo";
+  let tableCode = null;
+  let tablePollTimer = null;
+  let lastHistoryLen = 0;
+
+  document.querySelectorAll(".cs-mode-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".cs-mode-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      mode = tab.dataset.mode;
+      document.getElementById("tableJoinBox").style.display = mode === "table" ? "flex" : "none";
+      document.getElementById("tableStatusBox").style.display = (mode === "table" && tableCode) ? "block" : "none";
+      renderStaged();
+      if (mode === "solo" && tablePollTimer) { clearInterval(tablePollTimer); tablePollTimer = null; }
+    });
+  });
+
+  document.getElementById("createTableBtn").addEventListener("click", async () => {
+    try {
+      const state = await api("/roulette/table/create", { method: "POST" });
+      enterTable(state);
+    } catch (e) { alert(e.message); }
+  });
+  document.getElementById("joinTableBtn").addEventListener("click", async () => {
+    const code = document.getElementById("joinCodeInput").value.trim().toUpperCase();
+    if (!code) return;
+    try {
+      const state = await api(`/roulette/table/${code}/join`, { method: "POST" });
+      enterTable(state);
+    } catch (e) { alert(e.message); }
+  });
+  document.getElementById("leaveTableBtn").addEventListener("click", async () => {
+    if (!tableCode) return;
+    await api(`/roulette/table/${tableCode}/leave`, { method: "POST" }).catch(() => {});
+    tableCode = null;
+    if (tablePollTimer) { clearInterval(tablePollTimer); tablePollTimer = null; }
+    document.getElementById("tableStatusBox").style.display = "none";
+    document.getElementById("leaveTableBtn").style.display = "none";
+    document.getElementById("tableCodeLabel").textContent = "";
+  });
+
+  function enterTable(state) {
+    tableCode = state.code;
+    document.getElementById("tableCodeLabel").textContent = `Table ${state.code}`;
+    document.getElementById("leaveTableBtn").style.display = "inline-block";
+    document.getElementById("tableStatusBox").style.display = "block";
+    renderTableState(state);
+    if (tablePollTimer) clearInterval(tablePollTimer);
+    tablePollTimer = setInterval(pollTable, 1500);
+  }
+
+  async function pollTable() {
+    if (!tableCode) return;
+    try {
+      const state = await api(`/roulette/table/${tableCode}/state`);
+      renderTableState(state);
+      const fresh = await api("/auth/me");
+      if (fresh.balance !== currentUser.balance) {
+        currentUser = fresh;
+        renderUser();
+      }
+    } catch (e) { /* transient poll error — try again next tick */ }
+  }
+
+  function renderTableState(state) {
+    document.getElementById("tableSeats").innerHTML = state.seats.map(s =>
+      `<span class="cs-seat ${s.has_bet ? "bet" : ""}">${escHtml(s.name)}${s.has_bet ? " ✓" : ""}</span>`
+    ).join("");
+    document.getElementById("tableCountdown").innerHTML = state.phase === "betting"
+      ? `Betting closes in <strong>${Math.ceil(state.countdown)}s</strong>`
+      : `Spinning…`;
+    if (state.history.length > lastHistoryLen) {
+      const spin = state.history[0];
+      lastHistoryLen = state.history.length;
+      const mine = spin.players[currentUser.id];
+      if (mine) playWheelAnimation(spin.result, mine.net, currentUser.username);
+      renderHistoryList(state.history.map(h => ({
+        result: h.result, result_color: h.result_color, net: h.players[currentUser.id] ? h.players[currentUser.id].net : null,
+      })));
+      staged = [];
+      renderStaged();
+    }
+  }
+
+  document.getElementById("spinBtn").addEventListener("click", async () => {
+    if (!staged.length) return;
+    const errEl = document.getElementById("betError");
+    errEl.textContent = "";
+    const spinBtn = document.getElementById("spinBtn");
+    spinBtn.disabled = true;
+    try {
+      if (mode === "solo") {
+        const res = await api("/roulette/spin", { method: "POST", body: { bets: betsPayload() } });
+        currentUser.balance = res.balance;
+        renderUser();
+        playWheelAnimation(res.result.result, res.result.net, currentUser.username);
+        prependHistory(res.result);
+        staged = [];
+        renderStaged();
+      } else {
+        if (!tableCode) { errEl.textContent = "Create or join a table first"; spinBtn.disabled = false; return; }
+        const state = await api(`/roulette/table/${tableCode}/bet`, { method: "POST", body: { bets: betsPayload() } });
+        renderTableState(state);
+        const fresh = await api("/auth/me");
+        currentUser = fresh;
+        renderUser();
+      }
+    } catch (e) {
+      errEl.textContent = e.message;
+    } finally {
+      spinBtn.disabled = !staged.length;
+    }
+  });
+
+  function prependHistory(result) {
+    const list = document.getElementById("spinHistory");
+    const existing = list.dataset.entries ? JSON.parse(list.dataset.entries) : [];
+    existing.unshift({ result: result.result, result_color: result.result_color, net: result.net });
+    renderHistoryList(existing.slice(0, 20));
+  }
+  function renderHistoryList(entries) {
+    const list = document.getElementById("spinHistory");
+    list.dataset.entries = JSON.stringify(entries);
+    if (!entries.length) { list.innerHTML = `<p class="cs-hint">No spins yet.</p>`; return; }
+    list.innerHTML = entries.map(e => {
+      const colorHex = e.result_color === "red" ? "#a1222b" : e.result_color === "black" ? "#171717" : "#1f6b3a";
+      const netHtml = e.net === null ? `<span class="cs-hint">—</span>`
+        : e.net >= 0 ? `<span class="cs-spin-net pos">+${e.net.toLocaleString()}</span>`
+        : `<span class="cs-spin-net neg">${e.net.toLocaleString()}</span>`;
+      return `<div class="cs-spin-row">
+        <span class="cs-spin-num" style="background:${colorHex};">${e.result}</span>
+        <span style="flex:1;">${e.result_color}</span>
+        ${netHtml}
+      </div>`;
+    }).join("");
+  }
+
+  // ── Wheel animation (ported from propertytrade.html) ──────────────────
+  let wheelBuilt = false;
+  function buildWheelDom() {
+    if (wheelBuilt) return;
+    const disc = document.getElementById("wheelDisc");
+    const order = meta.wheel_order;
+    const redSet = new Set(meta.red_numbers);
+    const step = 360 / order.length;
+    disc.style.background = "conic-gradient(" + order.map((n, i) => {
+      const color = n === 0 ? "#1f6b3a" : redSet.has(n) ? "#a1222b" : "#171717";
+      return `${color} ${(i * step).toFixed(3)}deg ${((i + 1) * step).toFixed(3)}deg`;
+    }).join(", ") + ")";
+    const radius = (disc.getBoundingClientRect().width || 320) * 0.42;
+    disc.innerHTML = order.map((n, i) => {
+      const angle = i * step + step / 2;
+      return `<div class="cs-wheel-num" style="transform:rotate(${angle}deg) translate(0, -${radius}px) rotate(${-angle}deg);">${n}</div>`;
+    }).join("");
+    wheelBuilt = true;
+  }
+
+  function playWheelAnimation(result, net, name) {
+    const overlay = document.getElementById("wheelOverlay");
+    const orbit = document.getElementById("wheelBallOrbit");
+    const caption = document.getElementById("wheelCaption");
+    overlay.classList.add("open");
+    buildWheelDom();
+    caption.innerHTML = `<div class="title">${escHtml(name)} spins…</div>`;
+
+    const order = meta.wheel_order;
+    const idx = order.indexOf(result);
+    const step = 360 / order.length;
+    const landing = (idx >= 0 ? idx : 0) * step + step / 2 + 360 * 6;
+    orbit.style.transition = "none";
+    orbit.style.transform = "rotate(0deg)";
+    void orbit.offsetWidth;
+    requestAnimationFrame(() => {
+      orbit.style.transition = "transform 4.2s cubic-bezier(0.12, 0.72, 0.24, 1)";
+      orbit.style.transform = `rotate(${landing}deg)`;
+    });
+
+    setTimeout(() => {
+      const redSet = new Set(meta.red_numbers);
+      const color = result === 0 ? "green" : redSet.has(result) ? "red" : "black";
+      const colorHex = color === "red" ? "#a1222b" : color === "black" ? "#171717" : "#1f6b3a";
+      const netHtml = net >= 0
+        ? `<span style="color:#4ee08a;">+🪙${net.toLocaleString()}</span>`
+        : `<span style="color:#ff6b6b;">-🪙${Math.abs(net).toLocaleString()}</span>`;
+      caption.innerHTML = `
+        <div class="title"><span class="num" style="background:${colorHex};">${result}</span>${color.toUpperCase()}</div>
+        <div class="net">Net ${netHtml}</div>
+      `;
+      setTimeout(() => { overlay.classList.remove("open"); }, 2200);
+    }, 4300);
+  }
+
+  boot();
+</script>
+
+</body>
+</html>
