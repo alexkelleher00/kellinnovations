@@ -204,6 +204,34 @@
     let imgSrc = 'images/jalapenoguy.png'; // <-- set your image path or URL here
     /* ------------------------------------------------------- */
 
+    // Quietly checks (best-effort) whether the browser is logged into the
+    // unified games account (see games.html) — if so, a solve earns a flat
+    // KellsCoins claim. Playing without one still works exactly as before.
+    const GAMES_SERVER = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? 'http://localhost:4567/games' : 'https://api.kellinnovations.com/games';
+    let gamesAccountId = null;
+    (async () => {
+      try {
+        const r = await fetch(GAMES_SERVER + '/auth/me', { credentials: 'include' });
+        if (r.ok) gamesAccountId = (await r.json()).id;
+      } catch (e) { /* offline/not logged in */ }
+    })();
+    async function claimSlideCoins() {
+      if (!gamesAccountId) return;
+      try {
+        const r = await fetch(GAMES_SERVER + '/claim', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ game: 'slide' }),
+        });
+        const data = await r.json();
+        if (r.ok && data.awarded) {
+          const msg = document.getElementById('win-msg');
+          msg.innerHTML += ` <strong>+${data.awarded} KellsCoins</strong>`;
+        }
+      } catch (e) { /* offline — silently skip */ }
+    }
+
     const COLORS = [
       '#B5D4F455','#9FE1CB55','#F5C4B355','#C0DD9755','#FAC77555',
       '#F4C0D155','#CECBF655','#F7C1C155','#D3D1C755','#5DCAA555',
@@ -300,6 +328,7 @@
       const msg = document.getElementById('win-msg');
       msg.innerHTML = `<strong>Solved!</strong> ${moves} moves in ${seconds}s`;
       msg.style.display = 'block';
+      claimSlideCoins();
     }
 
     function render() {

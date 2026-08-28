@@ -226,6 +226,18 @@ body{
 
 <script>
 const SERVER = 'https://api.kellinnovations.com/2048';
+// Quietly checks (best-effort) whether the browser is logged into the unified
+// games account (see games.html) — if so, submitScore() also earns KellsCoins
+// and updates that account's trophy-case stats. Playing without one still
+// works exactly as before, just earns nothing.
+const GAMES_SERVER = 'https://api.kellinnovations.com/games';
+let gamesAccountId = null;
+(async () => {
+  try {
+    const r = await fetch(GAMES_SERVER + '/auth/me', { credentials: 'include' });
+    if (r.ok) gamesAccountId = (await r.json()).id;
+  } catch (e) { /* offline/not logged in */ }
+})();
 const WIN_VALUE = 2048;
 const UNDO_MAX = 5;
 const MOVE_MS = 110;
@@ -557,13 +569,36 @@ function showOverlay(kind) {
 
   const qualifies = qualifiesForLeaderboard(score);
   qualifyFormEl.classList.toggle('hidden', !qualifies);
-  if (qualifies) { initialsInputEl.value = ''; setTimeout(() => initialsInputEl.focus(), 250); }
+  if (qualifies) {
+    initialsInputEl.value = '';
+    setTimeout(() => initialsInputEl.focus(), 250);
+  } else {
+    // Doesn't make the top 10 (most games won't) — still worth a small flat
+    // claim if logged in, so ordinary play earns *something*, not just runs
+    // good enough to submit to the leaderboard.
+    claimCasualCoins();
+  }
 
   boardOverlayEl.classList.add('show');
   playSound(kind === 'win' ? 'win' : 'gameover');
   announce(kind === 'win' ? `You win! Score ${score}.` : `Game over. Final score ${score}.`);
 }
 function hideOverlay() { boardOverlayEl.classList.remove('show'); }
+
+async function claimCasualCoins() {
+  if (!gamesAccountId) return;  // not logged in — nothing to award
+  try {
+    const r = await fetch(GAMES_SERVER + '/claim', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ game: '2048' }),
+    });
+    const data = await r.json();
+    if (r.ok && data.awarded) toast(`+${data.awarded} KellsCoins`);
+    // A 429 here just means it was already claimed recently — not an error
+    // worth surfacing, the player didn't do anything wrong.
+  } catch (e) { /* offline — silently skip */ }
+}
 
 async function submitScore() {
   const initials = initialsInputEl.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
@@ -572,14 +607,15 @@ async function submitScore() {
     const r = await fetch(SERVER + '/leaderboard', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initials, score, boardSize: SIZE })
+      body: JSON.stringify({ initials, score, boardSize: SIZE, account_id: gamesAccountId })
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'failed');
     leaderboardCache = data.entries;
     renderLeaderboard(data.rank);
     qualifyFormEl.classList.add('hidden');
-    toast(data.rank ? `Saved — rank #${data.rank}!` : 'Score saved');
+    const coinsMsg = data.coins_awarded ? ` (+${data.coins_awarded} KellsCoins)` : '';
+    toast((data.rank ? `Saved — rank #${data.rank}!` : 'Score saved') + coinsMsg);
   } catch (e) {
     toast('Could not save score — try again');
   }

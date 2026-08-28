@@ -813,6 +813,19 @@
   const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
     ? "http://localhost:4567/proptrade"
     : "https://api.kellinnovations.com/proptrade";
+  // Property Empire still has no login of its own — this just checks (quietly,
+  // best-effort) whether the browser happens to be logged into the unified
+  // games account (see games.html), so a finished game can award KellsCoins.
+  // Playing without one still works exactly as before, just earns nothing.
+  const GAMES_API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/games" : "https://api.kellinnovations.com/games";
+  let gamesAccountId = null;
+  (async () => {
+    try {
+      const res = await fetch(GAMES_API + "/auth/me", { credentials: "include" });
+      if (res.ok) gamesAccountId = (await res.json()).id;
+    } catch (e) { /* offline/not logged in — play anonymously */ }
+  })();
   const PIECES = ["🚗","🎩","🚀","⚓","🐕","🎲","🏆","🐈"];
   const GROUP_LABELS = {
     brown: "Brown", lightblue: "Light Blue", pink: "Pink", orange: "Orange",
@@ -961,7 +974,7 @@
     if (!name) return errEl.textContent = "Enter your name";
     if (!selectedCreatePiece) return errEl.textContent = "Pick a token";
     try {
-      const data = await api("/rooms", { name, piece: selectedCreatePiece });
+      const data = await api("/rooms", { name, piece: selectedCreatePiece, account_id: gamesAccountId });
       saveSession(data.code, data.token, data.player_id);
       state = data.state;
       enterRoom();
@@ -977,7 +990,7 @@
     if (!name) return errEl.textContent = "Enter your name";
     if (!selectedJoinPiece) return errEl.textContent = "Pick a token";
     try {
-      const data = await api(`/rooms/${code}/join`, { name, piece: selectedJoinPiece });
+      const data = await api(`/rooms/${code}/join`, { name, piece: selectedJoinPiece, account_id: gamesAccountId });
       saveSession(data.code, data.token, data.player_id);
       state = data.state;
       enterRoom();

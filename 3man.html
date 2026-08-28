@@ -595,6 +595,27 @@ input[type=text]::placeholder{color:#282855}
   window.addEventListener('orientationchange',function(){setTimeout(setVh,300);});
 })();
 
+// ======= GAMES ACCOUNT (KellsCoins) =======
+// Quietly checks (best-effort) whether the browser is logged into the unified
+// games account (see games.html) — if so, ending a game earns a flat
+// KellsCoins claim. Playing without one still works exactly as before.
+var GAMES_SERVER=(location.hostname==='localhost'||location.hostname==='127.0.0.1')
+  ?'http://localhost:4567/games':'https://api.kellinnovations.com/games';
+var gamesAccountId=null;
+(function(){
+  fetch(GAMES_SERVER+'/auth/me',{credentials:'include'}).then(function(r){
+    if(r.ok)return r.json();
+  }).then(function(u){ if(u)gamesAccountId=u.id; }).catch(function(){});
+})();
+function claim3ManCoins(){
+  if(!gamesAccountId)return;
+  fetch(GAMES_SERVER+'/claim',{
+    method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({game:'3man'}),
+  }).catch(function(){});
+}
+
 // ======= STATE =======
 var players=['',''];
 var selectedDice='neon-green',tempDice='neon-green';
@@ -2435,6 +2456,7 @@ diceCanvas.addEventListener('click',function(){
 
 // ======= END GAME =======
 function endGame(){
+  claim3ManCoins();
   // Stop music if playing
   if(typeof _mPlaying!=='undefined'&&_mPlaying)_mStop();
   var mBtn=document.getElementById('music-btn');

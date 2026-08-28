@@ -44,6 +44,14 @@
     padding: 24px; display: flex; flex-direction: column; gap: 14px;
   }
   .cs-panel h2 { font-size: 1.3rem; text-align: center; }
+  .cs-google-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 11px 20px; background: #fff; color: #1f1f1f; border: 1px solid var(--border);
+    border-radius: 8px; font-weight: 700; font-size: 0.9rem; text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.2s;
+  }
+  .cs-google-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.25); }
+  .cs-google-btn svg { width: 18px; height: 18px; }
   .cs-field { display: flex; flex-direction: column; gap: 4px; }
   .cs-field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
   .cs-field input {
@@ -109,17 +117,11 @@
   <div id="authWrap" class="cs-auth-wrap" style="display:none;">
     <div class="cs-panel">
       <h2>🂡 Log in to play Blackjack</h2>
-      <div class="cs-field">
-        <label for="authUsername">Username</label>
-        <input type="text" id="authUsername" autocomplete="username">
-      </div>
-      <div class="cs-field">
-        <label for="authPassword">Password</label>
-        <input type="password" id="authPassword" autocomplete="current-password">
-      </div>
-      <div class="cs-error" id="authError"></div>
-      <button class="cs-btn" id="authSubmitBtn">Log In</button>
-      <p class="cs-hint">No account yet? Head to the <a href="casino.html">Casino hub</a> to register.</p>
+      <a href="#" id="googleLoginBtn" class="cs-google-btn">
+        <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.7 13.6-4.7l-6.3-5.3C29.3 35.6 26.8 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.3 5.3C39.9 37 44 31 44 24c0-1.3-.1-2.6-.4-3.5z"/></svg>
+        Log in with Google
+      </a>
+      <p class="cs-hint">No account yet? Head to the <a href="games.html">Games hub</a> — same login.</p>
     </div>
   </div>
 
@@ -164,12 +166,29 @@
 </main>
 
 <script>
+  // Game actions go through the casino API; login/session/balance now live in
+  // the unified games API (see kellinnovations-server/games/) — casino has no
+  // login of its own any more.
   const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
     ? "http://localhost:4567/casino" : "https://api.kellinnovations.com/casino";
+  const GAMES_API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/games" : "https://api.kellinnovations.com/games";
 
   async function api(path, opts) {
     opts = opts || {};
     const res = await fetch(API + path, {
+      method: opts.method || "GET",
+      credentials: "include",
+      headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    return data;
+  }
+  async function gamesApi(path, opts) {
+    opts = opts || {};
+    const res = await fetch(GAMES_API + path, {
       method: opts.method || "GET",
       credentials: "include",
       headers: opts.body ? { "Content-Type": "application/json" } : undefined,
@@ -186,9 +205,23 @@
   let currentUser = null;
   let handState = null;
 
+  document.getElementById("googleLoginBtn").addEventListener("click", (e) => {
+    e.preventDefault();
+    window.location.href = `${GAMES_API}/auth/google/login?next=${encodeURIComponent(window.location.href.split("?")[0])}`;
+  });
+
+  // Rest of this page was written against a local casino-account shape with
+  // .username/.balance — normalized here so none of that code needed to
+  // change, it's just fed from the games API now instead of casino's own.
+  function normalizeUser(u) {
+    u.username = u.name;
+    u.balance = u.kellscoins;
+    return u;
+  }
+
   async function boot() {
     try {
-      currentUser = await api("/auth/me");
+      currentUser = normalizeUser(await gamesApi("/auth/me"));
     } catch (e) {
       currentUser = null;
     }
@@ -207,24 +240,6 @@
     document.getElementById("userName").textContent = currentUser.username;
     document.getElementById("userBalance").textContent = currentUser.balance.toLocaleString();
   }
-
-  document.getElementById("authSubmitBtn").addEventListener("click", async () => {
-    const username = document.getElementById("authUsername").value.trim();
-    const password = document.getElementById("authPassword").value;
-    const errEl = document.getElementById("authError");
-    errEl.textContent = "";
-    try {
-      currentUser = await api("/auth/login", { method: "POST", body: { username, password } });
-      document.getElementById("authWrap").style.display = "none";
-      document.getElementById("gameWrap").style.display = "block";
-      renderUser();
-      const res = await api("/blackjack/state");
-      handState = res.state;
-      render();
-    } catch (e) {
-      errEl.textContent = e.message;
-    }
-  });
 
   function cardHtml(card, hidden) {
     if (hidden || card.r === "?") return `<div class="cs-card hidden"></div>`;

@@ -568,6 +568,19 @@
   const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
     ? "http://localhost:4567/uno"
     : "https://api.kellinnovations.com/uno";
+  // Uno still has no login of its own — this just checks (quietly, best-effort)
+  // whether the browser happens to be logged into the unified games account
+  // (see games.html), so a finished match can award KellsCoins. Playing
+  // without one still works exactly as before, just earns nothing.
+  const GAMES_API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/games" : "https://api.kellinnovations.com/games";
+  let gamesAccountId = null;
+  (async () => {
+    try {
+      const res = await fetch(GAMES_API + "/auth/me", { credentials: "include" });
+      if (res.ok) gamesAccountId = (await res.json()).id;
+    } catch (e) { /* offline/not logged in — play anonymously */ }
+  })();
 
   const SYMBOL = { skip: "⊘", reverse: "⇄", draw2: "+2", wild: "★", wild4: "+4" };
   const COLOR_HEX = { red: "#e64545", yellow: "#f4d03f", green: "#37b350", blue: "#2f8ce0", wild: "#bbbbbb" };
@@ -669,7 +682,7 @@
     if (!name) return errEl.textContent = "Enter your name";
     if (!selectedCreateAvatar) return errEl.textContent = "Pick an avatar";
     try {
-      const data = await api("/rooms", { name, avatar: selectedCreateAvatar });
+      const data = await api("/rooms", { name, avatar: selectedCreateAvatar, account_id: gamesAccountId });
       saveSession(data.code, data.token, data.player_id);
       state = data.state;
       enterRoom();
@@ -685,7 +698,7 @@
     if (!name) return errEl.textContent = "Enter your name";
     if (!selectedJoinAvatar) return errEl.textContent = "Pick an avatar";
     try {
-      const data = await api(`/rooms/${code}/join`, { name, avatar: selectedJoinAvatar });
+      const data = await api(`/rooms/${code}/join`, { name, avatar: selectedJoinAvatar, account_id: gamesAccountId });
       saveSession(data.code, data.token, data.player_id);
       state = data.state;
       enterRoom();

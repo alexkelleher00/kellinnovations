@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Games — Kelleher Innovations</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* ══════════════════════════════════════
+     Games hub — prefix .gm-. The account/login panel here is the ONE place
+     on the site that logs into the unified games account (Google OAuth,
+     see kellinnovations-server/games/) — every other game page reads the
+     same session cookie and just links back here to log in/out.
+  ══════════════════════════════════════ */
+  .gm-hero { text-align: center; margin-bottom: 32px; }
+  .gm-hero h1 { font-size: 1.8rem; margin-bottom: 8px; }
+  .gm-hero p { color: var(--muted); max-width: 560px; margin: 0 auto; }
+
+  .gm-login-wrap { max-width: 420px; margin: 0 auto 40px; }
+  .gm-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 26px; display: flex; flex-direction: column; gap: 14px; text-align: center;
+  }
+  .gm-google-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 11px 20px; background: #fff; color: #1f1f1f; border: 1px solid var(--border);
+    border-radius: 8px; font-weight: 700; font-size: 0.9rem; text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.2s;
+  }
+  .gm-google-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.25); }
+  .gm-google-btn svg { width: 18px; height: 18px; }
+  .gm-error-banner {
+    max-width: 420px; margin: 0 auto 20px; padding: 10px 14px; border-radius: 8px;
+    background: rgba(255,107,107,0.12); border: 1px solid #e03131; color: #ff9494;
+    font-size: 0.85rem; text-align: center;
+  }
+
+  /* ── Profile bar ── */
+  .gm-profile {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 20px; margin-bottom: 32px;
+  }
+  .gm-profile-id { display: flex; align-items: center; gap: 14px; }
+  .gm-avatar-btn {
+    width: 52px; height: 52px; border-radius: 50%; font-size: 1.7rem;
+    background: var(--bg2); border: 2px solid var(--border); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: border-color 0.2s;
+  }
+  .gm-avatar-btn:hover { border-color: var(--accent); }
+  .gm-profile-name { font-weight: 700; }
+  .gm-profile-sub { font-size: 0.78rem; color: var(--muted); }
+  .gm-coins { display: flex; align-items: center; gap: 16px; }
+  .gm-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.95rem; font-weight: 800; color: #ffd166;
+  }
+  .gm-btn-outline {
+    background: none; border: 1px solid var(--border); color: var(--text);
+    padding: 9px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+    cursor: pointer; font-family: inherit; transition: border-color 0.2s;
+  }
+  .gm-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Avatar picker modal ── */
+  .gm-modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none;
+    align-items: center; justify-content: center; z-index: 600; padding: 16px;
+  }
+  .gm-modal-overlay.open { display: flex; }
+  .gm-modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    max-width: 380px; width: 100%; padding: 22px;
+  }
+  .gm-modal h3 { margin-bottom: 14px; }
+  .gm-avatar-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 16px; }
+  .gm-avatar-choice {
+    font-size: 1.5rem; padding: 10px 0; background: var(--bg2); border: 2px solid var(--border);
+    border-radius: 10px; cursor: pointer; transition: border-color 0.15s, transform 0.15s;
+  }
+  .gm-avatar-choice:hover { transform: translateY(-2px); }
+  .gm-avatar-choice.selected { border-color: var(--accent); background: rgba(0,200,200,0.14); }
+  .gm-modal-close { float: right; background: none; border: none; color: var(--muted); font-size: 1.3rem; cursor: pointer; }
+
+  /* ── Trophy case ── */
+  .gm-trophy-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;
+    margin-bottom: 40px;
+  }
+  .gm-trophy-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; text-align: center;
+  }
+  .gm-trophy-card .g { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin-bottom: 6px; }
+  .gm-trophy-card .n { font-size: 1.3rem; font-weight: 800; }
+  .gm-trophy-card .s { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+  /* ── Game grid ── */
+  .gm-games {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--gap);
+  }
+  .gm-game-card .project-card-icon { font-size: 3.6rem; }
+  .gm-earn-tag {
+    display: inline-block; margin-top: 6px; font-size: 0.7rem; font-weight: 700;
+    color: #ffd166; background: rgba(255,209,102,0.12); padding: 2px 8px; border-radius: 999px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="portfolio.html">Portfolio</a>
+      <a href="https://kelleherworkshop.com" target="_blank" rel="noopener">Woodwork</a>
+      <a href="psg.html">Punk Squad Games</a>
+      <a href="transit.html">Transit</a>
+      <a href="games.html" class="active">Games</a>
+      <a href="https://api.kellinnovations.com/home/" target="_blank" rel="noopener">Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div class="gm-hero">
+    <h1>🎮 Games</h1>
+    <p>One account, one KellsCoins balance, every game on the site. Earn coins by playing, spend them at the Casino.</p>
+  </div>
+
+  <div id="errorBanner" class="gm-error-banner" style="display:none;">Google login didn't go through — give it another try.</div>
+
+  <div id="loginWrap" class="gm-login-wrap" style="display:none;">
+    <div class="gm-panel">
+      <h2>Sign in to play</h2>
+      <p style="color:var(--muted); font-size:0.85rem;">One click with your Google account — no password to set up, and your KellsCoins carry over everywhere on the site.</p>
+      <a href="#" id="googleLoginBtn" class="gm-google-btn">
+        <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.7 13.6-4.7l-6.3-5.3C29.3 35.6 26.8 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.3 5.3C39.9 37 44 31 44 24c0-1.3-.1-2.6-.4-3.5z"/></svg>
+        Log in with Google
+      </a>
+    </div>
+  </div>
+
+  <div id="appWrap" style="display:none;">
+    <div class="gm-profile">
+      <div class="gm-profile-id">
+        <button class="gm-avatar-btn" id="avatarBtn"></button>
+        <div>
+          <div class="gm-profile-name" id="profileName"></div>
+          <div class="gm-profile-sub">Playing since <span id="profileSince"></span></div>
+        </div>
+      </div>
+      <div class="gm-coins">
+        <span class="gm-chip">🪙 <span id="coinBalance"></span> KellsCoins</span>
+        <button class="gm-btn-outline" id="logoutBtn">Log Out</button>
+      </div>
+    </div>
+
+    <div class="section-hdr">
+      <span class="section-hdr-icon">🏆</span>
+      <span class="section-hdr-label">Trophy Case</span>
+    </div>
+    <div id="trophyGrid" class="gm-trophy-grid"></div>
+
+    <div class="section-hdr">
+      <span class="section-hdr-icon">🕹️</span>
+      <span class="section-hdr-label">Play</span>
+    </div>
+    <section class="gm-games">
+      <a href="propertytrade.html" class="project-card gm-game-card">
+        <div class="project-card-icon">🏙️</div>
+        <div class="project-card-body">
+          <h3>Property Empire</h3>
+          <p>Up to 5 players, one shared board, real trades, real bankruptcies.</p>
+          <span class="gm-earn-tag">🪙 500 for playing a game</span>
+        </div>
+      </a>
+      <a href="uno.html" class="project-card gm-game-card">
+        <div class="project-card-icon">🃏</div>
+        <div class="project-card-body">
+          <h3>Uno</h3>
+          <p>2–10 players — real turns, chat, reactions, CPU players.</p>
+          <span class="gm-earn-tag">🪙 150 win · 50 play</span>
+        </div>
+      </a>
+      <a href="2048.html" class="project-card gm-game-card">
+        <div class="project-card-icon">🔢</div>
+        <div class="project-card-body">
+          <h3>2048</h3>
+          <p>Merge tiles, chase the global top-10 leaderboard.</p>
+          <span class="gm-earn-tag">🪙 by score + top-10 bonus</span>
+        </div>
+      </a>
+      <a href="letterfall.html" class="project-card gm-game-card">
+        <img src="images/boggle.jpg" alt="Letterfall">
+        <div class="project-card-body">
+          <h3>Letterfall</h3>
+          <p>Find words in a 4×4 grid. Solo or multiplayer.</p>
+          <span class="gm-earn-tag">🪙 100 per game</span>
+        </div>
+      </a>
+      <a href="slide.html" class="project-card gm-game-card card-img-contain">
+        <img src="images/slidetile.jpg" alt="Slide Puzzle">
+        <div class="project-card-body">
+          <h3>Slide Puzzle</h3>
+          <p>Slide the tiles back into order.</p>
+          <span class="gm-earn-tag">🪙 75 per solve</span>
+        </div>
+      </a>
+      <a href="3man.html" class="project-card gm-game-card">
+        <img src="images/dice.jpg" alt="3 Man Dice Game">
+        <div class="project-card-body">
+          <h3>3 Man!</h3>
+          <p>The classic dice drinking game, digitized.</p>
+          <span class="gm-earn-tag">🪙 75 per game</span>
+        </div>
+      </a>
+      <a href="casino.html" class="project-card gm-game-card">
+        <div class="project-card-icon">🎰</div>
+        <div class="project-card-body">
+          <h3>Casino</h3>
+          <p>Roulette, blackjack, craps — spend your KellsCoins here.</p>
+        </div>
+      </a>
+    </section>
+  </div>
+
+  <div class="gm-modal-overlay" id="avatarModal">
+    <div class="gm-modal">
+      <button class="gm-modal-close" id="closeAvatarModal">&times;</button>
+      <h3>Choose an avatar</h3>
+      <div class="gm-avatar-grid" id="avatarGrid"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/games" : "https://api.kellinnovations.com/games";
+
+  async function api(path, opts) {
+    opts = opts || {};
+    const res = await fetch(API + path, {
+      method: opts.method || "GET",
+      credentials: "include",
+      headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    return data;
+  }
+
+  const GAME_LABELS = {
+    property_empire: "Property Empire", uno: "Uno", "2048": "2048",
+    letterfall: "Letterfall", slide: "Slide Puzzle", "3man": "3 Man!",
+    casino_roulette: "Roulette", casino_blackjack: "Blackjack", casino_craps: "Craps",
+  };
+
+  let currentUser = null;
+
+  document.getElementById("googleLoginBtn").addEventListener("click", (e) => {
+    e.preventDefault();
+    window.location.href = `${API}/auth/google/login?next=${encodeURIComponent(window.location.href.split("?")[0])}`;
+  });
+
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    await api("/auth/logout", { method: "POST" }).catch(() => {});
+    currentUser = null;
+    render();
+  });
+
+  function render() {
+    if (new URLSearchParams(location.search).get("login_error")) {
+      document.getElementById("errorBanner").style.display = "block";
+    }
+    document.getElementById("loginWrap").style.display = currentUser ? "none" : "block";
+    document.getElementById("appWrap").style.display = currentUser ? "block" : "none";
+    if (!currentUser) return;
+
+    document.getElementById("avatarBtn").textContent = currentUser.avatar_emoji;
+    document.getElementById("profileName").textContent = currentUser.name;
+    document.getElementById("coinBalance").textContent = currentUser.kellscoins.toLocaleString();
+    document.getElementById("profileSince").textContent = currentUser.created_at
+      ? new Date(currentUser.created_at).toLocaleDateString() : "today";
+    loadTrophyCase();
+  }
+
+  async function loadTrophyCase() {
+    try {
+      const { stats } = await api("/stats");
+      const box = document.getElementById("trophyGrid");
+      if (!stats.length) {
+        box.innerHTML = `<p style="color:var(--muted); font-size:0.85rem;">No games played yet — go earn some KellsCoins.</p>`;
+        return;
+      }
+      box.innerHTML = stats.map(s => `
+        <div class="gm-trophy-card">
+          <div class="g">${GAME_LABELS[s.game] || s.game}</div>
+          <div class="n">${s.played}</div>
+          <div class="s">played${s.wins ? ` · ${s.wins} won` : ""}${s.best_score !== null ? ` · best ${s.best_score.toLocaleString()}` : ""}</div>
+        </div>
+      `).join("");
+    } catch (e) { /* leave the section empty */ }
+  }
+
+  // ── Avatar picker ──────────────────────────────────────────────────
+  document.getElementById("avatarBtn").addEventListener("click", async () => {
+    try {
+      const { choices } = await api("/avatar/choices");
+      const grid = document.getElementById("avatarGrid");
+      grid.innerHTML = choices.map(c => `
+        <button type="button" class="gm-avatar-choice ${c === currentUser.avatar_emoji ? "selected" : ""}" data-emoji="${c}">${c}</button>
+      `).join("");
+      grid.querySelectorAll("[data-emoji]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          try {
+            currentUser = await api("/auth/avatar", { method: "POST", body: { emoji: btn.dataset.emoji } });
+            render();
+            document.getElementById("avatarModal").classList.remove("open");
+          } catch (e) { alert(e.message); }
+        });
+      });
+      document.getElementById("avatarModal").classList.add("open");
+    } catch (e) { alert(e.message); }
+  });
+  document.getElementById("closeAvatarModal").addEventListener("click", () => {
+    document.getElementById("avatarModal").classList.remove("open");
+  });
+
+  async function boot() {
+    try {
+      currentUser = await api("/auth/me");
+    } catch (e) {
+      currentUser = null;
+    }
+    render();
+  }
+  boot();
+</script>
+
+</body>
+</html>
