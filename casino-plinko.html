@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Blackjack — Kelleher Innovations Casino</title>
+<title>Plinko — Kelleher Innovations Casino</title>
 <link rel="stylesheet" href="style.css">
 <style>
   /* ══════════════════════════════════════
-     Casino Blackjack — prefix .cs- (shared chrome styles match
-     casino.html / casino-roulette.html so the three feel like one app).
+     Casino Plinko — prefix .cs- (shared chrome styles match the other
+     casino pages so the whole set feels like one app).
   ══════════════════════════════════════ */
   .cs-topbar {
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
@@ -22,6 +22,7 @@
     font-size: 0.85rem; font-weight: 700;
   }
   .cs-chip.balance { color: #ffd166; }
+  .cs-chip .usd { font-weight: 600; color: var(--muted); font-size: 0.78rem; margin-left: 2px; }
   .cs-btn {
     padding: 9px 18px; background: var(--accent); color: #000; border: none;
     border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
@@ -36,12 +37,11 @@
   }
   .cs-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
   .cs-btn-small { padding: 6px 12px; font-size: 0.78rem; }
-  .cs-btn-danger { background: #7a1f1f; color: #fff; }
 
   .cs-auth-wrap { max-width: 420px; margin: 40px auto; }
   .cs-panel {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 24px; display: flex; flex-direction: column; gap: 14px;
+    padding: 24px; display: flex; flex-direction: column; gap: 14px; text-align: center;
   }
   .cs-panel h2 { font-size: 1.3rem; text-align: center; }
   .cs-google-btn {
@@ -63,8 +63,7 @@
     font-size: 0.85rem; font-weight: 700; color: var(--muted); transition: background 0.2s, color 0.2s;
   }
   .cs-tab.active { background: var(--accent); color: #000; }
-  .cs-chip .usd { font-weight: 600; color: var(--muted); font-size: 0.78rem; margin-left: 2px; }
-  .cs-field { display: flex; flex-direction: column; gap: 4px; }
+  .cs-field { display: flex; flex-direction: column; gap: 4px; text-align: left; }
   .cs-field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
   .cs-field input {
     padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
@@ -74,40 +73,35 @@
   .cs-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; }
   .cs-hint { color: var(--muted); font-size: 0.78rem; }
 
-  /* ── Felt table ── */
-  .cs-felt {
-    background: radial-gradient(ellipse at 50% 0%, #0f3d2a, #0a2419 70%);
-    border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 28px 20px; min-height: 380px; display: flex; flex-direction: column;
-    align-items: center; gap: 26px;
+  /* ── Board ── */
+  .cs-board-wrap {
+    background: radial-gradient(ellipse at 50% 0%, #241a3d, #14101f 70%);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 24px;
+    margin-bottom: 20px;
   }
-  .cs-hand-block { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
-  .cs-hand-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.65); }
-  .cs-hand-value { font-weight: 800; color: #fff; }
-  .cs-cards { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-  .cs-card {
-    width: 54px; height: 76px; border-radius: 7px; background: #fff;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 1.15rem; box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  .cs-peg-board { position: relative; max-width: 520px; margin: 0 auto; height: 320px; }
+  .cs-peg-row { position: absolute; left: 0; right: 0; display: flex; justify-content: center; gap: 28px; }
+  .cs-peg { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.35); }
+  .cs-ball {
+    position: absolute; top: 0; width: 14px; height: 14px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff, #ffd166 70%);
+    box-shadow: 0 0 10px rgba(255,209,102,0.8);
+    transition: left 0.28s ease-in, top 0.28s ease-in;
   }
-  .cs-card.red { color: #c11f1f; }
-  .cs-card.black { color: #101010; }
-  .cs-card.hidden { background: repeating-linear-gradient(45deg, #1d3a63, #1d3a63 6px, #234a7d 6px, #234a7d 12px); }
-  .cs-hand-badges { display: flex; gap: 6px; }
-  .cs-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.14); color: #fff; }
-  .cs-badge.bust { background: #7a1f1f; }
-  .cs-badge.bj { background: #ffd166; color: #000; font-weight: 700; }
-  .cs-badge.active { background: var(--accent); color: #000; font-weight: 700; }
+  .cs-slots { display: flex; justify-content: center; gap: 4px; max-width: 520px; margin: 10px auto 0; }
+  .cs-slot {
+    flex: 1; text-align: center; padding: 8px 2px; border-radius: 6px; font-size: 0.72rem; font-weight: 800;
+    background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+    transition: transform 0.2s, background 0.2s;
+  }
+  .cs-slot.hit { background: var(--accent); color: #000; transform: translateY(-4px) scale(1.1); }
 
-  .cs-controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 18px; }
-  .cs-deal-box { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-top: 18px; }
-  .cs-deal-box .cs-field { width: 140px; }
+  .cs-controls-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
   .cs-result-banner {
-    text-align: center; padding: 10px 16px; border-radius: 8px; font-weight: 700; margin-top: 10px;
+    text-align: center; padding: 10px 16px; border-radius: 8px; font-weight: 700; margin-top: 14px;
   }
   .cs-result-banner.win { background: rgba(78,224,138,0.15); color: #4ee08a; }
   .cs-result-banner.lose { background: rgba(255,107,107,0.15); color: #ff6b6b; }
-  .cs-result-banner.push { background: rgba(255,209,102,0.15); color: #ffd166; }
 </style>
 </head>
 <body>
@@ -128,7 +122,7 @@
 
   <div id="authWrap" class="cs-auth-wrap" style="display:none;">
     <div class="cs-panel">
-      <h2>🂡 Log in to play Blackjack</h2>
+      <h2>🔴 Log in to play Plinko</h2>
       <a href="#" id="googleLoginBtn" class="cs-google-btn">
         <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.7 13.6-4.7l-6.3-5.3C29.3 35.6 26.8 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.3 5.3C39.9 37 44 31 44 24c0-1.3-.1-2.6-.4-3.5z"/></svg>
         Log in with Google
@@ -156,45 +150,35 @@
       <div class="cs-topbar-user">
         <a href="casino.html" class="cs-btn-outline cs-btn-small">&larr; Casino</a>
         <span class="cs-chip">👤 <span id="userName"></span></span>
-        <span class="cs-chip balance">🪙 <span id="userBalance"></span></span>
+        <span class="cs-chip balance">🪙 <span id="userBalance"></span> KellsCoins <span class="usd" id="usdEquiv"></span></span>
       </div>
     </div>
 
-    <h2 style="margin-bottom:14px;">🂡 Blackjack</h2>
-    <p class="cs-hint" style="margin-bottom:14px;">6-deck shoe · dealer stands on all 17s · blackjack pays 3:2 · one split allowed, no re-split · no insurance.</p>
+    <h2 style="margin-bottom:14px;">🔴 Plinko</h2>
+    <p class="cs-hint" style="margin-bottom:14px;">Drop a ball through 8 rows of pegs — it bounces left or right at random and lands in one of 9 slots. Edges pay the most, since they're the rarest.</p>
 
-    <div class="cs-felt">
-      <div class="cs-hand-block">
-        <div class="cs-hand-label">Dealer <span class="cs-hand-value" id="dealerValue"></span></div>
-        <div class="cs-cards" id="dealerCards"></div>
+    <div class="cs-board-wrap">
+      <div class="cs-peg-board" id="pegBoard">
+        <div class="cs-ball" id="ball" style="display:none;"></div>
       </div>
-      <div id="playerHands" style="display:flex; gap:24px; flex-wrap:wrap; justify-content:center;"></div>
-      <div id="resultBanner"></div>
+      <div class="cs-slots" id="slots"></div>
     </div>
 
-    <div class="cs-deal-box" id="dealBox">
+    <div class="cs-controls-row">
       <div class="cs-field">
         <label>Bet amount</label>
-        <input type="number" id="betInput" min="1" value="25">
+        <input type="number" id="betInput" min="1" value="10">
       </div>
-      <button class="cs-btn" id="dealBtn">Deal</button>
-      <div class="cs-error" id="dealError"></div>
+      <button class="cs-btn" id="dropBtn">Drop Ball</button>
+      <div class="cs-error" id="dropError"></div>
     </div>
 
-    <div class="cs-controls" id="actionControls" style="display:none;">
-      <button class="cs-btn" id="hitBtn">Hit</button>
-      <button class="cs-btn-outline" id="standBtn">Stand</button>
-      <button class="cs-btn-outline" id="doubleBtn">Double</button>
-      <button class="cs-btn-outline" id="splitBtn">Split</button>
-    </div>
+    <div id="resultBanner"></div>
   </div>
 
 </main>
 
 <script>
-  // Game actions go through the casino API; login/session/balance now live in
-  // the unified games API (see kellinnovations-server/games/) — casino has no
-  // login of its own any more.
   const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
     ? "http://localhost:4567/casino" : "https://api.kellinnovations.com/casino";
   const GAMES_API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
@@ -203,8 +187,7 @@
   async function api(path, opts) {
     opts = opts || {};
     const res = await fetch(API + path, {
-      method: opts.method || "GET",
-      credentials: "include",
+      method: opts.method || "GET", credentials: "include",
       headers: opts.body ? { "Content-Type": "application/json" } : undefined,
       body: opts.body ? JSON.stringify(opts.body) : undefined,
     });
@@ -215,8 +198,7 @@
   async function gamesApi(path, opts) {
     opts = opts || {};
     const res = await fetch(GAMES_API + path, {
-      method: opts.method || "GET",
-      credentials: "include",
+      method: opts.method || "GET", credentials: "include",
       headers: opts.body ? { "Content-Type": "application/json" } : undefined,
       body: opts.body ? JSON.stringify(opts.body) : undefined,
     });
@@ -224,12 +206,11 @@
     if (!res.ok) throw new Error(data.error || "Something went wrong");
     return data;
   }
-  function escHtml(s) {
-    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  }
 
   let currentUser = null;
-  let handState = null;
+  let kellscoinsPerUsd = 10000;
+  let meta = null; // { rows, multipliers }
+  let dropping = false;
 
   document.getElementById("googleLoginBtn").addEventListener("click", (e) => {
     e.preventDefault();
@@ -252,9 +233,9 @@
     const errEl = document.getElementById("authError");
     errEl.textContent = "";
     try {
-      currentUser = normalizeUser(await gamesApi(authMode === "login" ? "/auth/login" : "/auth/register", {
+      currentUser = await gamesApi(authMode === "login" ? "/auth/login" : "/auth/register", {
         method: "POST", body: { username, password },
-      }));
+      });
       document.getElementById("authWrap").style.display = "none";
       await enterGame();
     } catch (e) {
@@ -262,26 +243,44 @@
     }
   });
 
-  // Rest of this page was written against a local casino-account shape with
-  // .username/.balance — normalized here so none of that code needed to
-  // change, it's just fed from the games API now instead of casino's own.
-  function normalizeUser(u) {
-    u.username = u.name;
-    u.balance = u.kellscoins;
-    return u;
+  function renderUser() {
+    document.getElementById("userName").textContent = currentUser.name;
+    document.getElementById("userBalance").textContent = currentUser.kellscoins.toLocaleString();
+    document.getElementById("usdEquiv").textContent = `(≈ $${(currentUser.kellscoins / kellscoinsPerUsd).toFixed(2)})`;
+  }
+
+  function buildBoard() {
+    const board = document.getElementById("pegBoard");
+    const rows = meta.rows;
+    for (let r = 1; r <= rows; r++) {
+      const rowEl = document.createElement("div");
+      rowEl.className = "cs-peg-row";
+      rowEl.style.top = `${(r / (rows + 1)) * 100}%`;
+      for (let p = 0; p <= r; p++) {
+        const peg = document.createElement("div");
+        peg.className = "cs-peg";
+        rowEl.appendChild(peg);
+      }
+      board.appendChild(rowEl);
+    }
+    const slotsEl = document.getElementById("slots");
+    slotsEl.innerHTML = meta.multipliers.map((m, i) => `<div class="cs-slot" data-slot="${i}">${m}x</div>`).join("");
   }
 
   async function enterGame() {
+    try {
+      const metaRes = await gamesApi("/meta");
+      kellscoinsPerUsd = metaRes.kellscoins_per_usd;
+    } catch (e) { /* keep default */ }
+    meta = await api("/plinko/meta");
     document.getElementById("gameWrap").style.display = "block";
     renderUser();
-    const res = await api("/blackjack/state");
-    handState = res.state;
-    render();
+    buildBoard();
   }
 
   async function boot() {
     try {
-      currentUser = normalizeUser(await gamesApi("/auth/me"));
+      currentUser = await gamesApi("/auth/me");
     } catch (e) {
       currentUser = null;
     }
@@ -292,95 +291,68 @@
     await enterGame();
   }
 
-  function renderUser() {
-    document.getElementById("userName").textContent = currentUser.username;
-    document.getElementById("userBalance").textContent = currentUser.balance.toLocaleString();
-  }
+  function animateDrop(path, slot, onDone) {
+    const ball = document.getElementById("ball");
+    const board = document.getElementById("pegBoard");
+    const width = board.clientWidth;
+    const height = board.clientHeight;
+    const rows = path.length;
+    ball.style.display = "block";
+    ball.style.transition = "none";
+    ball.style.left = `calc(50% - 7px)`;
+    ball.style.top = "0px";
+    void ball.offsetWidth;
+    ball.style.transition = "left 0.28s ease-in, top 0.28s ease-in";
 
-  function cardHtml(card, hidden) {
-    if (hidden || card.r === "?") return `<div class="cs-card hidden"></div>`;
-    const red = card.s === "♥" || card.s === "♦";
-    return `<div class="cs-card ${red ? "red" : "black"}">${card.r}${card.s}</div>`;
-  }
+    let offset = 0; // in half-peg-spacing units, centered at 0
+    let step = 0;
+    const spacing = Math.min(28, width / (rows + 2));
 
-  function render() {
-    const s = handState;
-    const dealerHidden = s.dealer && s.dealer.some(c => c.r === "?");
-    document.getElementById("dealerCards").innerHTML = (s.dealer || []).map(c => cardHtml(c, false)).join("");
-    document.getElementById("dealerValue").textContent = s.dealer_value !== null && s.dealer_value !== undefined
-      ? `(${s.dealer_value})` : dealerHidden ? "" : "";
-
-    const handsBox = document.getElementById("playerHands");
-    handsBox.innerHTML = (s.hands || []).map((h, i) => {
-      const badges = [];
-      if (i === s.active && s.phase === "player_turn") badges.push(`<span class="cs-badge active">Playing</span>`);
-      if (h.busted) badges.push(`<span class="cs-badge bust">Bust</span>`);
-      if (h.blackjack) badges.push(`<span class="cs-badge bj">Blackjack!</span>`);
-      const result = s.result ? s.result[i] : null;
-      return `
-        <div class="cs-hand-block">
-          <div class="cs-hand-label">Hand ${(s.hands.length > 1) ? i + 1 : ""} <span class="cs-hand-value">(${h.value}${h.soft ? " soft" : ""})</span></div>
-          <div class="cs-cards">${h.cards.map(c => cardHtml(c, false)).join("")}</div>
-          <div class="cs-hand-badges">
-            <span class="cs-badge">Bet 🪙${h.bet.toLocaleString()}</span>
-            ${badges.join("")}
-            ${result ? `<span class="cs-badge ${result.net > 0 ? "bj" : ""}">${result.net > 0 ? "+" : ""}${result.net.toLocaleString()}</span>` : ""}
-          </div>
-        </div>`;
-    }).join("");
-
-    const banner = document.getElementById("resultBanner");
-    if (s.phase === "settled" && s.result) {
-      const totalNet = s.result.reduce((sum, r) => sum + r.net, 0);
-      const cls = totalNet > 0 ? "win" : totalNet < 0 ? "lose" : "push";
-      const msg = totalNet > 0 ? `You won 🪙${totalNet.toLocaleString()}!` : totalNet < 0 ? `You lost 🪙${Math.abs(totalNet).toLocaleString()}.` : "Push — bet returned.";
-      banner.innerHTML = `<div class="cs-result-banner ${cls}">${msg}</div>`;
-    } else {
-      banner.innerHTML = "";
+    function next() {
+      if (step >= rows) { onDone(); return; }
+      offset += path[step] === 1 ? 1 : -1;
+      const x = width / 2 + (offset * spacing) / 2 - 7;
+      const y = ((step + 1) / (rows + 1)) * height;
+      ball.style.left = `${x}px`;
+      ball.style.top = `${y}px`;
+      step++;
+      setTimeout(next, 300);
     }
-
-    const inHand = s.phase === "player_turn" || s.phase === "dealer_turn";
-    document.getElementById("dealBox").style.display = inHand ? "none" : "flex";
-    document.getElementById("actionControls").style.display = s.phase === "player_turn" ? "flex" : "none";
-    if (s.phase === "player_turn") {
-      const hand = s.hands[s.active];
-      document.getElementById("doubleBtn").disabled = hand.cards.length !== 2;
-      document.getElementById("splitBtn").disabled = !(s.hands.length < 2 && hand.cards.length === 2 && hand.cards[0].r === hand.cards[1].r);
-    }
-    document.getElementById("dealBtn").textContent = s.phase === "settled" ? "Deal Again" : "Deal";
+    next();
   }
 
-  async function doAction(path) {
-    try {
-      const res = await api(`/blackjack/${path}`, { method: "POST" });
-      currentUser.balance = res.balance;
-      renderUser();
-      handState = res.state;
-      render();
-    } catch (e) {
-      alert(e.message);
-    }
-  }
-
-  document.getElementById("dealBtn").addEventListener("click", async () => {
+  document.getElementById("dropBtn").addEventListener("click", async () => {
+    if (dropping) return;
     const bet = parseInt(document.getElementById("betInput").value, 10);
-    const errEl = document.getElementById("dealError");
+    const errEl = document.getElementById("dropError");
     errEl.textContent = "";
+    document.getElementById("resultBanner").innerHTML = "";
     if (!bet || bet <= 0) { errEl.textContent = "Enter a bet amount"; return; }
+
+    const dropBtn = document.getElementById("dropBtn");
+    dropping = true;
+    dropBtn.disabled = true;
+    document.querySelectorAll(".cs-slot").forEach(s => s.classList.remove("hit"));
+
     try {
-      const res = await api("/blackjack/deal", { method: "POST", body: { bet } });
-      currentUser.balance = res.balance;
-      renderUser();
-      handState = res.state;
-      render();
+      const res = await api("/plinko/drop", { method: "POST", body: { bet } });
+      const { path, slot, multiplier, net } = res.result;
+      animateDrop(path, slot, () => {
+        document.querySelector(`.cs-slot[data-slot="${slot}"]`).classList.add("hit");
+        currentUser.kellscoins = res.balance;
+        renderUser();
+        const banner = document.getElementById("resultBanner");
+        const cls = net > 0 ? "win" : "lose";
+        banner.innerHTML = `<div class="cs-result-banner ${cls}">Landed on ${multiplier}x — ${net >= 0 ? "+" : ""}${net.toLocaleString()} KellsCoins</div>`;
+        dropping = false;
+        dropBtn.disabled = false;
+      });
     } catch (e) {
       errEl.textContent = e.message;
+      dropping = false;
+      dropBtn.disabled = false;
     }
   });
-  document.getElementById("hitBtn").addEventListener("click", () => doAction("hit"));
-  document.getElementById("standBtn").addEventListener("click", () => doAction("stand"));
-  document.getElementById("doubleBtn").addEventListener("click", () => doAction("double"));
-  document.getElementById("splitBtn").addEventListener("click", () => doAction("split"));
 
   boot();
 </script>

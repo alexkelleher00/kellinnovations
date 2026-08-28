@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sudoku — Kelleher Innovations</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* ══════════════════════════════════════
+     Sudoku — prefix .sd-. Same dual-login chrome as the casino pages
+     (.cs- classes reused verbatim for that part) even though this game
+     itself is free to play — only completing a puzzle while logged in
+     earns KellsCoins.
+  ══════════════════════════════════════ */
+  .cs-auth-wrap { max-width: 420px; margin: 40px auto; }
+  .cs-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; display: flex; flex-direction: column; gap: 14px; text-align: center;
+  }
+  .cs-panel h2 { font-size: 1.3rem; text-align: center; }
+  .cs-google-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 11px 20px; background: #fff; color: #1f1f1f; border: 1px solid var(--border);
+    border-radius: 8px; font-weight: 700; font-size: 0.9rem; text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.2s;
+  }
+  .cs-google-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.25); }
+  .cs-google-btn svg { width: 18px; height: 18px; }
+  .cs-or-divider {
+    display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .cs-or-divider::before, .cs-or-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .cs-tabs { display: flex; gap: 4px; background: var(--bg2); border-radius: 8px; padding: 4px; }
+  .cs-tab {
+    flex: 1; text-align: center; padding: 8px; border-radius: 6px; cursor: pointer;
+    font-size: 0.85rem; font-weight: 700; color: var(--muted); transition: background 0.2s, color 0.2s;
+  }
+  .cs-tab.active { background: var(--accent); color: #000; }
+  .cs-field { display: flex; flex-direction: column; gap: 4px; text-align: left; }
+  .cs-field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .cs-field input {
+    padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 0.9rem; font-family: inherit;
+  }
+  .cs-field input:focus { outline: none; border-color: var(--accent); }
+  .cs-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; }
+  .cs-hint { color: var(--muted); font-size: 0.78rem; }
+  .cs-btn {
+    padding: 9px 18px; background: var(--accent); color: #000; border: none;
+    border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    font-family: inherit; transition: background 0.2s, transform 0.15s;
+  }
+  .cs-btn:hover { background: #00e0e0; transform: translateY(-1px); }
+  .cs-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .cs-btn-outline {
+    background: none; border: 1px solid var(--border); color: var(--text);
+    padding: 9px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+    cursor: pointer; font-family: inherit; transition: border-color 0.2s;
+  }
+  .cs-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .cs-btn-small { padding: 6px 12px; font-size: 0.78rem; }
+  .cs-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .cs-chip.balance { color: #ffd166; }
+  .cs-chip .usd { font-weight: 600; color: var(--muted); font-size: 0.78rem; margin-left: 2px; }
+  .sd-topbar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: 12px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 22px;
+  }
+  .sd-topbar-user { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+  /* ── Grid ── */
+  .sd-board-wrap { display: flex; justify-content: center; margin-bottom: 20px; }
+  .sd-board {
+    display: grid; grid-template-columns: repeat(9, minmax(30px, 44px)); grid-template-rows: repeat(9, minmax(30px, 44px));
+    background: var(--border); gap: 1px; border: 3px solid var(--accent); border-radius: 4px; overflow: hidden;
+  }
+  .sd-cell {
+    width: 100%; height: 100%; text-align: center; border: none; background: var(--surface);
+    color: var(--text); font-size: 1.1rem; font-weight: 700; font-family: inherit;
+  }
+  .sd-cell:focus { outline: none; background: rgba(0,200,200,0.15); }
+  .sd-cell.given { background: var(--bg2); color: var(--muted); cursor: not-allowed; }
+  .sd-cell.wrong { color: #ff6b6b; }
+  /* Thicker borders every 3rd row/col to show the 3x3 boxes */
+  .sd-cell[data-col="2"], .sd-cell[data-col="5"] { border-right: 2px solid var(--accent); }
+  .sd-cell[data-row="2"], .sd-cell[data-row="5"] { border-bottom: 2px solid var(--accent); }
+
+  .sd-controls { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .sd-result-banner {
+    text-align: center; padding: 10px 16px; border-radius: 8px; font-weight: 700; margin: 0 auto 16px;
+    max-width: 400px;
+  }
+  .sd-result-banner.win { background: rgba(78,224,138,0.15); color: #4ee08a; }
+  .sd-result-banner.lose { background: rgba(255,107,107,0.15); color: #ff6b6b; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div id="authWrap" class="cs-auth-wrap" style="display:none;">
+    <div class="cs-panel">
+      <h2>🔢 Log in to earn KellsCoins</h2>
+      <p class="cs-hint">You can play Sudoku without an account — logging in is only needed to earn KellsCoins for completing a puzzle.</p>
+      <a href="#" id="googleLoginBtn" class="cs-google-btn">
+        <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.7 13.6-4.7l-6.3-5.3C29.3 35.6 26.8 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.3 5.3C39.9 37 44 31 44 24c0-1.3-.1-2.6-.4-3.5z"/></svg>
+        Log in with Google
+      </a>
+      <div class="cs-or-divider">or</div>
+      <div class="cs-tabs">
+        <div class="cs-tab active" data-tab="login">Log In</div>
+        <div class="cs-tab" data-tab="register">Register</div>
+      </div>
+      <div class="cs-field">
+        <label for="authUsername">Username</label>
+        <input type="text" id="authUsername" autocomplete="username">
+      </div>
+      <div class="cs-field">
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" autocomplete="current-password">
+      </div>
+      <div class="cs-error" id="authError"></div>
+      <button class="cs-btn" id="authSubmitBtn" style="width:100%;">Log In</button>
+      <p class="cs-hint"><a href="#" id="playAnonBtn">Or just play without an account →</a></p>
+    </div>
+  </div>
+
+  <div id="gameWrap" style="display:none;">
+    <div class="sd-topbar">
+      <div class="sd-topbar-user">
+        <a href="games.html" class="cs-btn-outline cs-btn-small">&larr; Games</a>
+        <span class="cs-chip" id="userChip" style="display:none;">👤 <span id="userName"></span></span>
+        <span class="cs-chip balance" id="balanceChip" style="display:none;">🪙 <span id="userBalance"></span> KellsCoins <span class="usd" id="usdEquiv"></span></span>
+      </div>
+    </div>
+
+    <h2 style="margin-bottom:6px;">🔢 Sudoku</h2>
+    <p class="cs-hint" style="margin-bottom:16px;">Classic 9×9 — fill every row, column, and 3×3 box with 1-9, no repeats. <span id="coinsHint"></span></p>
+
+    <div id="resultArea"></div>
+
+    <div class="sd-board-wrap">
+      <div class="sd-board" id="board"></div>
+    </div>
+
+    <div class="sd-controls">
+      <button class="cs-btn" id="checkBtn">Check Solution</button>
+      <button class="cs-btn-outline" id="newBtn">New Puzzle</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/sudoku" : "https://api.kellinnovations.com/sudoku";
+  const GAMES_API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/games" : "https://api.kellinnovations.com/games";
+
+  async function api(path, opts) {
+    opts = opts || {};
+    const res = await fetch(API + path, {
+      method: opts.method || "GET", credentials: "include",
+      headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    return data;
+  }
+  async function gamesApi(path, opts) {
+    opts = opts || {};
+    const res = await fetch(GAMES_API + path, {
+      method: opts.method || "GET", credentials: "include",
+      headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    return data;
+  }
+
+  let currentUser = null;
+  let kellscoinsPerUsd = 10000;
+  let puzzleId = null;
+  let given = null; // 9x9, 0 = blank
+
+  document.getElementById("googleLoginBtn").addEventListener("click", (e) => {
+    e.preventDefault();
+    window.location.href = `${GAMES_API}/auth/google/login?next=${encodeURIComponent(window.location.href.split("?")[0])}`;
+  });
+  document.getElementById("playAnonBtn").addEventListener("click", (e) => {
+    e.preventDefault();
+    document.getElementById("authWrap").style.display = "none";
+    enterGame();
+  });
+
+  let authMode = "login";
+  document.querySelectorAll(".cs-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".cs-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      authMode = tab.dataset.tab;
+      document.getElementById("authSubmitBtn").textContent = authMode === "login" ? "Log In" : "Create Account";
+      document.getElementById("authError").textContent = "";
+    });
+  });
+  document.getElementById("authSubmitBtn").addEventListener("click", async () => {
+    const username = document.getElementById("authUsername").value.trim();
+    const password = document.getElementById("authPassword").value;
+    const errEl = document.getElementById("authError");
+    errEl.textContent = "";
+    try {
+      currentUser = await gamesApi(authMode === "login" ? "/auth/login" : "/auth/register", {
+        method: "POST", body: { username, password },
+      });
+      document.getElementById("authWrap").style.display = "none";
+      await enterGame();
+    } catch (e) {
+      errEl.textContent = e.message;
+    }
+  });
+
+  function renderUser() {
+    if (!currentUser) {
+      document.getElementById("userChip").style.display = "none";
+      document.getElementById("balanceChip").style.display = "none";
+      document.getElementById("coinsHint").textContent = "Log in to earn 300 KellsCoins per solve.";
+      return;
+    }
+    document.getElementById("userChip").style.display = "inline-flex";
+    document.getElementById("balanceChip").style.display = "inline-flex";
+    document.getElementById("userName").textContent = currentUser.name;
+    document.getElementById("userBalance").textContent = currentUser.kellscoins.toLocaleString();
+    document.getElementById("usdEquiv").textContent = `(≈ $${(currentUser.kellscoins / kellscoinsPerUsd).toFixed(2)})`;
+    document.getElementById("coinsHint").textContent = "Solve it for 300 KellsCoins.";
+  }
+
+  async function enterGame() {
+    try {
+      const metaRes = await gamesApi("/meta");
+      kellscoinsPerUsd = metaRes.kellscoins_per_usd;
+    } catch (e) { /* keep default, and not logged in is fine too */ }
+    document.getElementById("gameWrap").style.display = "block";
+    renderUser();
+    await newPuzzle();
+  }
+
+  async function boot() {
+    try {
+      currentUser = await gamesApi("/auth/me");
+    } catch (e) {
+      currentUser = null;
+    }
+    // Sudoku is playable without an account — only skip straight past the
+    // login screen if already logged in; otherwise let the user pick
+    // "log in" or "play without an account" from the panel.
+    if (currentUser) {
+      await enterGame();
+    } else {
+      document.getElementById("authWrap").style.display = "block";
+    }
+  }
+
+  function buildBoard() {
+    const board = document.getElementById("board");
+    board.innerHTML = "";
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        const cell = document.createElement("input");
+        cell.type = "text";
+        cell.inputMode = "numeric";
+        cell.maxLength = 1;
+        cell.className = "sd-cell";
+        cell.dataset.row = r;
+        cell.dataset.col = c;
+        const v = given[r][c];
+        if (v !== 0) {
+          cell.value = v;
+          cell.classList.add("given");
+          cell.disabled = true;
+        }
+        cell.addEventListener("input", () => {
+          cell.value = cell.value.replace(/[^1-9]/g, "").slice(0, 1);
+          cell.classList.remove("wrong");
+        });
+        board.appendChild(cell);
+      }
+    }
+  }
+
+  function readGrid() {
+    const grid = [];
+    for (let r = 0; r < 9; r++) {
+      const row = [];
+      for (let c = 0; c < 9; c++) {
+        const cell = document.querySelector(`.sd-cell[data-row="${r}"][data-col="${c}"]`);
+        row.push(parseInt(cell.value, 10) || 0);
+      }
+      grid.push(row);
+    }
+    return grid;
+  }
+
+  async function newPuzzle() {
+    document.getElementById("resultArea").innerHTML = "";
+    const res = await api("/new", { method: "POST" });
+    puzzleId = res.puzzle_id;
+    given = res.puzzle;
+    buildBoard();
+  }
+
+  document.getElementById("newBtn").addEventListener("click", () => { newPuzzle(); });
+
+  document.getElementById("checkBtn").addEventListener("click", async () => {
+    const grid = readGrid();
+    if (grid.some(row => row.some(v => v === 0))) {
+      document.getElementById("resultArea").innerHTML =
+        `<div class="sd-result-banner lose">Fill in every cell first.</div>`;
+      return;
+    }
+    try {
+      const res = await api("/submit", { method: "POST", body: { puzzle_id: puzzleId, grid } });
+      const area = document.getElementById("resultArea");
+      if (res.correct) {
+        const coinsMsg = res.coins_awarded ? ` +${res.coins_awarded} KellsCoins!` : "";
+        area.innerHTML = `<div class="sd-result-banner win">✅ Solved!${coinsMsg}</div>`;
+        if (res.coins_awarded && currentUser) {
+          currentUser.kellscoins += res.coins_awarded;
+          renderUser();
+        }
+        document.querySelectorAll(".sd-cell").forEach(c => c.disabled = true);
+      } else {
+        area.innerHTML = `<div class="sd-result-banner lose">Not quite — check for mistakes and try again.</div>`;
+        document.querySelectorAll(".sd-cell:not(.given)").forEach(c => c.classList.add("wrong"));
+      }
+    } catch (e) {
+      document.getElementById("resultArea").innerHTML =
+        `<div class="sd-result-banner lose">${e.message}</div>`;
+    }
+  });
+
+  boot();
+</script>
+
+</body>
+</html>

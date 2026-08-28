@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flappy Bird — Kelleher Innovations</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .fb-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .fb-hud { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .fb-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .fb-chip.balance { color: #ffd166; }
+  #fbCanvas {
+    background: linear-gradient(180deg, #4ec0ca 0%, #4ec0ca 80%, #ded895 80%, #ded895 100%);
+    border: 2px solid var(--border); border-radius: 10px; touch-action: manipulation; cursor: pointer;
+    max-width: 100%;
+  }
+  .fb-hint { color: var(--muted); font-size: 0.85rem; text-align: center; max-width: 400px; }
+  .fb-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; }
+  .fb-btn {
+    padding: 9px 18px; background: var(--accent); color: #000; border: none;
+    border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    font-family: inherit; transition: background 0.2s, transform 0.15s;
+  }
+  .fb-btn:hover { background: #00e0e0; transform: translateY(-1px); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="fb-wrap">
+    <h2>🐦 Flappy Bird</h2>
+    <div class="fb-hud">
+      <span class="fb-chip">Score: <span id="scoreEl">0</span></span>
+      <span class="fb-chip">Best: <span id="bestEl">0</span></span>
+      <span class="fb-chip balance" id="coinChip" style="display:none;">🪙 <span id="coinBalance">0</span></span>
+    </div>
+    <canvas id="fbCanvas" width="360" height="520"></canvas>
+    <p class="fb-hint">Click, tap, or press Space to flap. 1 KellsCoin per point if you're logged in — <span id="loginHint"><a href="games.html">log in</a> to earn coins.</span></p>
+    <div class="fb-error" id="fbError"></div>
+    <button class="fb-btn" id="restartBtn" style="display:none;">Play Again</button>
+  </div>
+</main>
+
+<script>
+  const GAMES_API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/games" : "https://api.kellinnovations.com/games";
+
+  let currentUser = null;
+  (async () => {
+    try {
+      currentUser = await (await fetch(GAMES_API + "/auth/me", { credentials: "include" })).json();
+      if (currentUser && currentUser.id) {
+        document.getElementById("coinChip").style.display = "inline-flex";
+        document.getElementById("coinBalance").textContent = currentUser.kellscoins.toLocaleString();
+        document.getElementById("loginHint").textContent = "";
+      } else {
+        currentUser = null;
+      }
+    } catch (e) { currentUser = null; }
+  })();
+
+  async function claimFlappyCoins(score) {
+    if (!currentUser || score <= 0) return;
+    try {
+      const res = await fetch(GAMES_API + "/claim_scored", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ game: "flappybird", score }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById("coinBalance").textContent =
+          (data.balance !== undefined ? data.balance : currentUser.kellscoins).toLocaleString();
+        if (data.awarded) document.getElementById("fbError").textContent = "";
+      } else if (res.status !== 429) {
+        document.getElementById("fbError").textContent = data.error || "";
+      }
+    } catch (e) { /* offline — silently skip */ }
+  }
+
+  // ── Game ────────────────────────────────────────────────────────────
+  const canvas = document.getElementById("fbCanvas");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+
+  const GRAVITY = 0.45;
+  const FLAP_VELOCITY = -7.5;
+  const PIPE_WIDTH = 56;
+  const PIPE_GAP = 150;
+  const PIPE_SPEED = 2.6;
+  const PIPE_INTERVAL = 105; // frames between new pipes
+  const BIRD_X = 70;
+  const BIRD_R = 14;
+
+  let bird, pipes, frame, score, best, running, gameOver;
+
+  function loadBest() { return parseInt(localStorage.getItem("flappybird_best") || "0", 10); }
+  function saveBest(v) { localStorage.setItem("flappybird_best", String(v)); }
+
+  function reset() {
+    bird = { y: H / 2, vy: 0 };
+    pipes = [];
+    frame = 0;
+    score = 0;
+    running = true;
+    gameOver = false;
+    best = loadBest();
+    document.getElementById("scoreEl").textContent = "0";
+    document.getElementById("bestEl").textContent = best;
+    document.getElementById("restartBtn").style.display = "none";
+    document.getElementById("fbError").textContent = "";
+  }
+
+  function flap() {
+    if (gameOver) return;
+    if (!running) running = true;
+    bird.vy = FLAP_VELOCITY;
+  }
+
+  function spawnPipe() {
+    const margin = 60;
+    const gapCenter = margin + Math.random() * (H - margin * 2 - 80);
+    pipes.push({ x: W, gapCenter, passed: false });
+  }
+
+  function update() {
+    if (!running || gameOver) return;
+    frame++;
+    bird.vy += GRAVITY;
+    bird.y += bird.vy;
+
+    if (frame % PIPE_INTERVAL === 0) spawnPipe();
+
+    pipes.forEach(p => { p.x -= PIPE_SPEED; });
+    pipes = pipes.filter(p => p.x > -PIPE_WIDTH);
+
+    pipes.forEach(p => {
+      if (!p.passed && p.x + PIPE_WIDTH < BIRD_X - BIRD_R) {
+        p.passed = true;
+        score++;
+        document.getElementById("scoreEl").textContent = score;
+      }
+    });
+
+    // Collision: ground/ceiling
+    if (bird.y + BIRD_R > H - 40 || bird.y - BIRD_R < 0) {
+      endGame();
+      return;
+    }
+    // Collision: pipes
+    for (const p of pipes) {
+      const withinX = BIRD_X + BIRD_R > p.x && BIRD_X - BIRD_R < p.x + PIPE_WIDTH;
+      if (withinX) {
+        const topEnd = p.gapCenter - PIPE_GAP / 2;
+        const botStart = p.gapCenter + PIPE_GAP / 2;
+        if (bird.y - BIRD_R < topEnd || bird.y + BIRD_R > botStart) {
+          endGame();
+          return;
+        }
+      }
+    }
+  }
+
+  function endGame() {
+    gameOver = true;
+    running = false;
+    if (score > best) { best = score; saveBest(best); document.getElementById("bestEl").textContent = best; }
+    document.getElementById("restartBtn").style.display = "inline-block";
+    claimFlappyCoins(score);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    // Sky handled by CSS gradient background showing through; just draw pipes/bird/ground accents.
+    ctx.fillStyle = "#5fd35f";
+    pipes.forEach(p => {
+      const topEnd = p.gapCenter - PIPE_GAP / 2;
+      const botStart = p.gapCenter + PIPE_GAP / 2;
+      ctx.fillRect(p.x, 0, PIPE_WIDTH, topEnd);
+      ctx.fillRect(p.x, botStart, PIPE_WIDTH, H - botStart);
+      ctx.fillStyle = "#3a9e3a";
+      ctx.fillRect(p.x - 3, topEnd - 18, PIPE_WIDTH + 6, 18);
+      ctx.fillRect(p.x - 3, botStart, PIPE_WIDTH + 6, 18);
+      ctx.fillStyle = "#5fd35f";
+    });
+
+    // Bird
+    ctx.save();
+    ctx.translate(BIRD_X, bird.y);
+    const angle = Math.max(-0.5, Math.min(0.9, bird.vy / 10));
+    ctx.rotate(angle);
+    ctx.fillStyle = "#ffd166";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, BIRD_R, BIRD_R * 0.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ff8c42";
+    ctx.beginPath();
+    ctx.moveTo(BIRD_R * 0.6, -3);
+    ctx.lineTo(BIRD_R * 1.4, 0);
+    ctx.lineTo(BIRD_R * 0.6, 5);
+    ctx.fill();
+    ctx.fillStyle = "#1a1a1a";
+    ctx.beginPath();
+    ctx.arc(BIRD_R * 0.35, -BIRD_R * 0.3, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    if (!running && !gameOver) {
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 20px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Click or press Space to start", W / 2, H / 2);
+    }
+    if (gameOver) {
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 26px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Game Over", W / 2, H / 2 - 16);
+      ctx.font = "16px sans-serif";
+      ctx.fillText(`Score: ${score}`, W / 2, H / 2 + 14);
+    }
+  }
+
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener("click", () => {
+    if (gameOver) { reset(); return; }
+    flap();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (gameOver) { reset(); return; }
+      flap();
+    }
+  });
+  document.getElementById("restartBtn").addEventListener("click", reset);
+
+  reset();
+  running = false; // wait for first input before the bird starts falling
+  loop();
+</script>
+
+</body>
+</html>

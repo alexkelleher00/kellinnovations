@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slots — Kelleher Innovations Casino</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* ══════════════════════════════════════
+     Casino Slots — prefix .cs- (shared chrome styles match the other
+     casino pages), plus a deliberately louder/flashier machine-specific
+     palette (.sl- prefix) — this one's supposed to look like a slot
+     machine, not blend in with the rest of the site's cool teal theme.
+  ══════════════════════════════════════ */
+  .cs-topbar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: 12px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 22px;
+  }
+  .cs-topbar-user { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .cs-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .cs-chip.balance { color: #ffd166; }
+  .cs-chip .usd { font-weight: 600; color: var(--muted); font-size: 0.78rem; margin-left: 2px; }
+  .cs-btn-outline {
+    background: none; border: 1px solid var(--border); color: var(--text);
+    padding: 9px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+    cursor: pointer; font-family: inherit; transition: border-color 0.2s;
+  }
+  .cs-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .cs-btn-small { padding: 6px 12px; font-size: 0.78rem; }
+
+  .cs-auth-wrap { max-width: 420px; margin: 40px auto; }
+  .cs-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; display: flex; flex-direction: column; gap: 14px; text-align: center;
+  }
+  .cs-panel h2 { font-size: 1.3rem; text-align: center; }
+  .cs-google-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 11px 20px; background: #fff; color: #1f1f1f; border: 1px solid var(--border);
+    border-radius: 8px; font-weight: 700; font-size: 0.9rem; text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.2s;
+  }
+  .cs-google-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.25); }
+  .cs-google-btn svg { width: 18px; height: 18px; }
+  .cs-or-divider {
+    display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .cs-or-divider::before, .cs-or-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .cs-tabs { display: flex; gap: 4px; background: var(--bg2); border-radius: 8px; padding: 4px; }
+  .cs-tab {
+    flex: 1; text-align: center; padding: 8px; border-radius: 6px; cursor: pointer;
+    font-size: 0.85rem; font-weight: 700; color: var(--muted); transition: background 0.2s, color 0.2s;
+  }
+  .cs-tab.active { background: var(--accent); color: #000; }
+  .cs-field { display: flex; flex-direction: column; gap: 4px; text-align: left; }
+  .cs-field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .cs-field input {
+    padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 0.9rem; font-family: inherit;
+  }
+  .cs-field input:focus { outline: none; border-color: var(--accent); }
+  .cs-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; }
+  .cs-hint { color: var(--muted); font-size: 0.78rem; }
+
+  /* ── The machine ── */
+  .sl-machine {
+    background: linear-gradient(160deg, #3a0f4d, #150a24 65%);
+    border: 3px solid #ffd166; border-radius: 20px; padding: 28px 22px;
+    box-shadow: 0 0 40px rgba(255,209,102,0.25), inset 0 0 30px rgba(0,0,0,0.4);
+    margin-bottom: 20px; position: relative; overflow: hidden;
+  }
+  .sl-machine::before {
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 40px);
+    pointer-events: none;
+  }
+  .sl-title {
+    text-align: center; font-size: 1.4rem; font-weight: 900; letter-spacing: 0.08em;
+    background: linear-gradient(90deg, #ffd166, #ff6b9d, #ffd166);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin-bottom: 18px; text-transform: uppercase;
+  }
+  .sl-reels {
+    display: flex; justify-content: center; gap: 12px; background: #0d0616;
+    border-radius: 14px; padding: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.7);
+    margin-bottom: 18px;
+  }
+  .sl-reel {
+    width: 84px; height: 100px; background: linear-gradient(180deg, #fff, #f0f0f0);
+    border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    font-size: 3rem; box-shadow: 0 4px 14px rgba(0,0,0,0.5); position: relative; overflow: hidden;
+  }
+  .sl-reel.spinning { animation: sl-spin 0.12s linear infinite; }
+  @keyframes sl-spin {
+    0% { transform: translateY(-8%); filter: blur(2px); }
+    50% { transform: translateY(8%); filter: blur(2px); }
+    100% { transform: translateY(-8%); filter: blur(2px); }
+  }
+  .sl-spin-btn {
+    display: block; margin: 0 auto; width: 130px; height: 130px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ff6b9d, #c9184a 70%);
+    border: 6px solid #ffd166; color: #fff; font-size: 1.2rem; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer;
+    box-shadow: 0 6px 0 #8a0f34, 0 10px 24px rgba(0,0,0,0.5);
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  .sl-spin-btn:hover:not(:disabled) { filter: brightness(1.1); }
+  .sl-spin-btn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 2px 0 #8a0f34, 0 4px 12px rgba(0,0,0,0.5); }
+  .sl-spin-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .sl-bet-row { display: flex; gap: 10px; justify-content: center; align-items: flex-end; margin-top: 20px; flex-wrap: wrap; }
+  .sl-bet-row input {
+    padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 0.95rem; font-family: inherit; width: 120px; text-align: center;
+  }
+  .sl-result {
+    text-align: center; margin-top: 16px; padding: 12px; border-radius: 10px; font-weight: 800; font-size: 1.1rem;
+  }
+  .sl-result.jackpot { background: linear-gradient(90deg, #ffd166, #ff6b9d); color: #1a0a0a; animation: sl-pulse 0.6s ease infinite alternate; }
+  .sl-result.win { background: rgba(78,224,138,0.15); color: #4ee08a; }
+  .sl-result.push { background: rgba(255,209,102,0.15); color: #ffd166; }
+  .sl-result.lose { background: rgba(255,107,107,0.12); color: #ff6b6b; }
+  @keyframes sl-pulse { from { transform: scale(1); } to { transform: scale(1.03); } }
+
+  .sl-paytable { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 20px; }
+  .sl-pay-row {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; text-align: center; font-size: 0.82rem;
+  }
+  .sl-pay-row .syms { font-size: 1.2rem; }
+  .sl-pay-row .mult { color: #ffd166; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <div id="authWrap" class="cs-auth-wrap" style="display:none;">
+    <div class="cs-panel">
+      <h2>🎰 Log in to play Slots</h2>
+      <a href="#" id="googleLoginBtn" class="cs-google-btn">
+        <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.7 13.6-4.7l-6.3-5.3C29.3 35.6 26.8 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.3 5.3C39.9 37 44 31 44 24c0-1.3-.1-2.6-.4-3.5z"/></svg>
+        Log in with Google
+      </a>
+      <div class="cs-or-divider">or</div>
+      <div class="cs-tabs">
+        <div class="cs-tab active" data-tab="login">Log In</div>
+        <div class="cs-tab" data-tab="register">Register</div>
+      </div>
+      <div class="cs-field">
+        <label for="authUsername">Username</label>
+        <input type="text" id="authUsername" autocomplete="username">
+      </div>
+      <div class="cs-field">
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" autocomplete="current-password">
+      </div>
+      <div class="cs-error" id="authError"></div>
+      <button class="cs-btn-outline" id="authSubmitBtn" style="width:100%; background:var(--accent); color:#000; border:none;">Log In</button>
+    </div>
+  </div>
+
+  <div id="gameWrap" style="display:none;">
+    <div class="cs-topbar">
+      <div class="cs-topbar-user">
+        <a href="casino.html" class="cs-btn-outline cs-btn-small">&larr; Casino</a>
+        <span class="cs-chip">👤 <span id="userName"></span></span>
+        <span class="cs-chip balance">🪙 <span id="userBalance"></span> KellsCoins <span class="usd" id="usdEquiv"></span></span>
+      </div>
+    </div>
+
+    <div class="sl-machine">
+      <div class="sl-title">🎰 Kells Slots 🎰</div>
+      <div class="sl-reels" id="reels">
+        <div class="sl-reel">❔</div>
+        <div class="sl-reel">❔</div>
+        <div class="sl-reel">❔</div>
+      </div>
+      <button class="sl-spin-btn" id="spinBtn">SPIN</button>
+      <div class="sl-bet-row">
+        <div class="cs-field" style="text-align:center;">
+          <label>Bet amount</label>
+          <input type="number" id="betInput" min="1" value="10">
+        </div>
+      </div>
+      <div class="cs-error" id="spinError" style="text-align:center; margin-top:8px;"></div>
+      <div id="resultBox"></div>
+    </div>
+
+    <h3 style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); margin-bottom:10px;">Paytable</h3>
+    <div class="sl-paytable" id="paytable"></div>
+  </div>
+
+</main>
+
+<script>
+  const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/casino" : "https://api.kellinnovations.com/casino";
+  const GAMES_API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/games" : "https://api.kellinnovations.com/games";
+
+  async function api(path, opts) {
+    opts = opts || {};
+    const res = await fetch(API + path, {
+      method: opts.method || "GET", credentials: "include",
+      headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    return data;
+  }
+  async function gamesApi(path, opts) {
+    opts = opts || {};
+    const res = await fetch(GAMES_API + path, {
+      method: opts.method || "GET", credentials: "include",
+      headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    return data;
+  }
+
+  let currentUser = null;
+  let kellscoinsPerUsd = 10000;
+  let spinning = false;
+
+  document.getElementById("googleLoginBtn").addEventListener("click", (e) => {
+    e.preventDefault();
+    window.location.href = `${GAMES_API}/auth/google/login?next=${encodeURIComponent(window.location.href.split("?")[0])}`;
+  });
+
+  let authMode = "login";
+  document.querySelectorAll(".cs-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".cs-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      authMode = tab.dataset.tab;
+      document.getElementById("authSubmitBtn").textContent = authMode === "login" ? "Log In" : "Create Account";
+      document.getElementById("authError").textContent = "";
+    });
+  });
+  document.getElementById("authSubmitBtn").addEventListener("click", async () => {
+    const username = document.getElementById("authUsername").value.trim();
+    const password = document.getElementById("authPassword").value;
+    const errEl = document.getElementById("authError");
+    errEl.textContent = "";
+    try {
+      currentUser = await gamesApi(authMode === "login" ? "/auth/login" : "/auth/register", {
+        method: "POST", body: { username, password },
+      });
+      document.getElementById("authWrap").style.display = "none";
+      await enterGame();
+    } catch (e) {
+      errEl.textContent = e.message;
+    }
+  });
+
+  function renderUser() {
+    document.getElementById("userName").textContent = currentUser.name;
+    document.getElementById("userBalance").textContent = currentUser.kellscoins.toLocaleString();
+    document.getElementById("usdEquiv").textContent = `(≈ $${(currentUser.kellscoins / kellscoinsPerUsd).toFixed(2)})`;
+  }
+
+  async function enterGame() {
+    try {
+      const metaRes = await gamesApi("/meta");
+      kellscoinsPerUsd = metaRes.kellscoins_per_usd;
+    } catch (e) { /* keep default */ }
+    document.getElementById("gameWrap").style.display = "block";
+    renderUser();
+    const { paytable } = await api("/slots/meta");
+    document.getElementById("paytable").innerHTML = paytable.map(p => `
+      <div class="sl-pay-row">
+        <div class="syms">${p.symbols.join(" ")}</div>
+        <div class="mult">${p.multiplier}:1</div>
+      </div>
+    `).join("");
+  }
+
+  async function boot() {
+    try {
+      currentUser = await gamesApi("/auth/me");
+    } catch (e) {
+      currentUser = null;
+    }
+    if (!currentUser) {
+      document.getElementById("authWrap").style.display = "block";
+      return;
+    }
+    await enterGame();
+  }
+
+  document.getElementById("spinBtn").addEventListener("click", async () => {
+    if (spinning) return;
+    const bet = parseInt(document.getElementById("betInput").value, 10);
+    const errEl = document.getElementById("spinError");
+    errEl.textContent = "";
+    document.getElementById("resultBox").innerHTML = "";
+    if (!bet || bet <= 0) { errEl.textContent = "Enter a bet amount"; return; }
+
+    const spinBtn = document.getElementById("spinBtn");
+    const reelEls = document.querySelectorAll(".sl-reel");
+    spinning = true;
+    spinBtn.disabled = true;
+    reelEls.forEach(r => r.classList.add("spinning"));
+
+    try {
+      const res = await api("/slots/spin", { method: "POST", body: { bet } });
+      const { symbols, outcome, multiplier, net } = res.result;
+
+      // Stagger each reel stopping so it reads as a real spin, not an instant snap.
+      const stopDelays = [500, 850, 1200];
+      symbols.forEach((sym, i) => {
+        setTimeout(() => {
+          reelEls[i].classList.remove("spinning");
+          reelEls[i].textContent = sym;
+        }, stopDelays[i]);
+      });
+
+      setTimeout(() => {
+        currentUser.kellscoins = res.balance;
+        renderUser();
+        const box = document.getElementById("resultBox");
+        const cls = outcome === "jackpot" ? "jackpot" : net > 0 ? "win" : net === 0 ? "push" : "lose";
+        const msg = outcome === "jackpot" ? "🎉 JACKPOT! 🎉"
+          : net > 0 ? `You won ${net.toLocaleString()} KellsCoins!`
+          : net === 0 ? "Push — bet returned"
+          : `You lost ${Math.abs(net).toLocaleString()} KellsCoins`;
+        box.innerHTML = `<div class="sl-result ${cls}">${msg}</div>`;
+        spinning = false;
+        spinBtn.disabled = false;
+      }, stopDelays[2] + 200);
+    } catch (e) {
+      reelEls.forEach(r => r.classList.remove("spinning"));
+      errEl.textContent = e.message;
+      spinning = false;
+      spinBtn.disabled = false;
+    }
+  });
+
+  boot();
+</script>
+
+</body>
+</html>

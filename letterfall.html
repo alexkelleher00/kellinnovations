@@ -314,8 +314,10 @@ const SERVER = 'https://api.kellinnovations.com/letterfall';
 let isSolo = false;
 
 // Quietly checks (best-effort) whether the browser is logged into the unified
-// games account (see games.html) — if so, finishing a game earns a flat
-// KellsCoins claim. Playing without one still works exactly as before.
+// games account (see games.html) — if so, multiplayer rounds are already
+// account-linked at create/join time and award coins server-side; solo
+// rounds (which never touch a server room at all) call claimSoloRoundCoins()
+// below instead. Playing without one still works exactly as before.
 const GAMES_SERVER = 'https://api.kellinnovations.com/games';
 let gamesAccountId = null;
 (async () => {
@@ -324,16 +326,17 @@ let gamesAccountId = null;
     if (r.ok) gamesAccountId = (await r.json()).id;
   } catch (e) { /* offline/not logged in */ }
 })();
-async function claimLetterfallCoins() {
+async function claimSoloRoundCoins(words) {
   if (!gamesAccountId) return;
   try {
-    const r = await fetch(GAMES_SERVER + '/claim', {
+    const r = await fetch(SERVER + '/solo/round', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ game: 'letterfall' }),
+      body: JSON.stringify({ words }),
     });
     const data = await r.json();
-    if (r.ok && data.awarded) toast(`+${data.awarded} KellsCoins`);
+    if (r.ok && data.coins_awarded) toast(`+${data.coins_awarded} KellsCoins`);
+    // A 429 (claimed too recently) isn't worth surfacing as an error.
   } catch (e) { /* offline — silently skip */ }
 }
 async function api(method, path, body) {
@@ -556,7 +559,7 @@ async function createGame() {
     const boards=Array.from({length:CFG.rounds},()=>rollBoard());
     const res=await api('POST','/game',{
       name, timerMins:CFG.timer, minLen:CFG.minlen,
-      numRounds:CFG.rounds, maxPlayers:10, boards
+      numRounds:CFG.rounds, maxPlayers:10, boards, account_id: gamesAccountId
     });
     G=res.game; gameCode=res.code; myIndex=res.playerIndex||0;
     myRole='p1'; oppRole='p2';
@@ -625,7 +628,7 @@ async function joinGame() {
   if(code.length!==5){ toast('Code is 5 characters'); return; }
   setBtn('btn-join',true,'Joining…');
   try {
-    const res=await api('POST','/game/'+code+'/join',{name});
+    const res=await api('POST','/game/'+code+'/join',{name, account_id: gamesAccountId});
     G=res.game; gameCode=code; myIndex=res.playerIndex||0;
     myRole=myIndex===0?'p1':'p2'; oppRole=myIndex===0?'p2':'p1';
     showLobby();
@@ -1042,9 +1045,11 @@ async function endRound() {
       p.done[curRound] = true;
       p.totalAvail[curRound] = totalAvail;
       p.longestAvail[curRound] = longestAvail;
+      claimSoloRoundCoins(words);
     } else {
-      const body={playerIndex:myIndex, player:myRole, score, words, totalAvail, longestAvail};
+      const body={playerIndex:myIndex, player:myRole, score, words, totalAvail, longestAvail, account_id: gamesAccountId};
       G=await api('POST',`/game/${gameCode}/round/${curRound}`,body);
+      if (G.coins_awarded) toast(`+${G.coins_awarded} KellsCoins`);
     }
   } catch(e) { toast('Could not save round — check connection'); }
   saveSession();
@@ -1104,7 +1109,8 @@ function afterRound() {
 }
 
 async function showFinal() {
-  claimLetterfallCoins();
+  // KellsCoins for Letterfall are now paid out per round (round win/solo
+  // auto/personal-best — see endRound()), not once at the end of the match.
   if (!isSolo) {
     try { G=await api('GET','/game/'+gameCode); } catch(e) {
       toast('Could not load results — check connection'); return;
