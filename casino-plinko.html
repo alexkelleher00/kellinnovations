@@ -86,8 +86,18 @@
     position: absolute; top: 0; width: 14px; height: 14px; border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #fff, #ffd166 70%);
     box-shadow: 0 0 10px rgba(255,209,102,0.8);
-    transition: left 0.28s ease-in, top 0.28s ease-in;
+    transition: left 0.28s ease-in, top 0.28s ease-in, opacity 0.4s ease-out;
   }
+  .cs-drop-log { display: flex; flex-direction: column-reverse; gap: 4px; margin-top: 14px; max-height: 220px; overflow-y: auto; }
+  .cs-drop-log-row {
+    display: flex; justify-content: space-between; gap: 10px; padding: 6px 12px;
+    border-radius: 6px; font-size: 0.82rem; font-weight: 700;
+    background: var(--bg2); border: 1px solid var(--border); animation: cs-log-in 0.25s ease-out;
+  }
+  .cs-drop-log-row.win { color: #4ee08a; }
+  .cs-drop-log-row.lose { color: #ff6b6b; }
+  @keyframes cs-log-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .cs-inflight-chip { color: var(--muted); font-size: 0.78rem; align-self: center; }
   .cs-slots { display: flex; justify-content: center; gap: 4px; max-width: 520px; margin: 10px auto 0; }
   .cs-slot {
     flex: 1; text-align: center; padding: 8px 2px; border-radius: 6px; font-size: 0.72rem; font-weight: 800;
@@ -159,9 +169,7 @@
     <p class="cs-hint" style="margin-bottom:14px;">Drop a ball through 8 rows of pegs — it bounces left or right at random and lands in one of 9 slots. Edges pay the most, since they're the rarest.</p>
 
     <div class="cs-board-wrap">
-      <div class="cs-peg-board" id="pegBoard">
-        <div class="cs-ball" id="ball" style="display:none;"></div>
-      </div>
+      <div class="cs-peg-board" id="pegBoard"></div>
       <div class="cs-slots" id="slots"></div>
     </div>
 
@@ -171,10 +179,13 @@
         <input type="number" id="betInput" min="1" value="10">
       </div>
       <button class="cs-btn" id="dropBtn">Drop Ball</button>
+      <span class="cs-inflight-chip" id="inflightChip" style="display:none;"></span>
       <div class="cs-error" id="dropError"></div>
     </div>
+    <p class="cs-hint">Click as many times as you want — balls drop independently, no need to wait for one to land.</p>
 
     <div id="resultBanner"></div>
+    <div class="cs-drop-log" id="dropLog"></div>
   </div>
 
 </main>
@@ -211,7 +222,8 @@
   let currentUser = null;
   let kellscoinsPerUsd = 10000;
   let meta = null; // { rows, multipliers }
-  let dropping = false;
+  let inFlight = 0; // balls currently requested/animating — spam-clicking Drop is fine,
+                     // each click fires its own request + animation independently
 
   document.getElementById("googleLoginBtn").addEventListener("click", (e) => {
     e.preventDefault();
@@ -292,25 +304,44 @@
     await enterGame();
   }
 
+  function updateInflightChip() {
+    const chip = document.getElementById("inflightChip");
+    if (inFlight > 0) {
+      chip.style.display = "inline";
+      chip.textContent = `${inFlight} ball${inFlight === 1 ? "" : "s"} in flight`;
+    } else {
+      chip.style.display = "none";
+    }
+  }
+
+  // Spawns its own ball element (rather than reusing one shared node) so any
+  // number of drops can animate on the board at the same time — clicking
+  // Drop repeatedly starts a new, independent ball every time.
   function animateDrop(path, slot, onDone) {
-    const ball = document.getElementById("ball");
     const board = document.getElementById("pegBoard");
+    const ball = document.createElement("div");
+    ball.className = "cs-ball";
+    board.appendChild(ball);
+
     const width = board.clientWidth;
     const height = board.clientHeight;
     const rows = path.length;
-    ball.style.display = "block";
-    ball.style.transition = "none";
     ball.style.left = `calc(50% - 7px)`;
     ball.style.top = "0px";
-    void ball.offsetWidth;
-    ball.style.transition = "left 0.28s ease-in, top 0.28s ease-in";
 
     let offset = 0; // in half-peg-spacing units, centered at 0
     let step = 0;
     const spacing = Math.min(28, width / (rows + 2));
 
     function next() {
-      if (step >= rows) { onDone(); return; }
+      if (step >= rows) {
+        onDone();
+        // Fade the ball out and remove it rather than leaving every past
+        // drop's ball sitting on the board forever.
+        ball.style.opacity = "0";
+        setTimeout(() => ball.remove(), 400);
+        return;
+      }
       offset += path[step] === 1 ? 1 : -1;
       const x = width / 2 + (offset * spacing) / 2 - 7;
       const y = ((step + 1) / (rows + 1)) * height;
@@ -322,36 +353,46 @@
     next();
   }
 
+  function flashSlot(slot) {
+    const el = document.querySelector(`.cs-slot[data-slot="${slot}"]`);
+    el.classList.remove("hit");
+    void el.offsetWidth; // restart the animation even if this slot is already mid-flash
+    el.classList.add("hit");
+    setTimeout(() => el.classList.remove("hit"), 700);
+  }
+
+  function logResult(multiplier, net) {
+    const log = document.getElementById("dropLog");
+    const row = document.createElement("div");
+    row.className = `cs-drop-log-row ${net > 0 ? "win" : "lose"}`;
+    row.innerHTML = `<span>Landed on ${multiplier}x</span><span>${net >= 0 ? "+" : ""}${net.toLocaleString()} KellsCoins</span>`;
+    log.appendChild(row);
+    while (log.children.length > 12) log.removeChild(log.firstChild);
+    log.scrollTop = log.scrollHeight;
+  }
+
   document.getElementById("dropBtn").addEventListener("click", async () => {
-    if (dropping) return;
     const bet = parseInt(document.getElementById("betInput").value, 10);
     const errEl = document.getElementById("dropError");
     errEl.textContent = "";
-    document.getElementById("resultBanner").innerHTML = "";
     if (!bet || bet <= 0) { errEl.textContent = "Enter a bet amount"; return; }
 
-    const dropBtn = document.getElementById("dropBtn");
-    dropping = true;
-    dropBtn.disabled = true;
-    document.querySelectorAll(".cs-slot").forEach(s => s.classList.remove("hit"));
-
+    inFlight++;
+    updateInflightChip();
     try {
       const res = await api("/plinko/drop", { method: "POST", body: { bet } });
       const { path, slot, multiplier, net } = res.result;
       animateDrop(path, slot, () => {
-        document.querySelector(`.cs-slot[data-slot="${slot}"]`).classList.add("hit");
+        flashSlot(slot);
         currentUser.kellscoins = res.balance;
         renderUser();
-        const banner = document.getElementById("resultBanner");
-        const cls = net > 0 ? "win" : "lose";
-        banner.innerHTML = `<div class="cs-result-banner ${cls}">Landed on ${multiplier}x — ${net >= 0 ? "+" : ""}${net.toLocaleString()} KellsCoins</div>`;
-        dropping = false;
-        dropBtn.disabled = false;
+        logResult(multiplier, net);
       });
     } catch (e) {
       errEl.textContent = e.message;
-      dropping = false;
-      dropBtn.disabled = false;
+    } finally {
+      inFlight--;
+      updateInflightChip();
     }
   });
 

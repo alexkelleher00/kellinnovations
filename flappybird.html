@@ -112,8 +112,8 @@
   const ctx = canvas.getContext("2d");
   const W = canvas.width, H = canvas.height;
 
-  const GRAVITY = 0.34; // Alex, 2026-08-28: slow the fall down a bit (was 0.45)
-  const FLAP_VELOCITY = -6.8; // scaled down alongside gravity so flaps don't overshoot as high
+  const GRAVITY = 0.27; // Alex, 2026-08-31: slower again (was 0.34, originally 0.45)
+  const FLAP_VELOCITY = -6.1; // scaled down alongside gravity so flaps don't overshoot as high
   const PIPE_WIDTH = 56;
   const PIPE_GAP = 150;
   const PIPE_SPEED = 2.6;
@@ -201,16 +201,26 @@
   function draw() {
     ctx.clearRect(0, 0, W, H);
     // Sky handled by CSS gradient background showing through; just draw pipes/bird/ground accents.
-    ctx.fillStyle = "#5fd35f";
+    // Darker, more saturated greens than the original (Alex, 2026-08-31: pipes
+    // were too close to the sky color to read clearly) + a thin highlight/
+    // shadow edge on the body for a little depth.
+    const PIPE_BODY = "#256b34";
+    const PIPE_BODY_LIGHT = "#2e8442";
+    const PIPE_RIM = "#123d1e";
     pipes.forEach(p => {
       const topEnd = p.gapCenter - PIPE_GAP / 2;
       const botStart = p.gapCenter + PIPE_GAP / 2;
+
+      ctx.fillStyle = PIPE_BODY;
       ctx.fillRect(p.x, 0, PIPE_WIDTH, topEnd);
       ctx.fillRect(p.x, botStart, PIPE_WIDTH, H - botStart);
-      ctx.fillStyle = "#3a9e3a";
+      ctx.fillStyle = PIPE_BODY_LIGHT;
+      ctx.fillRect(p.x, 0, 6, topEnd);
+      ctx.fillRect(p.x, botStart, 6, H - botStart);
+
+      ctx.fillStyle = PIPE_RIM;
       ctx.fillRect(p.x - 3, topEnd - 18, PIPE_WIDTH + 6, 18);
       ctx.fillRect(p.x - 3, botStart, PIPE_WIDTH + 6, 18);
-      ctx.fillStyle = "#5fd35f";
     });
 
     // Bird

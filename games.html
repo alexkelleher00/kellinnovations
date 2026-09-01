@@ -15,7 +15,20 @@
   .gm-hero { text-align: center; margin-bottom: 32px; }
   .gm-hero h1 { font-size: 1.8rem; margin-bottom: 8px; }
   .gm-hero p { color: var(--muted); max-width: 560px; margin: 0 auto; }
-  .gm-pot-chip { margin-top: 16px; }
+  .gm-hero-chips { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+  .gm-pot-chip { }
+  .gm-members-chip { cursor: pointer; color: var(--accent); }
+  .gm-members-chip:hover { border-color: var(--accent); }
+  .gm-pot-sub { color: var(--muted); font-size: 0.78rem; margin-top: 8px; }
+  .gm-members-panel {
+    max-width: 480px; margin: 14px auto 0; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px; text-align: left;
+  }
+  .gm-members-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .gm-member-pill {
+    display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 999px; font-size: 0.8rem;
+  }
 
   .gm-login-wrap { max-width: 420px; margin: 0 auto 40px; }
   .gm-panel {
@@ -143,6 +156,7 @@
       <a href="psg.html">Punk Squad Games</a>
       <a href="transit.html">Transit</a>
       <a href="games.html" class="active">Games</a>
+      <a href="neighborhood.html">Neighborhood</a>
       <a href="https://api.kellinnovations.com/home/" target="_blank" rel="noopener">Dashboard</a>
     </nav>
   </div>
@@ -153,7 +167,12 @@
   <div class="gm-hero">
     <h1>🎮 Games</h1>
     <p>One account, one KellsCoins balance, every game on the site. Earn coins by playing, spend them at the Casino.</p>
-    <span class="gm-chip gm-pot-chip" id="potChip" style="display:none;">🏆 Prize pot: <span id="potBalance">0</span> KellsCoins</span>
+    <div class="gm-hero-chips">
+      <span class="gm-chip gm-pot-chip" id="potChip" style="display:none;">🏆 Prize pot: <span id="potBalance">0</span> KellsCoins</span>
+      <span class="gm-chip gm-members-chip" id="membersChip" style="display:none;">👥 <span id="memberCount">0</span> members</span>
+    </div>
+    <div class="gm-pot-sub" id="potSub" style="display:none;"></div>
+    <div id="membersPanel" class="gm-members-panel" style="display:none;"></div>
   </div>
 
   <div id="errorBanner" class="gm-error-banner" style="display:none;">Google login didn't go through — give it another try.</div>
@@ -195,6 +214,7 @@
       </div>
       <div class="gm-coins">
         <span class="gm-chip">🪙 <span id="coinBalance"></span> KellsCoins <span class="usd" id="usdEquiv"></span></span>
+        <button class="gm-btn-outline" id="donateBtn">🎁 Donate</button>
         <button class="gm-btn-outline" id="logoutBtn">Log Out</button>
       </div>
     </div>
@@ -255,7 +275,7 @@
         <div class="project-card-body">
           <h3>2048</h3>
           <p>Merge tiles, chase the global top-10 leaderboard.</p>
-          <span class="gm-earn-tag">🪙 by score + top-10 bonus</span>
+          <span class="gm-earn-tag">🪙 score ÷ 10</span>
         </div>
       </a>
       <a href="letterfall.html" class="project-card gm-game-card">
@@ -289,6 +309,13 @@
           <p>Roulette, blackjack, craps, plinko, slots — spend your KellsCoins here.</p>
         </div>
       </a>
+      <a href="neighborhood.html" class="project-card gm-game-card">
+        <div class="project-card-icon">🏘️</div>
+        <div class="project-card-body">
+          <h3>Neighborhood</h3>
+          <p>Customize your house, buy decorations, see everyone else's place.</p>
+        </div>
+      </a>
     </section>
   </div>
 
@@ -297,6 +324,23 @@
       <button class="gm-modal-close" id="closeAvatarModal">&times;</button>
       <h3>Choose an avatar</h3>
       <div class="gm-avatar-grid" id="avatarGrid"></div>
+    </div>
+  </div>
+
+  <div class="gm-modal-overlay" id="donateModal">
+    <div class="gm-modal">
+      <button class="gm-modal-close" id="closeDonateModal">&times;</button>
+      <h3>Donate KellsCoins</h3>
+      <div class="gm-field">
+        <label for="donateRecipient">To</label>
+        <select id="donateRecipient"></select>
+      </div>
+      <div class="gm-field">
+        <label for="donateAmount">Amount</label>
+        <input type="number" id="donateAmount" min="1" value="100">
+      </div>
+      <div class="gm-error" id="donateError"></div>
+      <button class="cs-btn gm-btn-outline" id="donateSubmitBtn" style="background:var(--accent); color:#000; border:none; margin-top:8px;">Send</button>
     </div>
   </div>
 
@@ -425,12 +469,77 @@
     document.getElementById("avatarModal").classList.remove("open");
   });
 
+  // ── Donate ──────────────────────────────────────────────────────────
+  document.getElementById("donateBtn").addEventListener("click", async () => {
+    const errEl = document.getElementById("donateError");
+    errEl.textContent = "";
+    try {
+      const { members } = await api("/members");
+      const others = members.filter(m => m.id !== currentUser.id);
+      const select = document.getElementById("donateRecipient");
+      if (!others.length) {
+        select.innerHTML = `<option value="">No other members yet</option>`;
+      } else {
+        select.innerHTML = others.map(m => `<option value="${m.id}">${m.avatar_emoji || "🙂"} ${escHtml(m.name || "Member")}</option>`).join("");
+      }
+      document.getElementById("donateModal").classList.add("open");
+    } catch (e) { alert(e.message); }
+  });
+  document.getElementById("closeDonateModal").addEventListener("click", () => {
+    document.getElementById("donateModal").classList.remove("open");
+  });
+  document.getElementById("donateSubmitBtn").addEventListener("click", async () => {
+    const errEl = document.getElementById("donateError");
+    errEl.textContent = "";
+    const to = document.getElementById("donateRecipient").value;
+    const amount = parseInt(document.getElementById("donateAmount").value, 10);
+    if (!to) { errEl.textContent = "Pick who to donate to"; return; }
+    if (!amount || amount <= 0) { errEl.textContent = "Enter an amount"; return; }
+    try {
+      const res = await api("/donate", { method: "POST", body: { to, amount } });
+      currentUser.kellscoins = res.balance;
+      render();
+      document.getElementById("donateModal").classList.remove("open");
+    } catch (e) { errEl.textContent = e.message; }
+  });
+
   async function loadPot() {
     try {
       const pot = await api("/pot");
       document.getElementById("potBalance").textContent = pot.balance.toLocaleString();
       document.getElementById("potChip").style.display = "inline-flex";
+      if (pot.last_payout_amount) {
+        const sub = document.getElementById("potSub");
+        sub.textContent = `Fed by Property Empire's entry fee + casino losses. Paid out every Sunday to whoever has the fewest coins — last winner: ${pot.last_winner_name} (+${pot.last_payout_amount.toLocaleString()})`;
+        sub.style.display = "block";
+      }
     } catch (e) { /* pot display is best-effort, never block the page on it */ }
+  }
+
+  let membersData = null;
+  async function loadMembers() {
+    try {
+      membersData = await api("/members");
+      document.getElementById("memberCount").textContent = membersData.count;
+      document.getElementById("membersChip").style.display = "inline-flex";
+    } catch (e) { /* best-effort */ }
+  }
+
+  document.getElementById("membersChip").addEventListener("click", () => {
+    const panel = document.getElementById("membersPanel");
+    if (panel.style.display === "block") { panel.style.display = "none"; return; }
+    if (!membersData) return;
+    panel.innerHTML = `
+      <strong>Members (${membersData.count})</strong>
+      <div class="gm-members-list">
+        ${membersData.members.map(m => `<span class="gm-member-pill">${m.avatar_emoji || "🙂"} ${escHtml(m.name || "Member")}</span>`).join("")}
+      </div>
+    `;
+    panel.style.display = "block";
+  });
+
+  function escHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
   async function boot() {
@@ -445,6 +554,7 @@
     }
     render();
     loadPot();
+    loadMembers();
   }
   boot();
 </script>

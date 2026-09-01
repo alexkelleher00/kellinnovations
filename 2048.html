@@ -573,10 +573,10 @@ function showOverlay(kind) {
     initialsInputEl.value = '';
     setTimeout(() => initialsInputEl.focus(), 250);
   } else {
-    // Doesn't make the top 10 (most games won't) — still worth a small flat
+    // Doesn't make the top 10 (most games won't) — still worth a score-scaled
     // claim if logged in, so ordinary play earns *something*, not just runs
     // good enough to submit to the leaderboard.
-    claimCasualCoins();
+    claimCasualCoins(score);
   }
 
   boardOverlayEl.classList.add('show');
@@ -585,13 +585,13 @@ function showOverlay(kind) {
 }
 function hideOverlay() { boardOverlayEl.classList.remove('show'); }
 
-async function claimCasualCoins() {
+async function claimCasualCoins(finalScore) {
   if (!gamesAccountId) return;  // not logged in — nothing to award
   try {
-    const r = await fetch(GAMES_SERVER + '/claim', {
+    const r = await fetch(SERVER + '/claim_casual', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ game: '2048' }),
+      body: JSON.stringify({ score: finalScore }),
     });
     const data = await r.json();
     if (r.ok && data.awarded) toast(`+${data.awarded} KellsCoins`);
