@@ -144,9 +144,17 @@ body{
   .score-box{min-width:66px;padding:7px 10px}
   .snum{font-size:17px}
 }
+.back-to-games{
+  position:fixed; top:12px; left:12px; z-index:500;
+  display:inline-flex; align-items:center; gap:5px; padding:7px 12px;
+  background:var(--surface); border:1px solid var(--border); border-radius:999px;
+  color:var(--text); font-size:0.78rem; font-weight:700; text-decoration:none;
+}
+.back-to-games:hover{ border-color:var(--accent); color:var(--accent); }
 </style>
 </head>
 <body>
+<a href="games.html" class="back-to-games">&larr; Games</a>
 <div id="app">
 
   <header class="g-header">
@@ -258,6 +266,10 @@ let soundOn = localStorage.getItem('g2048_sound') !== '0';
 
 let tiles = [], nextId = 1, score = 0, moves = 0, undosLeft = UNDO_MAX, history = [];
 let animating = false, gameOver = false, won = false;
+// One coin settlement per run: set once the run is truly done (game over, or
+// a winning run the player walked away from). Guards against double-claiming
+// or claiming a mid-run score — see settleRun() / showOverlay().
+let runSettled = false;
 let leaderboardCache = [];
 const tileEls = new Map();
 
@@ -352,8 +364,15 @@ function addRandomTile() {
 }
 
 function newGame() {
+  // If the player won this run and is now starting fresh without ever
+  // hitting a real game-over (reached 2048, clicked Play Again / New Game
+  // instead of Keep Going), settle the winning run now so they still get
+  // paid for it — otherwise a clean 2048 win that isn't played out to a
+  // dead board would earn nothing.
+  if (won && !runSettled && moves > 0) settleRun(score);
+
   tiles = []; nextId = 1; score = 0; moves = 0; undosLeft = UNDO_MAX; history = [];
-  gameOver = false; won = false; animating = false;
+  gameOver = false; won = false; animating = false; runSettled = false;
   tileEls.forEach(entry => entry.pos.remove());
   tileEls.clear();
   addRandomTile(); addRandomTile();
@@ -567,7 +586,35 @@ function showOverlay(kind) {
   if (score > prevBest) { localStorage.setItem(bestKey, score); isNewBest = true; bestEl.textContent = score; }
   overlayBadgeEl.classList.toggle('hidden', !isNewBest);
 
-  const qualifies = qualifiesForLeaderboard(score);
+  // Coins/leaderboard only get evaluated at the TRUE end of the game
+  // (kind === 'gameover'), never at the "reached 2048" checkpoint — most
+  // players keep going well past 2048 for a much higher final score, and
+  // claiming/submitting here at the win checkpoint used to lock in whatever
+  // (lower) score they had at that exact moment, then block the real payout
+  // for their actual final score behind claim_casual's cooldown when the
+  // game truly ended a few moves later. Confirmed bug (2026-09-01, a player
+  // reported not getting paid out) — this is why.
+  if (kind === 'gameover') {
+    settleRun(score, true);
+  } else {
+    qualifyFormEl.classList.add('hidden');
+  }
+
+  boardOverlayEl.classList.add('show');
+  playSound(kind === 'win' ? 'win' : 'gameover');
+  announce(kind === 'win' ? `You win! Score ${score}.` : `Game over. Final score ${score}.`);
+}
+function hideOverlay() { boardOverlayEl.classList.remove('show'); }
+
+// The single coin/leaderboard settlement for a run — runs exactly once
+// (runSettled guard). `interactive` is true only when the game-over overlay
+// is on screen and the player can still type initials for a top-10 score;
+// on a walk-away winning run (interactive false) we just take the
+// score-scaled casual claim, since there's no overlay to submit from.
+function settleRun(finalScore, interactive) {
+  if (runSettled) return;
+  runSettled = true;
+  const qualifies = interactive && qualifiesForLeaderboard(finalScore);
   qualifyFormEl.classList.toggle('hidden', !qualifies);
   if (qualifies) {
     initialsInputEl.value = '';
@@ -576,14 +623,9 @@ function showOverlay(kind) {
     // Doesn't make the top 10 (most games won't) — still worth a score-scaled
     // claim if logged in, so ordinary play earns *something*, not just runs
     // good enough to submit to the leaderboard.
-    claimCasualCoins(score);
+    claimCasualCoins(finalScore);
   }
-
-  boardOverlayEl.classList.add('show');
-  playSound(kind === 'win' ? 'win' : 'gameover');
-  announce(kind === 'win' ? `You win! Score ${score}.` : `Game over. Final score ${score}.`);
 }
-function hideOverlay() { boardOverlayEl.classList.remove('show'); }
 
 async function claimCasualCoins(finalScore) {
   if (!gamesAccountId) return;  // not logged in — nothing to award
