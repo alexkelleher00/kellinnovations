@@ -123,6 +123,7 @@
     </a>
     <nav>
       <a href="index.html">Home</a>
+      <a href="games.html">Games</a>
     </nav>
   </div>
 </header>
@@ -521,7 +522,13 @@
       come_odds: "Come odds", dont_come_odds: "Don't come odds",
     };
     box.innerHTML = resolved.map(r => {
-      const net = r.payout - r.amount;
+      // Place bets are standing bets now (2026-09-01) — the stake stays on
+      // the table instead of round-tripping through payout each time, so
+      // `payout` here is winnings-only on a win (0 on a loss/seven-out,
+      // where the standing stake really is gone). One-shot bets (pass,
+      // field, come, ...) still return stake+winnings, so `payout - amount`
+      // is the right net for those.
+      const net = r.kind === "place" ? (r.payout > 0 ? r.payout : -r.amount) : r.payout - r.amount;
       const base = LABELS[r.kind] || r.kind;
       const label = r.target !== null && r.target !== undefined ? `${base} ${r.target}` : base;
       return `<div class="cs-resolved-row">

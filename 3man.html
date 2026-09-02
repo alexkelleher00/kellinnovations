@@ -256,9 +256,17 @@ input[type=text]::placeholder{color:#282855}
 .cer-tap{font-size:11px;letter-spacing:4px;color:var(--muted);position:absolute;bottom:44px;animation:blink 1.8s ease-in-out infinite}
 .confetti-p{position:absolute;border-radius:2px;pointer-events:none;animation:cfFall linear forwards}
 @keyframes cfFall{0%{transform:translateY(-30px) rotate(0);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+.back-to-games{
+  position:fixed; top:12px; left:12px; z-index:500;
+  display:inline-flex; align-items:center; gap:5px; padding:7px 12px;
+  background:var(--surface); border:1px solid var(--border); border-radius:999px;
+  color:var(--text); font-size:0.78rem; font-weight:700; text-decoration:none;
+}
+.back-to-games:hover{ border-color:var(--accent); color:var(--accent); }
 </style>
 </head>
 <body>
+<a href="games.html" class="back-to-games">&larr; Games</a>
 <div id="app-root">
 
 <!-- HOME -->

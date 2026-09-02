@@ -36,6 +36,7 @@
     cursor: pointer; font-family: inherit; transition: border-color 0.2s;
   }
   .cs-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .cs-btn-small { padding: 6px 12px; font-size: 0.78rem; }
 
   /* ── Auth panel (logged out) ── */
   .cs-auth-wrap { max-width: 420px; margin: 40px auto; }
@@ -148,6 +149,7 @@
   <div id="lobbyWrap" style="display:none;">
     <div class="cs-topbar">
       <div class="cs-topbar-user">
+        <a href="games.html" class="cs-btn-outline cs-btn-small">&larr; Games</a>
         <span class="cs-chip">👤 <span id="userName"></span></span>
         <span class="cs-chip balance">🪙 <span id="userBalance"></span> KellsCoins <span class="usd" id="usdEquiv"></span></span>
       </div>
