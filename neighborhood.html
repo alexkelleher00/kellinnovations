@@ -6,13 +6,20 @@
 <title>Neighborhood — Kelleher Innovations</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  /* ══════════════════════════════════════
-     Neighborhood — prefix .hn-. Every member's customizable house on a
-     shared map. Public to browse, login required to customize/buy/place.
-  ══════════════════════════════════════ */
-  .hn-hero { text-align: center; margin-bottom: 26px; }
+  /* ══════════════════════════════════════════════════════════════════════
+     Neighborhood — prefix .hn-. Every member gets a house with multiple
+     rooms (a backyard + an inside, plus rooms they build on), items they
+     buy and place per-room, and pets that wander whatever room they're
+     assigned to. Public to browse, login required to customize/buy/place.
+
+     "Great graphics" without an art pipeline: SVG house exteriors + CSS
+     "diorama" rooms (textured floor, shaded back wall, drop-shadowed
+     items) + JS-animated emoji pets. No real 3D / WebGL — that's a much
+     bigger separate project (see housing/catalog.py).
+  ══════════════════════════════════════════════════════════════════════ */
+  .hn-hero { text-align: center; margin-bottom: 22px; }
   .hn-hero h1 { font-size: 1.8rem; margin-bottom: 8px; }
-  .hn-hero p { color: var(--muted); max-width: 560px; margin: 0 auto; }
+  .hn-hero p { color: var(--muted); max-width: 580px; margin: 0 auto; }
 
   .hn-topbar {
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
@@ -29,103 +36,172 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
     font-size: 0.9rem; font-weight: 800; color: #ffd166;
   }
-  .hn-hint { color: var(--muted); font-size: 0.82rem; text-align: center; margin: 0 auto 18px; max-width: 520px; }
 
-  /* ── House rendering (shared between map cards + the big detail/editor view) ── */
-  .hn-building { position: relative; margin: 0 auto; }
-  .hn-roof {
-    width: 0; height: 0; margin: 0 auto;
-    border-left: solid transparent; border-right: solid transparent; border-bottom: solid;
-  }
-  .hn-wall { position: relative; margin: 0 auto; border-radius: 0 0 4px 4px; }
-  .hn-door { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); background: #2b2118; border-radius: 3px 3px 0 0; }
-  .hn-window { position: absolute; background: #cfe9ff; border: 1px solid rgba(0,0,0,0.35); border-radius: 2px; }
-
-  /* ── Map grid ── */
-  .hn-map-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px;
-  }
+  /* ── Map grid ─────────────────────────────────────────────────────── */
+  .hn-map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
   .hn-house-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 16px 12px; text-align: center; cursor: pointer; transition: border-color 0.2s, transform 0.15s;
+    background: linear-gradient(180deg, var(--surface), var(--bg2));
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 12px 16px; text-align: center; cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
   }
-  .hn-house-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-  .hn-house-card .hn-owner { margin-top: 10px; font-weight: 700; font-size: 0.85rem; }
-  .hn-house-card .hn-owner-sub { color: var(--muted); font-size: 0.72rem; }
-  .hn-item-badge {
-    display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;
-    font-size: 0.72rem; color: var(--muted);
+  .hn-house-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,0.45); }
+  .hn-house-card .hn-owner { margin-top: 8px; font-weight: 700; font-size: 0.9rem; }
+  .hn-card-stats { margin-top: 6px; display: flex; gap: 10px; justify-content: center; color: var(--muted); font-size: 0.74rem; }
+
+  /* ── House exterior (SVG wrapper) ─────────────────────────────────── */
+  .hn-ext { display: block; margin: 0 auto; filter: drop-shadow(0 8px 12px rgba(0,0,0,0.45)); }
+
+  /* ── "My House" layout ───────────────────────────────────────────── */
+  .hn-mine-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  @media (min-width: 900px) { .hn-mine-grid { grid-template-columns: 1.35fr 1fr; align-items: start; } }
+
+  .hn-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px;
+  }
+  .hn-panel + .hn-panel { margin-top: 16px; }
+  .hn-panel-title {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--accent);
+    margin: 0 0 10px;
   }
 
-  /* ── Detail / editor modal ── */
+  /* Room selector pills */
+  .hn-roombar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .hn-room-pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px;
+    background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+    font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  }
+  .hn-room-pill:hover { border-color: var(--accent); }
+  .hn-room-pill.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .hn-room-pill .lvl {
+    font-size: 0.64rem; font-weight: 800; padding: 1px 6px; border-radius: 999px;
+    background: rgba(0,0,0,0.25);
+  }
+  .hn-room-pill.active .lvl { background: rgba(0,0,0,0.18); }
+  .hn-room-pill.add { border-style: dashed; color: var(--muted); }
+
+  /* Diorama room canvas */
+  .hn-room-wrap { position: relative; width: 100%; max-width: 560px; margin: 0 auto; }
+  .hn-room {
+    position: relative; width: 100%; border-radius: 10px; overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.5);
+    box-shadow: inset 0 30px 40px -20px rgba(0,0,0,0.55), inset 0 -12px 24px -12px rgba(0,0,0,0.5);
+  }
+  .hn-room-backwall { position: absolute; inset: 0 0 auto 0; height: 26%; }
+  .hn-room-floor { position: absolute; inset: 26% 0 0 0; }
+  .hn-grid {
+    position: absolute; inset: 0; display: grid; z-index: 3;
+  }
+  .hn-cell { position: relative; display: flex; align-items: center; justify-content: center; }
+  .hn-cell .glyph { font-size: clamp(16px, 4.4vw, 30px); filter: drop-shadow(0 4px 3px rgba(0,0,0,0.5)); transition: transform 0.12s; }
+  .hn-room.editing .hn-cell { border: 1px dashed rgba(255,255,255,0.10); cursor: pointer; }
+  .hn-room.editing .hn-cell:hover { background: rgba(0,200,200,0.14); outline: 1px solid var(--accent); outline-offset: -1px; }
+  .hn-room.editing .hn-cell.armed-ok:hover .glyph { transform: translateY(-3px) scale(1.06); }
+
+  /* Pets */
+  .hn-pet {
+    position: absolute; z-index: 4; font-size: clamp(18px, 4.6vw, 30px); pointer-events: none;
+    will-change: transform, left, top; filter: drop-shadow(0 5px 3px rgba(0,0,0,0.45));
+    animation: hn-bob 0.9s ease-in-out infinite;
+  }
+  .hn-pet .tag {
+    position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%);
+    font-size: 9px; font-weight: 800; color: #fff; background: rgba(0,0,0,0.55);
+    padding: 1px 5px; border-radius: 6px; white-space: nowrap; font-family: system-ui, sans-serif;
+  }
+  @keyframes hn-bob { 0%,100% { margin-top: 0; } 50% { margin-top: -4px; } }
+
+  .hn-room-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
+
+  /* Swatches */
+  .hn-swatch-row { display: flex; gap: 7px; flex-wrap: wrap; }
+  .hn-swatch { width: 28px; height: 28px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
+  .hn-swatch.selected { border-color: var(--accent); transform: scale(1.12); }
+  .hn-sub { color: var(--muted); font-size: 0.72rem; margin: 12px 0 6px; font-weight: 700; }
+
+  /* Shop / inventory / pets grids */
+  .hn-loc-toggle { display: flex; gap: 4px; background: var(--bg2); border-radius: 7px; padding: 3px; margin-bottom: 10px; }
+  .hn-loc-toggle button {
+    flex: 1; padding: 6px 8px; border: none; background: none; color: var(--muted);
+    font-weight: 700; font-size: 0.72rem; border-radius: 5px; cursor: pointer; font-family: inherit;
+  }
+  .hn-loc-toggle button.active { background: var(--accent); color: #000; }
+
+  .hn-shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
+  .hn-shop-item {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 8px;
+    text-align: center; display: flex; flex-direction: column; gap: 3px; align-items: center;
+  }
+  .hn-shop-item .emoji { font-size: 1.7rem; }
+  .hn-shop-item .name { font-size: 0.68rem; font-weight: 700; line-height: 1.15; }
+  .hn-shop-item .price { font-size: 0.68rem; color: #ffd166; font-weight: 800; }
+  .hn-shop-item .loc { font-size: 0.58rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .hn-mini-btn {
+    margin-top: 3px; padding: 5px 9px; background: var(--accent); color: #000; border: none;
+    border-radius: 6px; font-weight: 800; font-size: 0.68rem; cursor: pointer; font-family: inherit;
+  }
+  .hn-mini-btn.ghost { background: none; border: 1px solid var(--border); color: var(--text); }
+  .hn-mini-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+
+  .hn-inv-row { display: flex; gap: 7px; flex-wrap: wrap; }
+  .hn-inv-item {
+    width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; background: var(--bg2); border: 2px solid var(--border); border-radius: 8px; cursor: pointer;
+  }
+  .hn-inv-item.armed { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,200,200,0.45); }
+  .hn-inv-item.dim { opacity: 0.4; }
+
+  .hn-pet-list { display: flex; flex-direction: column; gap: 8px; }
+  .hn-pet-card {
+    display: flex; align-items: center; gap: 10px; background: var(--bg2);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  .hn-pet-card .pemoji { font-size: 1.6rem; }
+  .hn-pet-card input, .hn-pet-card select {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 4px 6px; font-size: 0.74rem; font-family: inherit;
+  }
+  .hn-pet-card input { width: 90px; }
+
+  .hn-empty-note { color: var(--muted); font-size: 0.78rem; }
+  .hn-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; margin-top: 8px; }
+  .hn-hint { color: var(--muted); font-size: 0.78rem; margin: 6px 0 0; }
+
+  /* Modal */
   .hn-modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.78); display: none;
     align-items: flex-start; justify-content: center; z-index: 600; padding: 24px 16px; overflow-y: auto;
   }
   .hn-modal-overlay.open { display: flex; }
   .hn-modal {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    max-width: 680px; width: 100%; padding: 22px; position: relative;
+    max-width: 620px; width: 100%; padding: 22px; position: relative;
   }
   .hn-modal-close {
-    position: absolute; top: 14px; right: 14px; background: none; border: none;
+    position: absolute; top: 12px; right: 14px; background: none; border: none;
     color: var(--muted); font-size: 1.4rem; cursor: pointer; line-height: 1;
   }
   .hn-modal-close:hover { color: var(--text); }
-
-  .hn-yard {
-    display: grid; margin: 16px auto 0; border-radius: 8px; overflow: hidden;
-    border: 2px solid rgba(0,0,0,0.35);
-  }
-  .hn-yard-cell {
-    display: flex; align-items: center; justify-content: center; position: relative;
-    border: 1px solid rgba(255,255,255,0.06); font-size: 1.5rem;
-  }
-  .hn-yard-cell.editable { cursor: pointer; }
-  .hn-yard-cell.editable:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
-  .hn-yard-cell.armed-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
-
-  .hn-section-label {
-    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent);
-    margin: 18px 0 8px;
-  }
-  .hn-swatch-row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .hn-swatch {
-    width: 30px; height: 30px; border-radius: 6px; cursor: pointer; border: 2px solid transparent;
-  }
-  .hn-swatch.selected { border-color: var(--accent); transform: scale(1.1); }
-
-  .hn-shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
-  .hn-shop-item {
-    background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
-    padding: 10px; text-align: center; display: flex; flex-direction: column; gap: 4px; align-items: center;
-  }
-  .hn-shop-item .emoji { font-size: 1.8rem; }
-  .hn-shop-item .name { font-size: 0.72rem; font-weight: 700; }
-  .hn-shop-item .price { font-size: 0.72rem; color: #ffd166; font-weight: 700; }
-  .hn-buy-btn {
-    margin-top: 4px; padding: 6px 10px; background: var(--accent); color: #000; border: none;
-    border-radius: 6px; font-weight: 700; font-size: 0.72rem; cursor: pointer; font-family: inherit;
-  }
-  .hn-buy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .hn-inventory-row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .hn-inv-item {
-    width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
-    font-size: 1.6rem; background: var(--bg2); border: 2px solid var(--border); border-radius: 8px;
-    cursor: pointer;
-  }
-  .hn-inv-item.armed { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,200,200,0.4); }
-  .hn-empty-note { color: var(--muted); font-size: 0.78rem; }
-  .hn-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; margin-top: 8px; }
 
   .hn-login-hint {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 20px; text-align: center; max-width: 420px; margin: 0 auto;
   }
+
+  .back-to-games {
+    position: fixed; top: 12px; left: 12px; z-index: 500;
+    display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font-size: 0.78rem; font-weight: 700; text-decoration: none;
+  }
+  .back-to-games:hover { border-color: var(--accent); color: var(--accent); }
 </style>
 </head>
 <body>
+
+<a href="games.html" class="back-to-games">&larr; Games</a>
 
 <header>
   <div class="header-inner">
@@ -143,7 +219,8 @@
 <main>
   <div class="hn-hero">
     <h1>🏘️ Neighborhood</h1>
-    <p>Every member gets a house. Customize the colors, buy things to pimp it out, and see what everyone else has built.</p>
+    <p>Every member gets a house. Build rooms inside and out, fill them with stuff,
+       adopt pets that wander around, and see what everyone else has built.</p>
   </div>
 
   <div class="hn-topbar">
@@ -171,6 +248,13 @@
       <div id="detailContent"></div>
     </div>
   </div>
+
+  <div class="hn-modal-overlay" id="pickModal">
+    <div class="hn-modal">
+      <button class="hn-modal-close" id="closePick">&times;</button>
+      <div id="pickContent"></div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -192,216 +276,517 @@
   }
 
   let currentUser = null;
-  let catalogData = null; // { items, wall_colors, roof_colors, yard_colors, grid_cols, grid_rows }
-  let myHouseData = null; // { house, placed, inventory }
+  let catalogData = null;   // { items, pets, rooms, wall_colors, roof_colors, yard_colors, floor_colors }
+  let mine = null;          // { house, rooms, placed, inventory, pets }
+  let selectedRoomKey = "yard";
   let armedItemId = null;
-
-  // ── Rendering helpers ────────────────────────────────────────────────
-  function buildingHTML(house, { small } = {}) {
-    const wallW = small ? 70 : 160, wallH = small ? 46 : 100;
-    const roofW = small ? 84 : 190, roofH = small ? 34 : 70;
-    return `
-      <div class="hn-building">
-        <div class="hn-roof" style="border-left-width:${roofW / 2}px; border-right-width:${roofW / 2}px; border-bottom-width:${roofH}px; border-bottom-color:${house.roof_color};"></div>
-        <div class="hn-wall" style="width:${wallW}px; height:${wallH}px; background:${house.wall_color};">
-          <div class="hn-window" style="width:${wallH * 0.22}px; height:${wallH * 0.22}px; top:${wallH * 0.18}px; left:${wallW * 0.18}px;"></div>
-          <div class="hn-window" style="width:${wallH * 0.22}px; height:${wallH * 0.22}px; top:${wallH * 0.18}px; right:${wallW * 0.18}px;"></div>
-          <div class="hn-door" style="width:${wallW * 0.2}px; height:${wallH * 0.55}px;"></div>
-        </div>
-      </div>`;
-  }
-
-  function itemEmoji(key) {
-    const item = catalogData.items.find(i => i.key === key);
-    return item ? item.emoji : "❓";
-  }
-
-  function renderMapCard(entry) {
-    const card = document.createElement("div");
-    card.className = "hn-house-card";
-    card.innerHTML = `
-      ${buildingHTML(entry.house, { small: true })}
-      <div class="hn-owner">${entry.avatar_emoji || "🙂"} ${escHtml(entry.name || "Member")}</div>
-      <div class="hn-item-badge">🪴 ${entry.placed.length} item${entry.placed.length === 1 ? "" : "s"}</div>
-    `;
-    card.addEventListener("click", () => openDetail(entry.user_id));
-    return card;
-  }
-
-  async function loadMap() {
-    const data = await api("/all");
-    const grid = document.getElementById("mapGrid");
-    grid.innerHTML = "";
-    data.houses.forEach(entry => grid.appendChild(renderMapCard(entry)));
-  }
-
-  function yardGridHTML(house, placed, gridCols, gridRows, { editable } = {}) {
-    const cellMap = {};
-    placed.forEach(i => { cellMap[`${i.x},${i.y}`] = i; });
-    let html = `<div class="hn-yard" style="grid-template-columns: repeat(${gridCols}, 1fr); background:${house.yard_color}; width:min(100%, 480px); aspect-ratio:${gridCols}/${gridRows};">`;
-    for (let y = 0; y < gridRows; y++) {
-      for (let x = 0; x < gridCols; x++) {
-        const occupant = cellMap[`${x},${y}`];
-        const cls = editable ? "hn-yard-cell editable" : "hn-yard-cell";
-        html += `<div class="${cls}" data-x="${x}" data-y="${y}" data-item-id="${occupant ? occupant.id : ""}">${occupant ? occupant.emoji : ""}</div>`;
-      }
-    }
-    html += `</div>`;
-    return html;
-  }
-
-  async function openDetail(userId) {
-    const data = await api(`/house/${encodeURIComponent(userId)}`);
-    const content = document.getElementById("detailContent");
-    content.innerHTML = `
-      <h3 style="text-align:center;">${data.avatar_emoji || "🙂"} ${escHtml(data.name || "Member")}'s House</h3>
-      <div style="display:flex; justify-content:center;">${buildingHTML(data.house)}</div>
-      <div style="display:flex; justify-content:center;">
-        ${yardGridHTML(data.house, data.placed, catalogData.grid_cols, catalogData.grid_rows)}
-      </div>
-    `;
-    document.getElementById("detailModal").classList.add("open");
-  }
-  document.getElementById("closeDetail").addEventListener("click", () => {
-    document.getElementById("detailModal").classList.remove("open");
-  });
-  document.getElementById("detailModal").addEventListener("click", (e) => {
-    if (e.target.id === "detailModal") e.target.classList.remove("open");
-  });
+  let shopLocFilter = "all";
+  let petTimers = [];       // active pet-wander intervals, cleared on every room re-render
 
   function escHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
+  function shade(hex, amt) {
+    // amt in [-1,1] — negative darkens, positive lightens. Cheap linear mix.
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "#888888");
+    if (!m) return hex;
+    const mix = v => {
+      v = parseInt(v, 16);
+      v = amt < 0 ? v * (1 + amt) : v + (255 - v) * amt;
+      return Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
+    };
+    return `#${mix(m[1])}${mix(m[2])}${mix(m[3])}`;
+  }
 
-  // ── My House editor ─────────────────────────────────────────────────
+  // ── House exterior (SVG) ────────────────────────────────────────────
+  function houseSVG(house, w) {
+    w = w || 150;
+    const h = w * 0.92;
+    const wall = house.wall_color, roof = house.roof_color;
+    const wallDk = shade(wall, -0.22), wallLt = shade(wall, 0.12);
+    const roofDk = shade(roof, -0.25);
+    const id = "hg" + Math.random().toString(36).slice(2, 8);
+    return `
+    <svg class="hn-ext" width="${w}" height="${h}" viewBox="0 0 150 138" role="img" aria-label="House">
+      <defs>
+        <linearGradient id="${id}w" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="${wallLt}"/><stop offset="0.5" stop-color="${wall}"/><stop offset="1" stop-color="${wallDk}"/>
+        </linearGradient>
+        <linearGradient id="${id}r" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="${shade(roof, 0.15)}"/><stop offset="1" stop-color="${roofDk}"/>
+        </linearGradient>
+      </defs>
+      <ellipse cx="75" cy="130" rx="62" ry="8" fill="rgba(0,0,0,0.25)"/>
+      <!-- walls -->
+      <rect x="26" y="60" width="98" height="66" rx="2" fill="url(#${id}w)"/>
+      <g stroke="rgba(0,0,0,0.10)" stroke-width="1">
+        <line x1="26" y1="74" x2="124" y2="74"/><line x1="26" y1="90" x2="124" y2="90"/>
+        <line x1="26" y1="106" x2="124" y2="106"/>
+      </g>
+      <!-- roof -->
+      <polygon points="75,20 134,62 16,62" fill="url(#${id}r)"/>
+      <polygon points="75,20 134,62 128,62 75,26" fill="rgba(255,255,255,0.14)"/>
+      <g stroke="${roofDk}" stroke-width="1.4" opacity="0.5">
+        <line x1="42" y1="52" x2="108" y2="52"/><line x1="30" y1="60" x2="120" y2="60"/>
+      </g>
+      <!-- chimney + smoke -->
+      <rect x="102" y="30" width="12" height="20" fill="${wallDk}"/>
+      <circle cx="108" cy="24" r="4" fill="rgba(255,255,255,0.16)"/>
+      <circle cx="113" cy="15" r="5" fill="rgba(255,255,255,0.10)"/>
+      <!-- door -->
+      <rect x="65" y="94" width="20" height="32" rx="2" fill="${shade(roof, -0.1)}"/>
+      <circle cx="80" cy="110" r="1.6" fill="#ffd166"/>
+      <!-- windows -->
+      <g>
+        <rect x="38" y="80" width="16" height="16" rx="2" fill="#cfe9ff" stroke="rgba(0,0,0,0.3)"/>
+        <rect x="96" y="80" width="16" height="16" rx="2" fill="#cfe9ff" stroke="rgba(0,0,0,0.3)"/>
+        <line x1="46" y1="80" x2="46" y2="96" stroke="rgba(0,0,0,0.25)"/>
+        <line x1="104" y1="80" x2="104" y2="96" stroke="rgba(0,0,0,0.25)"/>
+      </g>
+    </svg>`;
+  }
+
+  // ── Map ────────────────────────────────────────────────────────────
+  async function loadMap() {
+    const data = await api("/all");
+    const grid = document.getElementById("mapGrid");
+    grid.innerHTML = "";
+    data.houses.forEach(entry => {
+      const card = document.createElement("div");
+      card.className = "hn-house-card";
+      card.innerHTML = `
+        ${houseSVG(entry.house, 150)}
+        <div class="hn-owner">${escHtml(entry.avatar_emoji || "🙂")} ${escHtml(entry.name || "Member")}</div>
+        <div class="hn-card-stats">
+          <span>🚪 ${entry.room_count} room${entry.room_count === 1 ? "" : "s"}</span>
+          <span>🐾 ${entry.pet_count}</span>
+          <span>🪴 ${entry.yard_placed.length}</span>
+        </div>`;
+      card.addEventListener("click", () => openDetail(entry.user_id));
+      grid.appendChild(card);
+    });
+  }
+
+  async function openDetail(userId) {
+    const data = await api(`/house/${encodeURIComponent(userId)}`);
+    const yardRoom = (data.rooms || []).find(r => r.key === "yard");
+    const yardItems = (data.placed || []).filter(i => i.room_key === "yard");
+    const c = document.getElementById("detailContent");
+    c.innerHTML = `
+      <h3 style="text-align:center; margin-top:0;">${escHtml(data.avatar_emoji || "🙂")} ${escHtml(data.name || "Member")}'s House</h3>
+      <div style="display:flex; justify-content:center; margin-bottom:14px;">${houseSVG(data.house, 190)}</div>
+      <div class="hn-panel-title">Backyard</div>
+      <div id="detailRoom"></div>
+      <div class="hn-card-stats" style="justify-content:flex-start; margin-top:12px;">
+        <span>🚪 ${(data.rooms || []).length} rooms</span>
+        <span>🐾 ${(data.pets || []).length} pets</span>
+      </div>`;
+    document.getElementById("detailModal").classList.add("open");
+    if (yardRoom) {
+      renderRoom(document.getElementById("detailRoom"), data.house, yardRoom, yardItems,
+                 (data.pets || []).filter(p => p.room_key === "yard"), { editing: false });
+    }
+  }
+  document.getElementById("closeDetail").addEventListener("click", () => document.getElementById("detailModal").classList.remove("open"));
+  document.getElementById("detailModal").addEventListener("click", e => { if (e.target.id === "detailModal") e.target.classList.remove("open"); });
+  document.getElementById("closePick").addEventListener("click", () => document.getElementById("pickModal").classList.remove("open"));
+  document.getElementById("pickModal").addEventListener("click", e => { if (e.target.id === "pickModal") e.target.classList.remove("open"); });
+
+  // ── Diorama room renderer (shared: editor + read-only detail view) ──
+  function renderRoom(host, house, room, placedItems, pets, { editing }) {
+    petTimers.forEach(clearInterval);
+    petTimers = [];
+
+    const cols = room.grid_cols, rows = room.grid_rows;
+    const outdoor = room.kind === "outdoor";
+    const ground = outdoor ? house.yard_color : house.floor_color;
+
+    const floorTexture = outdoor
+      ? `repeating-linear-gradient(115deg, rgba(255,255,255,0.05) 0 3px, transparent 3px 22px),
+         radial-gradient(ellipse at 50% 0%, ${shade(ground, 0.12)}, ${shade(ground, -0.14)} 85%)`
+      : `repeating-linear-gradient(90deg, rgba(0,0,0,0.10) 0 1px, transparent 1px 34px),
+         repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 20px),
+         linear-gradient(180deg, ${shade(ground, 0.08)}, ${shade(ground, -0.16)})`;
+    const wallTexture = outdoor
+      ? `linear-gradient(180deg, #add3f0, #cfe6f7)`
+      : `repeating-linear-gradient(90deg, rgba(0,0,0,0.06) 0 1px, transparent 1px 26px),
+         linear-gradient(180deg, ${shade(house.wall_color, 0.1)}, ${shade(house.wall_color, -0.12)})`;
+
+    host.innerHTML = `
+      <div class="hn-room-wrap">
+        <div class="hn-room ${editing ? "editing" : ""}" style="aspect-ratio:${cols}/${Math.max(rows * 0.78, 2)};">
+          <div class="hn-room-backwall" style="background:${wallTexture};">
+            ${outdoor
+              ? `<div style="position:absolute; right:12%; top:20%; font-size:1.4rem;">☀️</div>
+                 <div style="position:absolute; left:14%; top:34%; font-size:1rem; opacity:0.85;">☁️</div>`
+              : `<div style="position:absolute; left:50%; top:26%; transform:translateX(-50%); width:34%; height:52%;
+                     background:linear-gradient(180deg,#cfe9ff,#9fb8d6); border:3px solid ${shade(house.roof_color,-0.1)}; border-radius:3px;"></div>`}
+          </div>
+          <div class="hn-room-floor" style="background:${floorTexture};"></div>
+          <div class="hn-grid" style="grid-template-columns:repeat(${cols},1fr); grid-template-rows:repeat(${rows},1fr);"></div>
+          <div class="hn-petlayer" style="position:absolute; inset:26% 0 0 0; z-index:4;"></div>
+        </div>
+      </div>`;
+
+    const grid = host.querySelector(".hn-grid");
+    const byCell = {};
+    placedItems.forEach(i => { byCell[`${i.x},${i.y}`] = i; });
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const cell = document.createElement("div");
+        cell.className = "hn-cell";
+        cell.dataset.x = x; cell.dataset.y = y;
+        const it = byCell[`${x},${y}`];
+        if (it) {
+          cell.dataset.itemId = it.id;
+          cell.innerHTML = `<span class="glyph" title="${escHtml(it.name)}">${it.emoji}</span>`;
+        }
+        if (editing) cell.addEventListener("click", () => onCellClick(x, y, it));
+        grid.appendChild(cell);
+      }
+    }
+
+    // Pets wander the floor layer.
+    const layer = host.querySelector(".hn-petlayer");
+    pets.forEach(p => spawnPet(layer, p));
+  }
+
+  function spawnPet(layer, pet) {
+    const el = document.createElement("div");
+    el.className = "hn-pet";
+    el.innerHTML = `${pet.emoji}<span class="tag">${escHtml(pet.name)}</span>`;
+    el.style.left = (10 + Math.random() * 70) + "%";
+    el.style.top = (25 + Math.random() * 55) + "%";
+    el.style.transition = "left 2s linear, top 2s linear, transform 0.3s";
+    layer.appendChild(el);
+    const step = () => {
+      const nx = 6 + Math.random() * 78, ny = 20 + Math.random() * 62;
+      const facing = nx < parseFloat(el.style.left) ? -1 : 1;
+      el.style.transform = `scaleX(${facing})`;
+      el.style.left = nx + "%";
+      el.style.top = ny + "%";
+    };
+    setTimeout(step, 200 + Math.random() * 1500);
+    petTimers.push(setInterval(step, 2600 + Math.random() * 1800));
+  }
+
+  // ── "My House" editor ──────────────────────────────────────────────
   async function loadMine() {
-    myHouseData = await api("/mine");
+    mine = await api("/mine");
+    if (!mine.rooms.some(r => r.key === selectedRoomKey)) selectedRoomKey = mine.rooms[0] ? mine.rooms[0].key : "yard";
     renderEditor();
   }
 
+  function currentRoom() { return mine.rooms.find(r => r.key === selectedRoomKey) || mine.rooms[0]; }
+
   function renderEditor() {
     const wrap = document.getElementById("editorWrap");
-    const { house, placed, inventory } = myHouseData;
-
-    const swatchRow = (colors, current, kind) => colors.map(c =>
-      `<div class="hn-swatch ${c === current ? "selected" : ""}" style="background:${c};" data-kind="${kind}" data-color="${c}"></div>`
-    ).join("");
+    const room = currentRoom();
+    const { house } = mine;
 
     wrap.innerHTML = `
-      <div style="display:flex; justify-content:center;">${buildingHTML(house)}</div>
-      <div style="display:flex; justify-content:center;">
-        ${yardGridHTML(house, placed, catalogData.grid_cols, catalogData.grid_rows, { editable: true })}
-      </div>
-      <div class="hn-error" id="hnError"></div>
-
-      <div class="hn-section-label">Wall Color</div>
-      <div class="hn-swatch-row" id="wallSwatches">${swatchRow(catalogData.wall_colors, house.wall_color, "wall")}</div>
-      <div class="hn-section-label">Roof Color</div>
-      <div class="hn-swatch-row" id="roofSwatches">${swatchRow(catalogData.roof_colors, house.roof_color, "roof")}</div>
-      <div class="hn-section-label">Yard Color</div>
-      <div class="hn-swatch-row" id="yardSwatches">${swatchRow(catalogData.yard_colors, house.yard_color, "yard")}</div>
-
-      <div class="hn-section-label">Inventory ${armedItemId ? "— click a yard cell to place" : "(click an item, then click the yard)"}</div>
-      <div class="hn-inventory-row" id="inventoryRow">
-        ${inventory.length ? inventory.map(i =>
-          `<div class="hn-inv-item ${i.id === armedItemId ? "armed" : ""}" data-item-id="${i.id}" title="${escHtml(i.name)}">${i.emoji}</div>`
-        ).join("") : '<span class="hn-empty-note">Nothing in inventory — buy something below.</span>'}
-      </div>
-
-      <div class="hn-section-label">Shop</div>
-      <div class="hn-shop-grid" id="shopGrid">
-        ${catalogData.items.map(i => `
-          <div class="hn-shop-item">
-            <div class="emoji">${i.emoji}</div>
-            <div class="name">${escHtml(i.name)}</div>
-            <div class="price">🪙 ${i.price.toLocaleString()}</div>
-            <button class="hn-buy-btn" data-key="${i.key}" ${currentUser && currentUser.kellscoins < i.price ? "disabled" : ""}>Buy</button>
+      <div class="hn-mine-grid">
+        <div>
+          <div class="hn-panel">
+            <div style="display:flex; justify-content:center; margin-bottom:12px;">${houseSVG(house, 176)}</div>
+            <div class="hn-roombar" id="roomBar"></div>
+            <div id="roomHost"></div>
+            <div class="hn-room-actions" id="roomActions"></div>
+            <div class="hn-error" id="hnError"></div>
+            <p class="hn-hint" id="roomHint"></p>
           </div>
-        `).join("")}
-      </div>
-    `;
 
-    wrap.querySelectorAll(".hn-swatch").forEach(sw => {
-      sw.addEventListener("click", async () => {
-        const kind = sw.dataset.kind, color = sw.dataset.color;
+          <div class="hn-panel">
+            <div class="hn-panel-title">Colors</div>
+            <div class="hn-sub">Walls</div><div class="hn-swatch-row" data-kind="wall_color">${swatches(catalogData.wall_colors, house.wall_color)}</div>
+            <div class="hn-sub">Roof</div><div class="hn-swatch-row" data-kind="roof_color">${swatches(catalogData.roof_colors, house.roof_color)}</div>
+            <div class="hn-sub">Backyard grass</div><div class="hn-swatch-row" data-kind="yard_color">${swatches(catalogData.yard_colors, house.yard_color)}</div>
+            <div class="hn-sub">Indoor floor</div><div class="hn-swatch-row" data-kind="floor_color">${swatches(catalogData.floor_colors, house.floor_color)}</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="hn-panel">
+            <div class="hn-panel-title">Inventory ${armedItemId ? "— pick a cell in the room" : "— click an item to place it"}</div>
+            <div class="hn-inv-row" id="invRow"></div>
+          </div>
+
+          <div class="hn-panel">
+            <div class="hn-panel-title">Pets</div>
+            <div class="hn-pet-list" id="petList"></div>
+            <button class="hn-mini-btn ghost" id="adoptBtn" style="margin-top:10px;">🐾 Adopt a pet</button>
+          </div>
+
+          <div class="hn-panel">
+            <div class="hn-panel-title">Shop</div>
+            <div class="hn-loc-toggle" id="locToggle">
+              <button data-loc="all" class="${shopLocFilter === "all" ? "active" : ""}">All</button>
+              <button data-loc="indoor" class="${shopLocFilter === "indoor" ? "active" : ""}">Indoor</button>
+              <button data-loc="outdoor" class="${shopLocFilter === "outdoor" ? "active" : ""}">Outdoor</button>
+            </div>
+            <div class="hn-shop-grid" id="shopGrid"></div>
+          </div>
+        </div>
+      </div>`;
+
+    renderRoomBar();
+    renderRoom(document.getElementById("roomHost"), house, room,
+               mine.placed.filter(i => i.room_key === selectedRoomKey),
+               mine.pets.filter(p => p.room_key === selectedRoomKey), { editing: true });
+    renderRoomActions();
+    renderInventory();
+    renderPets();
+    renderShop();
+    updateRoomHint();
+
+    wrap.querySelectorAll(".hn-swatch-row").forEach(rowEl => {
+      rowEl.querySelectorAll(".hn-swatch").forEach(sw => sw.addEventListener("click", async () => {
         try {
-          const body = {};
-          body[`${kind}_color`] = color;
-          const updated = await api("/customize", { method: "POST", body });
-          myHouseData.house = updated;
+          const body = {}; body[rowEl.dataset.kind] = sw.dataset.color;
+          mine.house = await api("/customize", { method: "POST", body });
           renderEditor();
         } catch (e) { showError(e.message); }
-      });
+      }));
     });
+    document.getElementById("locToggle").querySelectorAll("button").forEach(b =>
+      b.addEventListener("click", () => { shopLocFilter = b.dataset.loc; renderShop();
+        document.getElementById("locToggle").querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b)); }));
+    document.getElementById("adoptBtn").addEventListener("click", openAdoptPicker);
+  }
 
-    wrap.querySelectorAll(".hn-inv-item").forEach(el => {
-      el.addEventListener("click", () => {
-        const id = parseInt(el.dataset.itemId, 10);
-        armedItemId = armedItemId === id ? null : id;
+  function swatches(colors, current) {
+    return colors.map(c => `<div class="hn-swatch ${c === current ? "selected" : ""}" style="background:${c};" data-color="${c}"></div>`).join("");
+  }
+
+  function renderRoomBar() {
+    const bar = document.getElementById("roomBar");
+    bar.innerHTML = mine.rooms.map(r =>
+      `<div class="hn-room-pill ${r.key === selectedRoomKey ? "active" : ""}" data-key="${r.key}">
+         ${r.kind === "outdoor" ? "🌳" : "🛋️"} ${escHtml(r.name)}
+         <span class="lvl">Lv ${r.level}</span>
+       </div>`).join("") +
+      `<div class="hn-room-pill add" id="buildRoomPill">＋ Build room</div>`;
+    bar.querySelectorAll(".hn-room-pill[data-key]").forEach(p => p.addEventListener("click", () => {
+      selectedRoomKey = p.dataset.key; armedItemId = null; renderEditor();
+    }));
+    document.getElementById("buildRoomPill").addEventListener("click", openBuildPicker);
+  }
+
+  function renderRoomActions() {
+    const room = currentRoom();
+    const host = document.getElementById("roomActions");
+    const maxLvl = catalogData.rooms.max_level;
+    if (room.level >= maxLvl) {
+      host.innerHTML = `<span class="hn-empty-note">${escHtml(room.name)} is fully upgraded (Lv ${maxLvl}).</span>`;
+      return;
+    }
+    const next = room.level + 1;
+    const cost = catalogData.rooms.upgrade_cost[next] ?? catalogData.rooms.upgrade_cost[String(next)];
+    const afford = currentUser && currentUser.kellscoins >= cost;
+    host.innerHTML = `<button class="hn-mini-btn" id="upgradeBtn" ${afford ? "" : "disabled"}>
+      ⬆ Upgrade to Lv ${next} — 🪙 ${cost.toLocaleString()} (bigger grid)</button>`;
+    document.getElementById("upgradeBtn").addEventListener("click", async () => {
+      try {
+        const res = await api("/rooms/upgrade", { method: "POST", body: { room_key: room.key } });
+        currentUser.kellscoins = res.balance; updateCoinChip();
+        const idx = mine.rooms.findIndex(r => r.key === room.key);
+        mine.rooms[idx] = res.room;
         renderEditor();
-      });
+      } catch (e) { showError(e.message); }
     });
+  }
 
-    wrap.querySelectorAll(".hn-yard-cell").forEach(cell => {
-      cell.addEventListener("click", async () => {
-        const x = parseInt(cell.dataset.x, 10), y = parseInt(cell.dataset.y, 10);
-        const occupantId = cell.dataset.itemId ? parseInt(cell.dataset.itemId, 10) : null;
-        try {
-          if (occupantId && !armedItemId) {
-            // Clicking an already-placed item with nothing armed picks it back up.
-            const updated = await api("/unplace", { method: "POST", body: { item_id: occupantId } });
-            myHouseData.inventory.push(updated);
-            myHouseData.placed = myHouseData.placed.filter(i => i.id !== occupantId);
-            renderEditor();
-          } else if (armedItemId && !occupantId) {
-            const updated = await api("/place", { method: "POST", body: { item_id: armedItemId, x, y } });
-            myHouseData.inventory = myHouseData.inventory.filter(i => i.id !== armedItemId);
-            myHouseData.placed.push(updated);
-            armedItemId = null;
-            renderEditor();
-          }
-        } catch (e) { showError(e.message); }
-      });
-    });
+  function updateRoomHint() {
+    const room = currentRoom();
+    const el = document.getElementById("roomHint");
+    if (armedItemId) {
+      const it = mine.inventory.find(i => i.id === armedItemId);
+      el.textContent = it ? `Placing "${it.name}" — click an empty cell. Click it again to cancel.` : "";
+    } else {
+      el.textContent = `${room.kind === "outdoor" ? "Outdoor" : "Indoor"} room, ${room.grid_cols}×${room.grid_rows}. Click a placed item to pick it back up.`;
+    }
+  }
 
-    wrap.querySelectorAll(".hn-buy-btn").forEach(btn => {
-      btn.addEventListener("click", async () => {
+  function itemFitsRoom(item, room) {
+    return item.location === "any" || item.location === room.kind;
+  }
+
+  function renderInventory() {
+    const room = currentRoom();
+    const host = document.getElementById("invRow");
+    if (!mine.inventory.length) { host.innerHTML = `<span class="hn-empty-note">Nothing in inventory — buy something from the shop.</span>`; return; }
+    host.innerHTML = mine.inventory.map(i => {
+      const fits = itemFitsRoom(i, room);
+      return `<div class="hn-inv-item ${i.id === armedItemId ? "armed" : ""} ${fits ? "" : "dim"}"
+                data-item-id="${i.id}" title="${escHtml(i.name)}${fits ? "" : " — " + i.location + " only"}">${i.emoji}</div>`;
+    }).join("");
+    host.querySelectorAll(".hn-inv-item").forEach(el => el.addEventListener("click", () => {
+      const id = parseInt(el.dataset.itemId, 10);
+      const it = mine.inventory.find(i => i.id === id);
+      if (!itemFitsRoom(it, room)) { showError(`${it.name} can only go in ${it.location} rooms — switch rooms first.`); return; }
+      armedItemId = armedItemId === id ? null : id;
+      renderEditor();
+    }));
+  }
+
+  async function onCellClick(x, y, occupant) {
+    try {
+      if (occupant && !armedItemId) {
+        const updated = await api("/unplace", { method: "POST", body: { item_id: occupant.id } });
+        mine.inventory.push(updated);
+        mine.placed = mine.placed.filter(i => i.id !== occupant.id);
+        renderEditor();
+      } else if (armedItemId && !occupant) {
+        const updated = await api("/place", { method: "POST", body: { item_id: armedItemId, room_key: selectedRoomKey, x, y } });
+        mine.inventory = mine.inventory.filter(i => i.id !== armedItemId);
+        mine.placed.push(updated);
+        armedItemId = null;
+        renderEditor();
+      }
+    } catch (e) { showError(e.message); }
+  }
+
+  function renderShop() {
+    const host = document.getElementById("shopGrid");
+    const items = catalogData.items.filter(i =>
+      shopLocFilter === "all" ? true :
+      shopLocFilter === "indoor" ? (i.location === "indoor" || i.location === "any") :
+      (i.location === "outdoor" || i.location === "any"));
+    host.innerHTML = items.map(i => {
+      const afford = currentUser && currentUser.kellscoins >= i.price;
+      return `<div class="hn-shop-item">
+        <div class="emoji">${i.emoji}</div>
+        <div class="name">${escHtml(i.name)}</div>
+        <div class="loc">${i.location}</div>
+        <div class="price">🪙 ${i.price.toLocaleString()}</div>
+        <button class="hn-mini-btn" data-key="${i.key}" ${afford ? "" : "disabled"}>Buy</button>
+      </div>`;
+    }).join("");
+    host.querySelectorAll(".hn-mini-btn").forEach(btn => btn.addEventListener("click", async () => {
+      try {
+        const res = await api("/buy", { method: "POST", body: { item_key: btn.dataset.key } });
+        currentUser.kellscoins = res.balance; updateCoinChip();
+        mine.inventory.push(res.item);
+        renderEditor();
+      } catch (e) { showError(e.message); }
+    }));
+  }
+
+  // ── Pets panel ─────────────────────────────────────────────────────
+  function renderPets() {
+    const host = document.getElementById("petList");
+    if (!mine.pets.length) { host.innerHTML = `<span class="hn-empty-note">No pets yet. Adopt one below — it'll wander whatever room you put it in.</span>`; return; }
+    const roomOpts = seg => mine.rooms.map(r =>
+      `<option value="${r.key}" ${seg === r.key ? "selected" : ""}>${escHtml(r.name)}</option>`).join("");
+    host.innerHTML = mine.pets.map(p => `
+      <div class="hn-pet-card" data-pet-id="${p.id}">
+        <span class="pemoji">${p.emoji}</span>
+        <input type="text" maxlength="30" value="${escHtml(p.name)}" data-role="name" aria-label="Pet name">
+        <select data-role="room">
+          <option value="" ${p.room_key ? "" : "selected"}>— carrier —</option>
+          ${roomOpts(p.room_key)}
+        </select>
+        <button class="hn-mini-btn ghost" data-role="save">Save</button>
+      </div>`).join("");
+    host.querySelectorAll(".hn-pet-card").forEach(card => {
+      const id = parseInt(card.dataset.petId, 10);
+      card.querySelector('[data-role="save"]').addEventListener("click", async () => {
+        const name = card.querySelector('[data-role="name"]').value.trim();
+        const roomKey = card.querySelector('[data-role="room"]').value || null;
         try {
-          const res = await api("/buy", { method: "POST", body: { item_key: btn.dataset.key } });
-          currentUser.kellscoins = res.balance;
-          updateCoinChip();
-          myHouseData.inventory.push(res.item);
+          const pet = mine.pets.find(p => p.id === id);
+          if (name && name !== pet.name) Object.assign(pet, await api("/pets/rename", { method: "POST", body: { pet_id: id, name } }));
+          Object.assign(pet, await api("/pets/assign", { method: "POST", body: { pet_id: id, room_key: roomKey } }));
           renderEditor();
         } catch (e) { showError(e.message); }
       });
     });
+  }
+
+  function openAdoptPicker() {
+    const c = document.getElementById("pickContent");
+    c.innerHTML = `
+      <h3 style="margin-top:0;">Adopt a pet</h3>
+      <div class="hn-shop-grid" style="max-height:none;">
+        ${catalogData.pets.map(p => {
+          const afford = currentUser && currentUser.kellscoins >= p.price;
+          return `<div class="hn-shop-item">
+            <div class="emoji">${p.emoji}</div>
+            <div class="name">${escHtml(p.label)}</div>
+            <div class="price">🪙 ${p.price.toLocaleString()}</div>
+            <input type="text" maxlength="30" placeholder="Name (optional)" data-name-for="${p.pet_type}"
+              style="width:100%; background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 6px; font-size:0.7rem; font-family:inherit;">
+            <button class="hn-mini-btn" data-pet="${p.pet_type}" ${afford ? "" : "disabled"}>Adopt</button>
+          </div>`;
+        }).join("")}
+      </div>
+      <div class="hn-error" id="pickError"></div>`;
+    document.getElementById("pickModal").classList.add("open");
+    c.querySelectorAll(".hn-mini-btn[data-pet]").forEach(btn => btn.addEventListener("click", async () => {
+      const petType = btn.dataset.pet;
+      const name = c.querySelector(`[data-name-for="${petType}"]`).value.trim();
+      try {
+        const res = await api("/pets/adopt", { method: "POST", body: { pet_type: petType, name } });
+        currentUser.kellscoins = res.balance; updateCoinChip();
+        mine.pets.push(res.pet);
+        document.getElementById("pickModal").classList.remove("open");
+        renderEditor();
+      } catch (e) { document.getElementById("pickError").textContent = e.message; }
+    }));
+  }
+
+  function openBuildPicker() {
+    const owned = new Set(mine.rooms.map(r => r.key));
+    const available = catalogData.rooms.buildable.filter(r => !owned.has(r.key));
+    const c = document.getElementById("pickContent");
+    c.innerHTML = `
+      <h3 style="margin-top:0;">Build a room</h3>
+      ${available.length ? `<div class="hn-shop-grid" style="max-height:none;">
+        ${available.map(r => {
+          const afford = currentUser && currentUser.kellscoins >= r.price;
+          return `<div class="hn-shop-item">
+            <div class="emoji">${r.kind === "outdoor" ? "🌳" : "🛋️"}</div>
+            <div class="name">${escHtml(r.name)}</div>
+            <div class="loc">${r.kind}</div>
+            <div class="price">🪙 ${r.price.toLocaleString()}</div>
+            <button class="hn-mini-btn" data-room="${r.key}" ${afford ? "" : "disabled"}>Build</button>
+          </div>`;
+        }).join("")}
+      </div>` : `<p class="hn-empty-note">You've built every room available.</p>`}
+      <div class="hn-error" id="pickError"></div>`;
+    document.getElementById("pickModal").classList.add("open");
+    c.querySelectorAll(".hn-mini-btn[data-room]").forEach(btn => btn.addEventListener("click", async () => {
+      try {
+        const res = await api("/rooms/build", { method: "POST", body: { room_key: btn.dataset.room } });
+        currentUser.kellscoins = res.balance; updateCoinChip();
+        mine.rooms.push(res.room);
+        selectedRoomKey = res.room.key;
+        document.getElementById("pickModal").classList.remove("open");
+        renderEditor();
+      } catch (e) { document.getElementById("pickError").textContent = e.message; }
+    }));
   }
 
   function showError(msg) {
     const el = document.getElementById("hnError");
-    if (el) el.textContent = msg;
+    if (el) { el.textContent = msg; clearTimeout(showError._t); showError._t = setTimeout(() => { el.textContent = ""; }, 4000); }
   }
-
   function updateCoinChip() {
-    if (currentUser) {
-      document.getElementById("coinChip").style.display = "inline-flex";
-      document.getElementById("coinBalance").textContent = currentUser.kellscoins.toLocaleString();
-    }
+    if (!currentUser) return;
+    document.getElementById("coinChip").style.display = "inline-flex";
+    document.getElementById("coinBalance").textContent = currentUser.kellscoins.toLocaleString();
   }
 
-  // ── Tabs ─────────────────────────────────────────────────────────────
-  document.querySelectorAll(".hn-tab").forEach(tab => {
-    tab.addEventListener("click", async () => {
-      document.querySelectorAll(".hn-tab").forEach(t => t.classList.remove("active"));
-      tab.classList.add("active");
-      const which = tab.dataset.tab;
-      document.getElementById("mapView").style.display = which === "map" ? "block" : "none";
-      document.getElementById("mineView").style.display = which === "mine" ? "block" : "none";
-      if (which === "mine" && currentUser && !myHouseData) {
-        await loadMine();
-      }
-    });
-  });
+  // ── Tabs ───────────────────────────────────────────────────────────
+  document.querySelectorAll(".hn-tab").forEach(tab => tab.addEventListener("click", async () => {
+    document.querySelectorAll(".hn-tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    const which = tab.dataset.tab;
+    document.getElementById("mapView").style.display = which === "map" ? "block" : "none";
+    document.getElementById("mineView").style.display = which === "mine" ? "block" : "none";
+    if (which === "mine" && currentUser && !mine) await loadMine();
+    if (which === "map") loadMap();
+  }));
 
   async function boot() {
     catalogData = await api("/catalog");
