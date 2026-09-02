@@ -224,6 +224,31 @@
   let meta = null; // { rows, multipliers }
   let inFlight = 0; // balls currently requested/animating — spam-clicking Drop is fine,
                      // each click fires its own request + animation independently
+  let reserved = 0; // sum of bet amounts for requests still in flight — see dropBtn handler
+
+  // ── Sound (Web Audio oscillator beeps — same technique as 2048.html/
+  // letterfall.html/3man.html elsewhere on this site, no audio files) ──
+  let audioCtx = null;
+  function ensureAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  }
+  function beep(freq, dur, type, gain) {
+    ensureAudio();
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = type; osc.frequency.value = freq;
+    osc.connect(g); g.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+    g.gain.setValueAtTime(gain, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.start(now); osc.stop(now + dur);
+  }
+  function playDropSound() { beep(320, 0.06, "sine", 0.05); }
+  function playLandSound(net) {
+    if (net > 0) [660, 880].forEach((f, i) => setTimeout(() => beep(f, 0.12, "triangle", 0.08), i * 60));
+    else beep(180, 0.15, "sine", 0.05);
+  }
 
   document.getElementById("googleLoginBtn").addEventListener("click", (e) => {
     e.preventDefault();
@@ -257,9 +282,15 @@
   });
 
   function renderUser() {
+    // Show the *available* balance — real balance minus what's already riding
+    // on balls still in the air. Alex, 2026-09-01: "each click should actively
+    // take money down from your total." Each Drop click bumps `reserved` up
+    // immediately, so the number here drops the instant you click, then
+    // reconciles to the server's real balance as each ball lands.
+    const available = currentUser.kellscoins - reserved;
     document.getElementById("userName").textContent = currentUser.name;
-    document.getElementById("userBalance").textContent = currentUser.kellscoins.toLocaleString();
-    document.getElementById("usdEquiv").textContent = `(≈ $${(currentUser.kellscoins / kellscoinsPerUsd).toFixed(2)})`;
+    document.getElementById("userBalance").textContent = available.toLocaleString();
+    document.getElementById("usdEquiv").textContent = `(≈ $${(available / kellscoinsPerUsd).toFixed(2)})`;
   }
 
   function buildBoard() {
@@ -308,7 +339,7 @@
     const chip = document.getElementById("inflightChip");
     if (inFlight > 0) {
       chip.style.display = "inline";
-      chip.textContent = `${inFlight} ball${inFlight === 1 ? "" : "s"} in flight`;
+      chip.textContent = `${inFlight} ball${inFlight === 1 ? "" : "s"} in flight · 🪙${reserved.toLocaleString()} riding`;
     } else {
       chip.style.display = "none";
     }
@@ -377,21 +408,46 @@
     errEl.textContent = "";
     if (!bet || bet <= 0) { errEl.textContent = "Enter a bet amount"; return; }
 
+    // Spam-clicking Drop is allowed, but only up to what you can actually
+    // cover — every click reserves its bet against the balance immediately,
+    // client-side, before the request even lands, the same way the server
+    // would if every in-flight drop resolved as a total loss at once. Alex,
+    // 2026-09-01: "each click should actively take money down from your
+    // total... if I have 500 coins [and bet 50] I shouldn't be able to
+    // spam more than 10 times." Balance is still the real authority (the
+    // server rejects an over-balance bet regardless), this is just an
+    // honest client-side heads-up before wasting a request on one.
+    if (reserved + bet > currentUser.kellscoins) {
+      errEl.textContent = `Not enough available balance — 🪙${reserved.toLocaleString()} already reserved across ${inFlight} ball${inFlight === 1 ? "" : "s"} in flight`;
+      return;
+    }
+
+    reserved += bet;
     inFlight++;
     updateInflightChip();
+    renderUser();       // available balance drops on the click itself
+    playDropSound();
     try {
       const res = await api("/plinko/drop", { method: "POST", body: { bet } });
       const { path, slot, multiplier, net } = res.result;
       animateDrop(path, slot, () => {
+        // Only released once the ball actually lands — "until/if one of
+        // those balls hits" — not the instant the server responds, so the
+        // spam-limit stays honest for the whole ~2.4s the ball is falling.
         flashSlot(slot);
         currentUser.kellscoins = res.balance;
+        reserved -= bet;
+        inFlight--;
         renderUser();
         logResult(multiplier, net);
+        playLandSound(net);
+        updateInflightChip();
       });
     } catch (e) {
       errEl.textContent = e.message;
-    } finally {
+      reserved -= bet;
       inFlight--;
+      renderUser();
       updateInflightChip();
     }
   });

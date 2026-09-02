@@ -282,6 +282,37 @@
     document.getElementById("usdEquiv").textContent = `(≈ $${(currentUser.kellscoins / kellscoinsPerUsd).toFixed(2)})`;
   }
 
+  // ── Sound (Web Audio oscillator beeps — same technique as 2048.html/
+  // letterfall.html/3man.html elsewhere on this site, no audio files) ──
+  let audioCtx = null;
+  function ensureAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  }
+  function beep(freq, dur, type, gain) {
+    ensureAudio();
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = type; osc.frequency.value = freq;
+    osc.connect(g); g.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+    g.gain.setValueAtTime(gain, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.start(now); osc.stop(now + dur);
+  }
+  function playReelStop() { beep(240, 0.06, "square", 0.05); }
+  function playResultSound(outcome, net) {
+    if (outcome === "jackpot") {
+      [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => beep(f, 0.2, "triangle", 0.1), i * 100));
+    } else if (net > 0) {
+      [523, 784].forEach((f, i) => setTimeout(() => beep(f, 0.14, "triangle", 0.08), i * 80));
+    } else if (net === 0) {
+      beep(392, 0.12, "sine", 0.06);
+    } else {
+      beep(160, 0.2, "sawtooth", 0.05);
+    }
+  }
+
   async function enterGame() {
     try {
       const metaRes = await gamesApi("/meta");
@@ -324,6 +355,7 @@
     spinning = true;
     spinBtn.disabled = true;
     reelEls.forEach(r => r.classList.add("spinning"));
+    beep(220, 0.25, "sawtooth", 0.04);
 
     try {
       const res = await api("/slots/spin", { method: "POST", body: { bet } });
@@ -335,6 +367,7 @@
         setTimeout(() => {
           reelEls[i].classList.remove("spinning");
           reelEls[i].textContent = sym;
+          playReelStop();
         }, stopDelays[i]);
       });
 
@@ -348,6 +381,7 @@
           : net === 0 ? "Push — bet returned"
           : `You lost ${Math.abs(net).toLocaleString()} KellsCoins`;
         box.innerHTML = `<div class="sl-result ${cls}">${msg}</div>`;
+        playResultSound(outcome, net);
         spinning = false;
         spinBtn.disabled = false;
       }, stopDelays[2] + 200);
