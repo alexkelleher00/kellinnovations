@@ -70,6 +70,7 @@
 
   /* Room selector pills */
   .hn-roombar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .hn-room-label { text-align: center; font-weight: 800; font-size: 0.9rem; margin-bottom: 8px; color: var(--text); }
   .hn-room-pill {
     display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px;
     background: var(--bg2); border: 1px solid var(--border); color: var(--text);
@@ -384,7 +385,7 @@
     document.getElementById("detailModal").classList.add("open");
     if (yardRoom) {
       renderRoom(document.getElementById("detailRoom"), data.house, yardRoom, yardItems,
-                 (data.pets || []).filter(p => p.room_key === "yard"), { editing: false });
+                 (data.pets || []).filter(p => p.room_key === "yard"), { editing: false, showHouse: false });
     }
   }
   document.getElementById("closeDetail").addEventListener("click", () => document.getElementById("detailModal").classList.remove("open"));
@@ -397,7 +398,7 @@
   // texture, one <div class="hn-cell"> per square, every one placeable.
   // Pets are absolutely-positioned decoration *inside* the same element
   // with pointer-events:none, so they never block a cell click.
-  function renderRoom(host, house, room, placedItems, pets, { editing }) {
+  function renderRoom(host, house, room, placedItems, pets, { editing, showHouse = true }) {
     petTimers.forEach(clearInterval);
     petTimers = [];
 
@@ -410,8 +411,18 @@
       : `repeating-linear-gradient(90deg, rgba(0,0,0,0.10) 0 1px, transparent 1px 32px),
          linear-gradient(160deg, ${shade(ground, 0.08)}, ${shade(ground, -0.14)})`;
 
+    // The Front Yard shows the house exterior sitting right on top of the
+    // grid (house + front door + yard), the way the original neighborhood
+    // looked. Other rooms just get a small label.
+    let header = "";
+    if (room.key === "yard" && showHouse)
+      header = `<div style="display:flex; justify-content:center; margin-bottom:-8px;">${houseSVG(house, 190)}</div>`;
+    else if (room.key !== "yard")
+      header = `<div class="hn-room-label">${room.kind === "outdoor" ? "🌳" : "🛋️"} ${escHtml(room.name)}</div>`;
+
     host.innerHTML = `
       <div class="hn-room-wrap">
+        ${header}
         <div class="hn-room ${editing ? "editing" : ""}"
              style="aspect-ratio:${cols}/${rows};
                     grid-template-columns:repeat(${cols},1fr);
@@ -477,7 +488,6 @@
       <div class="hn-mine-grid">
         <div>
           <div class="hn-panel">
-            <div style="display:flex; justify-content:center; margin-bottom:12px;">${houseSVG(house, 176)}</div>
             <div class="hn-roombar" id="roomBar"></div>
             <div id="roomHost"></div>
             <div class="hn-room-actions" id="roomActions"></div>
