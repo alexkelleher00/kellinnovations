@@ -12,10 +12,12 @@
      buy and place per-room, and pets that wander whatever room they're
      assigned to. Public to browse, login required to customize/buy/place.
 
-     "Great graphics" without an art pipeline: SVG house exteriors + CSS
-     "diorama" rooms (textured floor, shaded back wall, drop-shadowed
-     items) + JS-animated emoji pets. No real 3D / WebGL — that's a much
-     bigger separate project (see housing/catalog.py).
+     Rooms are a plain flat 2D grid — one clickable square per cell, every
+     cell placeable. (An earlier 2.5D "diorama" view was dropped: Alex,
+     2026-09-02, "too hard to drop anything and I can't place on every grid
+     square" — the tilted look + a pet layer over the grid ate clicks.)
+     House exteriors are SVG, pets are JS-animated emoji that wander the
+     grid without blocking it. No real 3D / WebGL.
   ══════════════════════════════════════════════════════════════════════ */
   .hn-hero { text-align: center; margin-bottom: 22px; }
   .hn-hero h1 { font-size: 1.8rem; margin-bottom: 8px; }
@@ -82,25 +84,23 @@
   .hn-room-pill.active .lvl { background: rgba(0,0,0,0.18); }
   .hn-room-pill.add { border-style: dashed; color: var(--muted); }
 
-  /* Diorama room canvas */
-  .hn-room-wrap { position: relative; width: 100%; max-width: 560px; margin: 0 auto; }
+  /* Flat room grid — one clickable square per cell (the plain 2D grid) */
+  .hn-room-wrap { width: 100%; max-width: 520px; margin: 0 auto; }
   .hn-room {
-    position: relative; width: 100%; border-radius: 10px; overflow: hidden;
-    border: 1px solid rgba(0,0,0,0.5);
-    box-shadow: inset 0 30px 40px -20px rgba(0,0,0,0.55), inset 0 -12px 24px -12px rgba(0,0,0,0.5);
+    position: relative; width: 100%; display: grid; overflow: hidden;
+    border-radius: 10px; border: 1px solid rgba(0,0,0,0.45);
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.30);
   }
-  .hn-room-backwall { position: absolute; inset: 0 0 auto 0; height: 26%; }
-  .hn-room-floor { position: absolute; inset: 26% 0 0 0; }
-  .hn-grid {
-    position: absolute; inset: 0; display: grid; z-index: 3;
+  .hn-cell {
+    position: relative; display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(255,255,255,0.05);
   }
-  .hn-cell { position: relative; display: flex; align-items: center; justify-content: center; }
-  .hn-cell .glyph { font-size: clamp(16px, 4.4vw, 30px); filter: drop-shadow(0 4px 3px rgba(0,0,0,0.5)); transition: transform 0.12s; }
-  .hn-room.editing .hn-cell { border: 1px dashed rgba(255,255,255,0.10); cursor: pointer; }
-  .hn-room.editing .hn-cell:hover { background: rgba(0,200,200,0.14); outline: 1px solid var(--accent); outline-offset: -1px; }
-  .hn-room.editing .hn-cell.armed-ok:hover .glyph { transform: translateY(-3px) scale(1.06); }
+  .hn-cell .glyph { font-size: clamp(15px, 5vw, 30px); filter: drop-shadow(0 3px 2px rgba(0,0,0,0.45)); transition: transform 0.1s; }
+  .hn-room.editing .hn-cell { cursor: pointer; border-color: rgba(255,255,255,0.10); border-style: dashed; }
+  .hn-room.editing .hn-cell:hover { background: rgba(0,200,200,0.18); outline: 2px solid var(--accent); outline-offset: -2px; z-index: 2; }
+  .hn-room.editing .hn-cell:hover .glyph { transform: scale(1.1); }
 
-  /* Pets */
+  /* Pets — decorative only, never intercept a grid click */
   .hn-pet {
     position: absolute; z-index: 4; font-size: clamp(18px, 4.6vw, 30px); pointer-events: none;
     will-change: transform, left, top; filter: drop-shadow(0 5px 3px rgba(0,0,0,0.45));
@@ -392,7 +392,11 @@
   document.getElementById("closePick").addEventListener("click", () => document.getElementById("pickModal").classList.remove("open"));
   document.getElementById("pickModal").addEventListener("click", e => { if (e.target.id === "pickModal") e.target.classList.remove("open"); });
 
-  // ── Diorama room renderer (shared: editor + read-only detail view) ──
+  // ── Flat 2D room grid (shared: editor + read-only detail view) ──────
+  // Plain grid of clickable squares — the room's ground colour with a light
+  // texture, one <div class="hn-cell"> per square, every one placeable.
+  // Pets are absolutely-positioned decoration *inside* the same element
+  // with pointer-events:none, so they never block a cell click.
   function renderRoom(host, house, room, placedItems, pets, { editing }) {
     petTimers.forEach(clearInterval);
     petTimers = [];
@@ -400,35 +404,22 @@
     const cols = room.grid_cols, rows = room.grid_rows;
     const outdoor = room.kind === "outdoor";
     const ground = outdoor ? house.yard_color : house.floor_color;
-
-    const floorTexture = outdoor
-      ? `repeating-linear-gradient(115deg, rgba(255,255,255,0.05) 0 3px, transparent 3px 22px),
-         radial-gradient(ellipse at 50% 0%, ${shade(ground, 0.12)}, ${shade(ground, -0.14)} 85%)`
-      : `repeating-linear-gradient(90deg, rgba(0,0,0,0.10) 0 1px, transparent 1px 34px),
-         repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 20px),
-         linear-gradient(180deg, ${shade(ground, 0.08)}, ${shade(ground, -0.16)})`;
-    const wallTexture = outdoor
-      ? `linear-gradient(180deg, #add3f0, #cfe6f7)`
-      : `repeating-linear-gradient(90deg, rgba(0,0,0,0.06) 0 1px, transparent 1px 26px),
-         linear-gradient(180deg, ${shade(house.wall_color, 0.1)}, ${shade(house.wall_color, -0.12)})`;
+    const bg = outdoor
+      ? `repeating-linear-gradient(115deg, rgba(255,255,255,0.06) 0 2px, transparent 2px 24px),
+         linear-gradient(160deg, ${shade(ground, 0.12)}, ${shade(ground, -0.12)})`
+      : `repeating-linear-gradient(90deg, rgba(0,0,0,0.10) 0 1px, transparent 1px 32px),
+         linear-gradient(160deg, ${shade(ground, 0.08)}, ${shade(ground, -0.14)})`;
 
     host.innerHTML = `
       <div class="hn-room-wrap">
-        <div class="hn-room ${editing ? "editing" : ""}" style="aspect-ratio:${cols}/${Math.max(rows * 0.78, 2)};">
-          <div class="hn-room-backwall" style="background:${wallTexture};">
-            ${outdoor
-              ? `<div style="position:absolute; right:12%; top:20%; font-size:1.4rem;">☀️</div>
-                 <div style="position:absolute; left:14%; top:34%; font-size:1rem; opacity:0.85;">☁️</div>`
-              : `<div style="position:absolute; left:50%; top:26%; transform:translateX(-50%); width:34%; height:52%;
-                     background:linear-gradient(180deg,#cfe9ff,#9fb8d6); border:3px solid ${shade(house.roof_color,-0.1)}; border-radius:3px;"></div>`}
-          </div>
-          <div class="hn-room-floor" style="background:${floorTexture};"></div>
-          <div class="hn-grid" style="grid-template-columns:repeat(${cols},1fr); grid-template-rows:repeat(${rows},1fr);"></div>
-          <div class="hn-petlayer" style="position:absolute; inset:26% 0 0 0; z-index:4;"></div>
-        </div>
+        <div class="hn-room ${editing ? "editing" : ""}"
+             style="aspect-ratio:${cols}/${rows};
+                    grid-template-columns:repeat(${cols},1fr);
+                    grid-template-rows:repeat(${rows},1fr);
+                    background:${bg};"></div>
       </div>`;
 
-    const grid = host.querySelector(".hn-grid");
+    const roomEl = host.querySelector(".hn-room");
     const byCell = {};
     placedItems.forEach(i => { byCell[`${i.x},${i.y}`] = i; });
     for (let y = 0; y < rows; y++) {
@@ -442,25 +433,23 @@
           cell.innerHTML = `<span class="glyph" title="${escHtml(it.name)}">${it.emoji}</span>`;
         }
         if (editing) cell.addEventListener("click", () => onCellClick(x, y, it));
-        grid.appendChild(cell);
+        roomEl.appendChild(cell);
       }
     }
 
-    // Pets wander the floor layer.
-    const layer = host.querySelector(".hn-petlayer");
-    pets.forEach(p => spawnPet(layer, p));
+    pets.forEach(p => spawnPet(roomEl, p));
   }
 
-  function spawnPet(layer, pet) {
+  function spawnPet(roomEl, pet) {
     const el = document.createElement("div");
     el.className = "hn-pet";
     el.innerHTML = `${pet.emoji}<span class="tag">${escHtml(pet.name)}</span>`;
     el.style.left = (10 + Math.random() * 70) + "%";
-    el.style.top = (25 + Math.random() * 55) + "%";
+    el.style.top = (12 + Math.random() * 66) + "%";
     el.style.transition = "left 2s linear, top 2s linear, transform 0.3s";
-    layer.appendChild(el);
+    roomEl.appendChild(el);
     const step = () => {
-      const nx = 6 + Math.random() * 78, ny = 20 + Math.random() * 62;
+      const nx = 5 + Math.random() * 82, ny = 8 + Math.random() * 74;
       const facing = nx < parseFloat(el.style.left) ? -1 : 1;
       el.style.transform = `scaleX(${facing})`;
       el.style.left = nx + "%";
