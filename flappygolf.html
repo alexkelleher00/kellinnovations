@@ -117,14 +117,17 @@
   })();
 
   let claimed = false, claimDone = false;
-  async function claimGolfCoins(score) {
+  // `score` is the coin score (60/hole + 40 per stroke under par). `statScore`
+  // is what the trophy case ranks by: total par - total strokes, so higher =
+  // fewer strokes = better, and it reads as an over/under-par figure.
+  async function claimGolfCoins(score, statScore) {
     if (!currentUser || claimed || score <= 0) return;
     claimed = true;
     try {
       const res = await fetch(GAMES_API + "/claim_scored", {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ game: "flappygolf", score }),
+        body: JSON.stringify({ game: "flappygolf", score, stat_score: statScore }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -373,7 +376,7 @@
       // Score: 60 per hole finished + 40 per stroke saved under par.
       let score = 0;
       HOLES.forEach((h, i) => { score += 60 + Math.max(0, h.par - strokes[i]) * 40; });
-      claimGolfCoins(score);
+      claimGolfCoins(score, par - total);   // par - total: higher = better round
       document.getElementById("restartBtn").style.display = "inline-block";
     }
   }

@@ -130,6 +130,27 @@
   .gm-trophy-card .n { font-size: 1.3rem; font-weight: 800; }
   .gm-trophy-card .s { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
 
+  /* ── Leaderboards ── */
+  .gm-lb-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
+    margin-bottom: 40px;
+  }
+  .gm-lb-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+  }
+  .gm-lb-card h4 {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .gm-lb-row {
+    display: flex; align-items: center; gap: 8px; font-size: 0.82rem; padding: 3px 0;
+  }
+  .gm-lb-row .rank { color: var(--muted); font-weight: 800; min-width: 1.4em; }
+  .gm-lb-row .who { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gm-lb-row .val { color: #ffd166; font-weight: 700; }
+  .gm-lb-row.me { color: var(--accent); }
+  .gm-lb-empty { color: var(--muted); font-size: 0.78rem; }
+
   /* ── Game grid ── */
   .gm-games {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -224,6 +245,12 @@
       <span class="section-hdr-label">Trophy Case</span>
     </div>
     <div id="trophyGrid" class="gm-trophy-grid"></div>
+
+    <div class="section-hdr">
+      <span class="section-hdr-icon">🥇</span>
+      <span class="section-hdr-label">Leaderboards</span>
+    </div>
+    <div id="leaderboardGrid" class="gm-lb-grid"></div>
 
     <div class="section-hdr">
       <span class="section-hdr-icon">🕹️</span>
@@ -379,6 +406,17 @@
     flappygolf: "Flappy Golf", tetris: "Tetris",
   };
 
+  // best_score is a single integer column but it means something different
+  // per game — format it so "best 380" never happens again. Golf stores
+  // (total par − total strokes): positive = under par, negative = over.
+  const BEST_FMT = {
+    letterfall: v => `${v.toLocaleString()} words`,
+    "2048": v => v.toLocaleString(),
+    flappybird: v => `${v.toLocaleString()} pts`,
+    flappygolf: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
+  };
+  const fmtBest = (game, v) => (BEST_FMT[game] ? BEST_FMT[game](v) : v.toLocaleString());
+
   let currentUser = null;
   let kellscoinsPerUsd = 10000;
   let authMode = "login";
@@ -434,6 +472,7 @@
     document.getElementById("profileSince").textContent = currentUser.created_at
       ? new Date(currentUser.created_at).toLocaleDateString() : "today";
     loadTrophyCase();
+    loadLeaderboard();
   }
 
   async function loadTrophyCase() {
@@ -448,10 +487,30 @@
         <div class="gm-trophy-card">
           <div class="g">${GAME_LABELS[s.game] || s.game}</div>
           <div class="n">${s.played}</div>
-          <div class="s">played${s.wins ? ` · ${s.wins} won` : ""}${s.best_score !== null ? ` · best ${s.best_score.toLocaleString()}` : ""}</div>
+          <div class="s">played${s.wins ? ` · ${s.wins} won` : ""}${s.best_score !== null ? ` · best ${fmtBest(s.game, s.best_score)}` : ""}</div>
         </div>
       `).join("");
     } catch (e) { /* leave the section empty */ }
+  }
+
+  async function loadLeaderboard() {
+    try {
+      const { games } = await api("/leaderboard");
+      const box = document.getElementById("leaderboardGrid");
+      const order = ["flappygolf", "flappybird", "2048", "letterfall"];
+      box.innerHTML = order.filter(g => games[g]).map(g => {
+        const rows = games[g];
+        const body = rows.length
+          ? rows.map((r, i) => `
+              <div class="gm-lb-row ${currentUser && r.name === currentUser.name ? "me" : ""}">
+                <span class="rank">${i + 1}</span>
+                <span class="who">${r.avatar_emoji || "🙂"} ${escHtml(r.name || "Player")}</span>
+                <span class="val">${fmtBest(g, r.best_score)}</span>
+              </div>`).join("")
+          : `<div class="gm-lb-empty">No scores yet</div>`;
+        return `<div class="gm-lb-card"><h4>${GAME_LABELS[g] || g}</h4>${body}</div>`;
+      }).join("");
+    } catch (e) { /* best-effort — leave the section empty */ }
   }
 
   // ── Avatar picker ──────────────────────────────────────────────────
@@ -540,8 +599,13 @@
     if (!membersData) return;
     panel.innerHTML = `
       <strong>Members (${membersData.count})</strong>
+      <div style="color:var(--muted); font-size:0.75rem; margin-top:2px;">Ranked by KellsCoins</div>
       <div class="gm-members-list">
-        ${membersData.members.map(m => `<span class="gm-member-pill">${m.avatar_emoji || "🙂"} ${escHtml(m.name || "Member")}</span>`).join("")}
+        ${membersData.members.map((m, i) => `<span class="gm-member-pill">
+          <span style="color:var(--muted); font-weight:700; min-width:1.4em; text-align:right;">${i + 1}</span>
+          ${m.avatar_emoji || "🙂"} ${escHtml(m.name || "Member")}
+          <span style="color:#ffd166; font-weight:700;">🪙 ${(m.kellscoins ?? 0).toLocaleString()}</span>
+        </span>`).join("")}
       </div>
     `;
     panel.style.display = "block";
