@@ -328,12 +328,37 @@ let isSolo = false;
 // below instead. Playing without one still works exactly as before.
 const GAMES_SERVER = 'https://api.kellinnovations.com/games';
 let gamesAccountId = null;
+let gamesAccountName = null;
 (async () => {
   try {
     const r = await fetch(GAMES_SERVER + '/auth/me', { credentials: 'include' });
-    if (r.ok) gamesAccountId = (await r.json()).id;
+    if (r.ok) {
+      const acct = await r.json();
+      gamesAccountId = acct.id;
+      gamesAccountName = acct.name || null;
+      if (gamesAccountName) useAccountName();
+    }
   } catch (e) { /* offline/not logged in */ }
 })();
+
+// Signed into a games account → never ask for a name. Use the account's
+// display name wherever one would be typed (solo, create, join).
+function useAccountName() {
+  ['solo-name', 'c-name', 'j-name'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = gamesAccountName;
+    const row = el.parentElement;                 // <div><label>…</label><input></div>
+    row.style.display = 'none';
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:13px;color:var(--muted);margin:0 0 4px';
+    note.innerHTML = 'Playing as <strong style="color:var(--txt)">' + _escName(gamesAccountName) + '</strong>';
+    row.parentNode.insertBefore(note, row);
+  });
+}
+function _escName(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
 async function claimSoloRoundCoins(words) {
   if (!gamesAccountId) return;
   try {
@@ -537,7 +562,7 @@ function goJoin()   { show('s-join');   }
 function goSolo()   { show('s-solo');   }
 
 function startSolo() {
-  const name = document.getElementById('solo-name').value.trim();
+  const name = gamesAccountName || document.getElementById('solo-name').value.trim();
   if (!name) { toast('Enter your name first'); return; }
   isSolo = true;
   const numR = CFG.rounds;
@@ -560,7 +585,7 @@ function startSolo() {
 }
 
 async function createGame() {
-  const name=document.getElementById('c-name').value.trim();
+  const name=gamesAccountName || document.getElementById('c-name').value.trim();
   if(!name){ toast('Enter your name first'); return; }
   setBtn('btn-create',true,'Creating…');
   try {
@@ -630,7 +655,7 @@ async function hostStart() {
 }
 
 async function joinGame() {
-  const name=document.getElementById('j-name').value.trim();
+  const name=gamesAccountName || document.getElementById('j-name').value.trim();
   const code=document.getElementById('j-code').value.trim().toUpperCase();
   if(!name){ toast('Enter your name'); return; }
   if(code.length!==5){ toast('Code is 5 characters'); return; }
