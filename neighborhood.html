@@ -107,6 +107,13 @@
     border: 1px solid rgba(0,0,0,0.45); box-shadow: inset 0 0 40px rgba(0,0,0,0.30); line-height: 0;
   }
   .hn-room-canvas-box canvas { width: 100%; height: auto; display: block; image-rendering: pixelated; touch-action: none; }
+  .hn-rotate-btn {
+    position: absolute; top: 8px; right: 8px; z-index: 3; display: none;
+    width: 34px; height: 34px; border-radius: 8px; cursor: pointer; line-height: 1;
+    background: var(--accent); color: #04201f; border: none;
+    font-size: 1.1rem; font-weight: 900; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .hn-rotate-btn:hover { filter: brightness(1.1); }
   .hn-room-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
 
   .hn-swatch-row { display: flex; gap: 7px; flex-wrap: wrap; }
@@ -303,6 +310,7 @@ let mine = null;            // { house, rooms, placed, inventory, pets }
 let mapData = null;         // { houses: [...] }
 let selectedRoomKey = "yard";
 let armedItemId = null;
+let armedRot = 0;            // 0..3 quarter-turns for the item about to be placed
 let shopLocFilter = "all";
 
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -349,11 +357,18 @@ const FOOTPRINTS = {
   basketball: [2, 1], palm: [2, 3], sunflower: [2, 2], fireworks: [2, 2],
 };
 function fp(itemOrKey) {
-  if (itemOrKey && typeof itemOrKey === "object") {
-    const t = FOOTPRINTS[itemOrKey.key] || [1, 1];
-    return [itemOrKey.w || t[0] || 1, itemOrKey.h || t[1] || 1];
-  }
-  return FOOTPRINTS[itemOrKey] || [1, 1];
+  // base (rotation-0) footprint of an item's *key*, ignoring any placed w/h
+  const key = (itemOrKey && typeof itemOrKey === "object") ? itemOrKey.key : itemOrKey;
+  return FOOTPRINTS[key] || [1, 1];
+}
+function fpr(itemOrKey, rot) {
+  // footprint AS PLACED — width/height swap on a quarter turn
+  const [w, h] = fp(itemOrKey);
+  return ((rot || 0) & 1) ? [h, w] : [w, h];
+}
+function dims(it) {
+  // effective grid footprint of a placed item (server sends rotated w/h)
+  return (it && it.w && it.h) ? [it.w, it.h] : fpr(it, it && it.rot);
 }
 function catItem(key) { return (catalogData && catalogData.items || []).find(i => i.key === key) || null; }
 
@@ -911,25 +926,37 @@ const ITEM_DRAW = {
     g.beginPath(); g.moveTo(sx + 3, sy + sh - 3); g.lineTo(sx + sw * 0.5, sy + 3);
     g.lineTo(sx + sw * 0.5 + 8, sy + 3); g.closePath(); g.fill();
   },
+  // Tall — leans up the back wall like the TV. Footprint stays 1×2 on the
+  // floor; the case rises `rise` px above it (into the padTop wall band when
+  // placed on the top row), with a lit top face for the 3D read.
   bookshelf(g, x, y, TP, w, h) {
-    const W = w * TP, H = h * TP;
-    R(g, x, y, W, H, "#6b4a30"); R(g, x + 2, y + 2, W - 4, H - 4, "#4a3320");
-    for (let s = 0; s < h; s++) {
-      const sy = y + 3 + s * ((H - 6) / h);
-      R(g, x + 2, sy + (H - 6) / h - 3, W - 4, 3, "#6b4a30");
-      for (let b = 0, bx = x + 4; bx < x + W - 4; b++, bx += Math.max(4, TP * 0.16)) {
+    const W = w * TP, H = h * TP, rise = TP * 1.05;
+    const topY = y - rise, fullH = H + rise;
+    R(g, x - TP * 0.07, topY - TP * 0.07, W, fullH, "#2f2013");     // depth edge
+    R(g, x, topY, W, fullH, "#6b4a30");                             // case front
+    R(g, x + 2, topY + 2, W - 4, fullH - 4, "#38271a");             // interior
+    R(g, x, topY, W, TP * 0.15, "#8a6440");                         // top face
+    R(g, x, topY, TP * 0.1, fullH, "#7e5a3c");                      // left edge highlight
+    const shelves = h + 2;
+    for (let s = 0; s < shelves; s++) {
+      const shH = (fullH - 8) / shelves, sy = topY + 4 + s * shH;
+      R(g, x + 2, sy + shH - 3, W - 4, 3, "#6b4a30");
+      for (let b = 0, bx = x + 4; bx < x + W - 5; b++, bx += Math.max(4, TP * 0.16)) {
         g.fillStyle = ["#c0432f", "#2f6dc0", "#3aa657", "#c99a2e", "#7d4fbf", "#d7d7e0"][(s * 3 + b) % 6];
-        g.fillRect(bx, sy + 3, Math.max(3, TP * 0.11), (H - 6) / h - 8);
+        g.fillRect(bx, sy + 4, Math.max(3, TP * 0.11), shH - 9);
       }
     }
   },
   fridge(g, x, y, TP, w, h) {
-    const W = w * TP, H = h * TP;
-    R(g, x + TP * 0.05, y, W - TP * 0.1, H, "#d9dde2");
-    R(g, x + TP * 0.05, y, TP * 0.14, H, "#eef1f4");
-    R(g, x + TP * 0.05, y + H * 0.42, W - TP * 0.1, 2, "#9aa0a6");
-    R(g, x + W - TP * 0.34, y + H * 0.12, TP * 0.14, H * 0.22, "#9aa0a6");
-    R(g, x + W - TP * 0.34, y + H * 0.55, TP * 0.14, H * 0.3, "#9aa0a6");
+    const W = w * TP, H = h * TP, rise = TP * 0.95;
+    const topY = y - rise, fullH = H + rise;
+    R(g, x - TP * 0.05, topY - TP * 0.05, W, fullH, "#8a9096");     // depth edge
+    R(g, x + TP * 0.04, topY, W - TP * 0.08, fullH, "#cdd2d8");     // body
+    R(g, x + TP * 0.04, topY, W - TP * 0.08, TP * 0.13, "#e9ecf0"); // top face
+    R(g, x + TP * 0.04, topY, TP * 0.12, fullH, "#e0e3e8");         // left highlight
+    R(g, x + TP * 0.04, topY + fullH * 0.42, W - TP * 0.08, 2, "#9aa0a6");           // freezer split
+    R(g, x + W - TP * 0.3, topY + fullH * 0.12, TP * 0.11, fullH * 0.18, "#8a9096"); // handle upper
+    R(g, x + W - TP * 0.3, topY + fullH * 0.52, TP * 0.11, fullH * 0.30, "#8a9096"); // handle lower
   },
   bench(g, x, y, TP, w, h) {
     const W = w * TP, H = h * TP;
@@ -1114,11 +1141,27 @@ const CAT_FALLBACK = {
   },
 };
 function drawItem(g, item, px, py, TP, t) {
-  const [w, h] = fp(item);
+  const [w, h] = fp(item);                 // always the rotation-0 renderer
   const fn = ITEM_DRAW[item.key];
   if (fn) { fn(g, px, py, TP, w, h, t, item); return; }
   const cat = (catItem(item.key) || {}).category || item.category || "furniture";
   (CAT_FALLBACK[cat] || CAT_FALLBACK.furniture)(g, px, py, TP, w, h, t, item);
+}
+// Draw an item at (px,py) top-left of its *placed* footprint, turned `rot`
+// quarter-turns clockwise. The sprite fns are authored rot-0; this maps
+// their w×h box onto the h×w (odd turn) grid block via a canvas transform.
+function drawItemRot(g, item, px, py, TP, t, rot) {
+  rot = (((rot || 0) % 4) + 4) % 4;
+  if (!rot) { drawItem(g, item, px, py, TP, t); return; }
+  const [w, h] = fp(item), W = w * TP, H = h * TP;
+  const gi = GLOWS.length;
+  g.save();
+  if (rot === 1)      { g.translate(px + H, py);      g.rotate(Math.PI / 2); }
+  else if (rot === 2) { g.translate(px + W, py + H);  g.rotate(Math.PI); }
+  else                { g.translate(px, py + W);      g.rotate(-Math.PI / 2); }
+  drawItem(g, item, 0, 0, TP, t);
+  g.restore();
+  if (rot) GLOWS.length = gi;              // drop glows pushed in the rotated frame (wrong coords)
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -1198,13 +1241,19 @@ function drawWalker(g, a) {
   g.fillStyle = "rgba(0,0,0,0.25)"; g.beginPath(); g.ellipse(a.x, a.y, 6, 2.5, 0, 0, 7); g.fill();
   blit(g, frame, a.pal, Math.round(a.x - 6), Math.round(a.y - 16), flip);
 }
-function drawPetActor(g, p, t) {
+function drawPetActor(g, p, t, sc) {
+  sc = sc || 1;
   const S = PET_SPRITES[p.type] || PET_SPRITES.cat;
   const moving = Math.hypot(p.tx - p.x, p.ty - p.y) > 2 && p.idle <= 0;
   const sprite = moving ? S.walk[Math.floor(p.phase / 4) % S.walk.length] : S.sit;
-  g.fillStyle = "rgba(0,0,0,0.25)";
-  g.beginPath(); g.ellipse(p.x, p.y, S.w * 0.4, 2.6, 0, 0, 7); g.fill();
-  blit(g, sprite, S.pal, Math.round(p.x - S.w / 2), Math.round(p.y - S.h + 1), p.flip);
+  g.fillStyle = "rgba(0,0,0,0.22)";
+  g.beginPath(); g.ellipse(p.x, p.y, S.w * 0.42 * sc, 2.7 * sc, 0, 0, 7); g.fill();
+  if (sc === 1) { blit(g, sprite, S.pal, Math.round(p.x - S.w / 2), Math.round(p.y - S.h + 1), p.flip); return; }
+  g.save();
+  g.translate(Math.round(p.x), Math.round(p.y));
+  g.scale(sc, sc);
+  blit(g, sprite, S.pal, -Math.round(S.w / 2), -(S.h - 1), p.flip);
+  g.restore();
 }
 function mkWalker(i, path) {
   return {
@@ -1256,7 +1305,7 @@ function layoutMap() {
     const yc = h.yard_cols || 8, yr = h.yard_rows || 5;
     const mtp = Math.max(3, Math.min(yard.w / yc, yard.h / yr));
     h.yardItems = (h.yard_placed || []).map(it => {
-      const [iw, ih] = fp(it);
+      const [iw, ih] = dims(it);
       return { it, px: yard.x + it.x * mtp, py: yard.y + it.y * mtp, mtp, sortY: yard.y + (it.y + ih) * mtp };
     });
 
@@ -1337,10 +1386,10 @@ function drawMapScene(now, dt) {
   const ents = [];
   MAP.houses.forEach(h => {
     ents.push({ y: h.by, d: () => drawHouse(g, h.house, h.bx, h.by, night, h.smoke) });
-    h.yardItems.forEach(yi => ents.push({ y: yi.sortY, d: () => drawItem(g, yi.it, yi.px, yi.py, yi.mtp, now / 1000) }));
+    h.yardItems.forEach(yi => ents.push({ y: yi.sortY, d: () => drawItemRot(g, yi.it, yi.px, yi.py, yi.mtp, now / 1000, yi.it.rot) }));
   });
   MAP.walkers.forEach(a => ents.push({ y: a.y, d: () => drawWalker(g, a) }));
-  MAP.mapPets.forEach(p => ents.push({ y: p.y, d: () => drawPetActor(g, p, now / 1000) }));
+  MAP.mapPets.forEach(p => ents.push({ y: p.y, d: () => drawPetActor(g, p, now / 1000, 1.35) }));
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
 
@@ -1434,7 +1483,7 @@ function buildRoomState(cv, house, room, placed, pets, editable, maxCssH) {
   const outdoor = room.kind === "outdoor";
   // headroom above row 0 so tall items (TV, bookshelf, lamp) and the house
   // rise into a wall / open-air band instead of being clipped at the edge.
-  const padTop = outdoor ? Math.round(TP * 1.15) : Math.round(TP * 1.5);
+  const padTop = outdoor ? Math.round(TP * 1.15) : Math.round(TP * 1.8);
   const cw = cols * TP, ch = rows * TP + padTop;
   cv.style.width = cw + "px";
   fitCanvas(cv, cw, ch);
@@ -1503,24 +1552,28 @@ function drawRoomInto(rs, now, dt) {
     }
   } });
   rs.placed.forEach(it => {
-    const [w, h] = fp(it);
-    ents.push({ y: it.y + h, d: () => drawItem(g, it, it.x * TP, it.y * TP + padTop, TP, now / 1000) });
+    const [w, h] = dims(it);
+    ents.push({ y: it.y + h, d: () => drawItemRot(g, it, it.x * TP, it.y * TP + padTop, TP, now / 1000, it.rot) });
   });
-  rs.pets.forEach(p => ents.push({ y: (p.y - padTop) / TP, d: () => drawPetActor(g, p, now / 1000) }));
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
+
+  // Pets always render on top of the furniture (never boxed in by an item),
+  // and bigger than they draw out on the map.
+  const petSc = rs.outdoor ? 1.8 : 2.1;
+  rs.pets.forEach(p => drawPetActor(g, p, now / 1000, petSc));
 
   // placement ghost
   if (rs.editable && armedItemId != null && rs.hover) {
     const it = (mine.inventory || []).find(i => i.id === armedItemId);
     if (it) {
-      const [w, h] = fp(it);
-      const ok = canPlace(it, rs.hover.x, rs.hover.y, rs.room, rs.placed, null);
+      const [w, h] = fpr(it, armedRot);
+      const ok = canPlace(it, rs.hover.x, rs.hover.y, armedRot, rs.room, rs.placed, null);
       g.fillStyle = ok ? "rgba(0,200,160,0.28)" : "rgba(255,80,80,0.28)";
       g.fillRect(rs.hover.x * TP, rs.hover.y * TP + padTop, w * TP, h * TP);
       g.strokeStyle = ok ? "#00d0a0" : "#ff5050"; g.lineWidth = 2;
       g.strokeRect(rs.hover.x * TP + 1, rs.hover.y * TP + padTop + 1, w * TP - 2, h * TP - 2);
-      if (ok) { g.globalAlpha = 0.55; drawItem(g, it, rs.hover.x * TP, rs.hover.y * TP + padTop, TP, now / 1000); g.globalAlpha = 1; }
+      if (ok) { g.globalAlpha = 0.6; drawItemRot(g, it, rs.hover.x * TP, rs.hover.y * TP + padTop, TP, now / 1000, armedRot); g.globalAlpha = 1; }
     }
   }
 
@@ -1540,12 +1593,12 @@ function roomCellFromEvent(rs, e) {
 function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
   return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 }
-function canPlace(item, x, y, room, placedInRoom, ignoreId) {
-  const [w, h] = fp(item);
+function canPlace(item, x, y, rot, room, placedInRoom, ignoreId) {
+  const [w, h] = fpr(item, rot);
   if (x < 0 || y < 0 || x + w > room.grid_cols || y + h > room.grid_rows) return false;
   for (const it of placedInRoom) {
     if (ignoreId != null && it.id === ignoreId) continue;
-    const [iw, ih] = fp(it);
+    const [iw, ih] = dims(it);
     if (rectsOverlap(x, y, w, h, it.x, it.y, iw, ih)) return false;
   }
   return true;
@@ -1553,7 +1606,7 @@ function canPlace(item, x, y, room, placedInRoom, ignoreId) {
 function itemAtCell(rs, x, y) {
   // topmost (last drawn) placed item whose footprint covers (x,y)
   for (let i = rs.placed.length - 1; i >= 0; i--) {
-    const it = rs.placed[i], [w, h] = fp(it);
+    const it = rs.placed[i], [w, h] = dims(it);
     if (x >= it.x && x < it.x + w && y >= it.y && y < it.y + h) return it;
   }
   return null;
@@ -1572,10 +1625,12 @@ function wireRoomCanvas(rs) {
       if (armedItemId != null) {
         const it = (mine.inventory || []).find(i => i.id === armedItemId);
         if (!it) { armedItemId = null; return; }
-        if (!canPlace(it, c.x, c.y, rs.room, rs.placed, null)) { showError("Won't fit there — needs " + fp(it).join("×") + " clear tiles."); return; }
-        const updated = await api("/place", { method: "POST", body: { item_id: armedItemId, room_key: rs.room.key, x: c.x, y: c.y } });
+        if (!canPlace(it, c.x, c.y, armedRot, rs.room, rs.placed, null)) {
+          showError("Won't fit there — needs " + fpr(it, armedRot).join("×") + " clear tiles."); return;
+        }
+        const updated = await api("/place", { method: "POST", body: { item_id: armedItemId, room_key: rs.room.key, x: c.x, y: c.y, rot: armedRot } });
         mine.inventory = mine.inventory.filter(i => i.id !== armedItemId);
-        mine.placed.push(updated); armedItemId = null;
+        mine.placed.push(updated); armedItemId = null; armedRot = 0;
         renderEditor();
       } else {
         const it = itemAtCell(rs, c.x, c.y);
@@ -1708,7 +1763,7 @@ function renderEditor() {
       <div>
         <div class="hn-panel">
           <div class="hn-roombar" id="roomBar"></div>
-          <div class="hn-room-wrap"><div class="hn-room-canvas-box"><canvas id="roomCanvas"></canvas></div></div>
+          <div class="hn-room-wrap"><div class="hn-room-canvas-box"><canvas id="roomCanvas"></canvas><button class="hn-rotate-btn" id="rotBtn" title="Rotate (R)" aria-label="Rotate item">↻</button></div></div>
           <div class="hn-room-actions" id="roomActions"></div>
           <div class="hn-error" id="hnError"></div>
           <p class="hn-hint" id="roomHint"></p>
@@ -1772,6 +1827,12 @@ function renderEditor() {
       document.getElementById("locToggle").querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
     }));
   document.getElementById("adoptBtn").addEventListener("click", openAdoptPicker);
+  document.getElementById("rotBtn").addEventListener("click", rotateArmed);
+}
+function rotateArmed() {
+  if (armedItemId == null) return;
+  armedRot = (armedRot + 1) % 4;
+  updateRoomHint();
 }
 function swatches(colors, current) {
   return colors.map(c => `<div class="hn-swatch ${c === current ? "selected" : ""}" style="background:${c};" data-color="${c}"></div>`).join("");
@@ -1783,7 +1844,7 @@ function renderRoomBar() {
        ${r.kind === "outdoor" ? "🌳" : "🛋️"} ${escHtml(r.name)} <span class="lvl">Lv ${r.level}</span>
      </div>`).join("") + `<div class="hn-room-pill add" id="buildRoomPill">＋ Build room</div>`;
   bar.querySelectorAll(".hn-room-pill[data-key]").forEach(p => p.addEventListener("click", () => {
-    selectedRoomKey = p.dataset.key; armedItemId = null; renderEditor();
+    selectedRoomKey = p.dataset.key; armedItemId = null; armedRot = 0; renderEditor();
   }));
   document.getElementById("buildRoomPill").addEventListener("click", openBuildPicker);
 }
@@ -1806,11 +1867,16 @@ function renderRoomActions() {
 }
 function updateRoomHint() {
   const room = currentRoom(), el = document.getElementById("roomHint");
+  const rotBtn = document.getElementById("rotBtn");
   if (armedItemId != null) {
     const it = (mine.inventory || []).find(i => i.id === armedItemId);
-    el.textContent = it ? `Placing "${it.name}" (${fp(it).join("×")}) — click a clear spot. Click the item again to cancel.` : "";
+    el.textContent = it
+      ? `Placing "${it.name}" (${fpr(it, armedRot).join("×")}${armedRot ? ", turned " + (armedRot * 90) + "°" : ""}) — click a clear spot · press R or ↻ to rotate · click the item again to cancel.`
+      : "";
+    if (rotBtn) rotBtn.style.display = "block";
   } else {
-    el.textContent = `${room.kind === "outdoor" ? "Outdoor" : "Indoor"} room, ${room.grid_cols}×${room.grid_rows} tiles. Click a placed item to pick it back up.`;
+    el.textContent = `${room.kind === "outdoor" ? "Outdoor" : "Indoor"} room, ${room.grid_cols}×${room.grid_rows} tiles. Click a placed item to pick it back up (then rotate + re-place).`;
+    if (rotBtn) rotBtn.style.display = "none";
   }
 }
 function itemFitsRoom(item, room) { return item.location === "any" || item.location === room.kind; }
@@ -1842,6 +1908,7 @@ function renderInventory() {
     cell.addEventListener("click", () => {
       if (!itemFitsRoom(i, room)) { showError(`${i.name} only goes in ${i.location} rooms — switch rooms first.`); return; }
       armedItemId = armedItemId === i.id ? null : i.id;
+      armedRot = 0;
       renderInventory(); updateRoomHint();
       const t = document.getElementById("invTitle");
       if (t) t.textContent = armedItemId != null ? "Inventory — click a tile in the room" : "Inventory — click an item to place it";
@@ -2028,6 +2095,21 @@ window.addEventListener("resize", () => {
   fitMapView();
   clearTimeout(_resizeT);
   _resizeT = setTimeout(() => { if (mine && ROOM && activeTab === "mine") renderEditor(); }, 220);
+});
+
+window.addEventListener("keydown", e => {
+  if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if ((e.key === "r" || e.key === "R") && armedItemId != null && activeTab === "mine") {
+    e.preventDefault(); rotateArmed();
+  } else if (e.key === "Escape") {
+    if (document.getElementById("pickModal").classList.contains("open")) {
+      const m = document.getElementById("pickModal"); m.classList.remove("open"); if (m.__cancel) m.__cancel();
+    } else if (document.getElementById("detailModal").classList.contains("open")) {
+      closeInside();
+    } else if (armedItemId != null) {
+      armedItemId = null; armedRot = 0; if (mine && ROOM) renderEditor();
+    }
+  }
 });
 
 async function boot() {
