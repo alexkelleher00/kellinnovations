@@ -76,7 +76,7 @@
     </div>
     <h2>⛳ Flappy Golf</h2>
     <div class="fg-hud">
-      <span class="fg-chip">Hole <span id="holeEl">1</span> / 5</span>
+      <span class="fg-chip">Hole <span id="holeEl">1</span> / <span id="holeTotal">6</span></span>
       <span class="fg-chip">Par <span id="parEl">2</span></span>
       <span class="fg-chip">Strokes <span id="strokeEl">0</span></span>
       <span class="fg-chip">Total <span id="totalEl">0</span></span>
@@ -90,7 +90,7 @@
     <div class="fg-ball-picker" id="ballPicker"><span>Ball colour</span></div>
     <p class="fg-hint">
       Tap the left / right side of the course — or press <b>A</b>/<b>D</b> or <b>←</b>/<b>→</b> — to flap that way.
-      Every flap is a stroke; sink it in as few as you can. Finish all 5 holes to bank coins —
+      Every flap is a stroke; sink it in as few as you can. Finish all 6 holes to bank coins —
       <span id="loginHint"><a href="games.html">log in</a> to earn them.</span>
     </p>
     <div class="fg-error" id="fgError"></div>
@@ -217,6 +217,21 @@
         { x: 610, y: 170, w: 150, h: 22 },
       ],
       cup: { x: 685, y: 170, r: 13 },
+    },
+    {
+      // A vertical shaft: slip in through the gap under the left wall, then
+      // climb the chimney with small alternating taps and peel off right
+      // over the shorter wall to the cup. Nothing else on the course plays
+      // like it — sustained control instead of one big carry.
+      name: "The Chimney", par: 5,
+      tee: { x: 110, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 250, y: 96,  w: 26, h: 244 },             // left wall — 96px gap below it to enter
+        { x: 380, y: 150, w: 26, h: GROUND_Y - 150 },  // right wall — solid to the floor
+        { x: 690, y: 392, w: 20, h: GROUND_Y - 392 },  // catch curb by the cup
+      ],
+      cup: { x: 620, y: GROUND_Y, r: 13 },
     },
   ];
 
@@ -602,6 +617,7 @@
     };
   }
 
+  document.getElementById("holeTotal").textContent = HOLES.length;
   resetRound();
   loop();
 </script>
