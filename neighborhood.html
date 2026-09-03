@@ -17,8 +17,9 @@
      drawn in code (tiny pixel grids blitted with fillRect + vector-rect
      furniture) so there's still no art pipeline / no asset files. Three
      scenes share the engine: the MAP (drag to pan, wheel/pinch to zoom,
-     click a house), the DETAIL modal (one member's yard, read-only), and
-     MY HOUSE (the editable room — click to place / pick up).
+     click a house to knock — first visit costs 50 KellsCoins to the owner),
+     the VISIT modal (browse a member's rooms read-only, room switcher,
+     backyard first), and MY HOUSE (the editable room — click to place / pick up).
 
      Items are drawn at their real footprint. `FOOTPRINTS` here MUST match
      housing/catalog.py's FOOTPRINTS — the server sends w/h on every item
@@ -178,6 +179,7 @@
   .hn-modal {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
     max-width: 640px; width: 100%; padding: 22px; position: relative;
+    max-height: calc(100vh - 40px); overflow-y: auto;
   }
   .hn-modal-close {
     position: absolute; top: 12px; right: 14px; background: none; border: none;
@@ -198,6 +200,15 @@
     color: var(--text); font-size: 0.78rem; font-weight: 700; text-decoration: none;
   }
   .back-to-games:hover { border-color: var(--accent); color: var(--accent); }
+
+  .hn-toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(12px);
+    background: var(--surface); border: 1px solid var(--accent); color: var(--text);
+    padding: 10px 18px; border-radius: 999px; font-size: 0.85rem; font-weight: 700;
+    box-shadow: 0 12px 34px rgba(0,0,0,0.5); opacity: 0; pointer-events: none;
+    transition: opacity .18s, transform .18s; z-index: 900;
+  }
+  .hn-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
@@ -1216,7 +1227,7 @@ const mapStage = document.getElementById("mapStage");
 const mapCv = document.getElementById("mapCanvas");
 const mapG = mapCv.getContext("2d");
 const MAP = {
-  houses: [], npcs: [], pets: [], groundCv: document.createElement("canvas"),
+  houses: [], walkers: [], mapPets: [], groundCv: document.createElement("canvas"),
   worldW: 800, worldH: 600, cam: { x: 400, y: 300, zoom: 3 }, userZoomed: false, ready: false,
 };
 const PLOT_W = 210, PLOT_H = 210, ROAD_W = 24, MARGIN = 54;
@@ -1229,34 +1240,44 @@ function layoutMap() {
   MAP.worldW = MARGIN * 2 + cols * PLOT_W;
   MAP.worldH = MARGIN * 2 + rows * PLOT_H;
 
+  MAP.walkers = []; MAP.mapPets = [];
   MAP.houses = houses.map((entry, i) => {
     const col = i % cols, row = (i / cols) | 0;
     const plotX = MARGIN + col * PLOT_W, plotY = MARGIN + row * PLOT_H;
-    const bx = plotX + ROAD_W + (PLOT_W - ROAD_W) * 0.5;      // centred in the green
-    const by = plotY + ROAD_W + (PLOT_H - ROAD_W) * 0.62;
-    return { ...entry, bx, by, smoke: [], plotX, plotY };
+    const gx0 = plotX + ROAD_W, gy0 = plotY + ROAD_W;         // green (yard) origin
+    const gw = PLOT_W - ROAD_W, gh = PLOT_H - ROAD_W;
+    const bx = gx0 + gw * 0.5, by = gy0 + gh * 0.62;          // house feet
+    const h = { ...entry, bx, by, smoke: [], plotX, plotY, gx0, gy0, gw, gh };
+
+    // Their front yard: the whole plot's green, so placed items depth-sort
+    // with the house the same way they do inside the editor.
+    const yard = { x: gx0 + 6, y: gy0 + 6, w: gw - 12, h: gh - 12 };
+    h.yardArea = yard;
+    const yc = h.yard_cols || 8, yr = h.yard_rows || 5;
+    const mtp = Math.max(3, Math.min(yard.w / yc, yard.h / yr));
+    h.yardItems = (h.yard_placed || []).map(it => {
+      const [iw, ih] = fp(it);
+      return { it, px: yard.x + it.x * mtp, py: yard.y + it.y * mtp, mtp, sortY: yard.y + (it.y + ih) * mtp };
+    });
+
+    // A stroll along the street out front, with the odd trip up to the door.
+    const roadY = plotY + PLOT_H - ROAD_W * 0.5;
+    const wk = mkWalker(i, [
+      [bx - 46 - hash2(i, 2) * 44, roadY], [bx + 46 + hash2(i, 5) * 44, roadY],
+      [bx, roadY - 14], [bx, by + 16], [bx, roadY - 14],
+    ]);
+    wk.name = h.name; wk.avatar = h.avatar_emoji;
+    wk.idx = 1 + (i % 2); wk.x = wk.path[wk.idx - 1][0]; wk.y = wk.path[wk.idx - 1][1];  // stagger, start on the street
+    h.walker = wk; MAP.walkers.push(wk);
+
+    (h.pets || []).filter(p => !p.room_key || p.room_key === "yard").forEach((p, k) => {
+      const a = mkPet(p.pet_type, yard, i * 10 + k + 3);
+      a.name = p.name;
+      MAP.mapPets.push(a);
+    });
+    return h;
   });
 
-  // NPCs stroll the road lattice (road = the ROAD_W-wide gutters between plots)
-  MAP.npcs = [];
-  const laneY = r => MARGIN + r * PLOT_H - 4;
-  const laneX = c => MARGIN + c * PLOT_W - 4;
-  const nNpc = Math.min(9, n + 3);
-  for (let i = 0; i < nNpc; i++) {
-    const r = i % (rows + 1), horiz = i % 2 === 0;
-    const path = horiz
-      ? [[MARGIN * 0.4, laneY(r)], [MAP.worldW - MARGIN * 0.4, laneY(r)]]
-      : [[laneX(i % (cols + 1)), MARGIN * 0.4], [laneX(i % (cols + 1)), MAP.worldH - MARGIN * 0.4]];
-    if (i % 3 === 0) path.push([laneX((i + 1) % (cols + 1)), laneY(r)]);
-    MAP.npcs.push(mkWalker(i, path));
-  }
-  MAP.pets = [];
-  const petTypes = ["dog", "cat", "fox"];
-  for (let i = 0; i < Math.min(3, MAP.houses.length); i++) {
-    const hh = MAP.houses[(i * 2) % MAP.houses.length];
-    // keep them in the front yard, clear of the house/roof
-    MAP.pets.push(mkPet(petTypes[i % 3], { x: hh.plotX + 46, y: hh.plotY + PLOT_H * 0.52, w: PLOT_W - 120, h: PLOT_H * 0.36 }, i + 40));
-  }
   buildMapGround();
   fitMapView();
 }
@@ -1298,9 +1319,9 @@ function drawMapScene(now, dt) {
   const g = mapG, z = MAP.cam.zoom;
   const night = nightAmount(timeOfDay);
 
-  MAP.npcs.forEach(a => stepWalker(a, dt));
-  MAP.pets.forEach(p => stepPet(p, dt));
-  MAP.houses.forEach(h => { if (h.chimney !== false && (h.pet_count >= 0)) stepSmoke(h.smoke, dt, h.bx + 15.5, h.by - 55); });
+  MAP.walkers.forEach(a => stepWalker(a, dt));
+  MAP.mapPets.forEach(p => stepPet(p, dt));
+  MAP.houses.forEach(h => stepSmoke(h.smoke, dt, h.bx + 15.5, h.by - 55));
 
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
   g.imageSmoothingEnabled = false;
@@ -1314,17 +1335,12 @@ function drawMapScene(now, dt) {
   GLOWS = [];
 
   const ents = [];
-  MAP.houses.forEach(h => ents.push({ y: h.by, d: () => {
-    drawHouse(g, h.house, h.bx, h.by, night, h.smoke);
-    // curb decor: whatever they've placed in the yard, as little sprites
-    (h.yard_placed || []).slice(0, 10).forEach(it => {
-      const gx = h.plotX + 26 + (it.x % 6) * ((PLOT_W - 60) / 6);
-      const gy = h.plotY + 22 + (it.y % 4) * 12;
-      if (gy < h.by - 30) drawItem(g, it, gx, gy, 12, now / 1000);
-    });
-  } }));
-  MAP.npcs.forEach(a => ents.push({ y: a.y, d: () => drawWalker(g, a) }));
-  MAP.pets.forEach(p => ents.push({ y: p.y, d: () => drawPetActor(g, p, now / 1000) }));
+  MAP.houses.forEach(h => {
+    ents.push({ y: h.by, d: () => drawHouse(g, h.house, h.bx, h.by, night, h.smoke) });
+    h.yardItems.forEach(yi => ents.push({ y: yi.sortY, d: () => drawItem(g, yi.it, yi.px, yi.py, yi.mtp, now / 1000) }));
+  });
+  MAP.walkers.forEach(a => ents.push({ y: a.y, d: () => drawWalker(g, a) }));
+  MAP.mapPets.forEach(p => ents.push({ y: p.y, d: () => drawPetActor(g, p, now / 1000) }));
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
 
@@ -1333,15 +1349,27 @@ function drawMapScene(now, dt) {
   paintGlows(g, W, H, MAP.cam, z, W / 2, H / 2);
 
   if (showLabels) {
-    g.font = "700 11px system-ui, sans-serif"; g.textAlign = "center";
+    const sx = wx => W / 2 + (wx - MAP.cam.x) * z, sy = wy => H / 2 + (wy - MAP.cam.y) * z;
+    const tag = (text, x, y, big) => {
+      g.font = (big ? "700 11px " : "600 9px ") + "system-ui, sans-serif";
+      g.textAlign = "center"; g.textBaseline = "alphabetic";
+      const w = g.measureText(text).width + (big ? 14 : 10);
+      g.fillStyle = "rgba(10,11,22,0.82)"; g.fillRect(x - w / 2, y - (big ? 12 : 10), w, big ? 17 : 14);
+      if (big) { g.fillStyle = "#00c8c8"; g.fillRect(x - w / 2, y + 5, w, 1); }
+      g.fillStyle = "#e9e9f4"; g.fillText(text, x, y);
+    };
     for (const h of MAP.houses) {
-      const sx = W / 2 + (h.bx - MAP.cam.x) * z, sy = H / 2 + (h.by - 62 - MAP.cam.y) * z;
-      if (sx < -80 || sx > W + 80 || sy < -20 || sy > H + 20) continue;
-      const label = `${h.avatar_emoji || "🙂"} ${h.name || "Member"}`;
-      const w = g.measureText(label).width + 14;
-      g.fillStyle = "rgba(10,11,22,0.82)"; g.fillRect(sx - w / 2, sy - 12, w, 17);
-      g.fillStyle = "#00c8c8"; g.fillRect(sx - w / 2, sy + 5, w, 1);
-      g.fillStyle = "#e9e9f4"; g.fillText(label, sx, sy);
+      const x = sx(h.bx), y = sy(h.by - 66);
+      if (x > -90 && x < W + 90 && y > -20 && y < H + 20)
+        tag(`${h.avatar_emoji || "🙂"} ${h.name || "Member"}${h.visited ? "" : ` · 🪙${h.visit_cost || 50}`}`, x, y, true);
+    }
+    for (const a of MAP.walkers) if (a.name) {
+      const x = sx(a.x), y = sy(a.y - 20);
+      if (x > -70 && x < W + 70 && y > 0 && y < H) tag(a.name.split(" ")[0], x, y, false);
+    }
+    for (const p of MAP.mapPets) if (p.name) {
+      const x = sx(p.x), y = sy(p.y - 13);
+      if (x > -70 && x < W + 70 && y > 0 && y < H) tag(p.name, x, y, false);
     }
   }
 }
@@ -1365,7 +1393,7 @@ function mapScreenToWorld(sx, sy) {
     const r = mapCv.getBoundingClientRect();
     const w = mapScreenToWorld(e.clientX - r.left, e.clientY - r.top);
     for (const h of MAP.houses) {
-      if (w.x > h.bx - 28 && w.x < h.bx + 28 && w.y > h.by - 58 && w.y < h.by + 8) { openDetail(h.user_id); return; }
+      if (w.x > h.bx - 28 && w.x < h.bx + 28 && w.y > h.by - 58 && w.y < h.by + 8) { enterHouse(h.user_id); return; }
     }
   });
   mapCv.addEventListener("pointercancel", () => { down = false; mapCv.classList.remove("dragging"); });
@@ -1397,49 +1425,66 @@ async function loadMap() {
 let ROOM = null;   // active editable-room render state
 let DETAIL = null; // active detail-modal render state
 
-function buildRoomState(cv, house, room, placed, pets, editable) {
+function buildRoomState(cv, house, room, placed, pets, editable, maxCssH) {
   const cols = room.grid_cols, rows = room.grid_rows;
   const box = cv.parentElement;
   const cssW = box.clientWidth || 520;
-  const TP = clamp(Math.floor(cssW / cols), 22, 60);
-  const cw = cols * TP, ch = rows * TP;
+  let TP = clamp(Math.floor(cssW / cols), 22, 60);
+  if (maxCssH) TP = clamp(Math.min(TP, Math.floor(maxCssH / (rows + 1.6))), 15, 60);
+  const outdoor = room.kind === "outdoor";
+  // headroom above row 0 so tall items (TV, bookshelf, lamp) and the house
+  // rise into a wall / open-air band instead of being clipped at the edge.
+  const padTop = outdoor ? Math.round(TP * 1.15) : Math.round(TP * 1.5);
+  const cw = cols * TP, ch = rows * TP + padTop;
   cv.style.width = cw + "px";
   fitCanvas(cv, cw, ch);
 
   // static ground → offscreen
   const gc = document.createElement("canvas"); gc.width = cw; gc.height = ch;
   const gx = gc.getContext("2d"); gx.imageSmoothingEnabled = false;
-  const outdoor = room.kind === "outdoor";
   const ground = outdoor ? house.yard_color : house.floor_color;
+
+  if (outdoor) {                                   // band = more yard
+    for (let yy = 0; yy < padTop; yy += 4) for (let xx = 0; xx < cw; xx += 4) {
+      const nz = hash2(xx * 3, yy * 3);
+      gx.fillStyle = nz < 0.12 ? shade(ground, -0.12) : nz > 0.88 ? shade(ground, 0.12) : ground;
+      gx.fillRect(xx, yy, 4, 4);
+    }
+  } else {                                          // band = back wall in the house's own wall colour
+    const wall = house.wall_color;
+    gx.fillStyle = shade(wall, 0.14); gx.fillRect(0, 0, cw, padTop);
+    gx.fillStyle = shade(wall, 0.24); gx.fillRect(0, 0, cw, Math.max(3, padTop * 0.16));
+    gx.fillStyle = shade(wall, -0.22); gx.fillRect(0, padTop - 3, cw, 3);      // baseboard
+  }
   for (let ty = 0; ty < rows; ty++) for (let tx = 0; tx < cols; tx++) {
     const nz = hash2(tx * 7, ty * 7);
     const base = outdoor
       ? (nz < 0.12 ? shade(ground, -0.12) : nz > 0.88 ? shade(ground, 0.12) : ground)
       : ((tx + ty) % 2 ? shade(ground, -0.05) : ground);
-    gx.fillStyle = base; gx.fillRect(tx * TP, ty * TP, TP, TP);
-    if (outdoor && nz > 0.95) { gx.fillStyle = ["#f2e34d", "#e46b8a", "#d7d7ff"][(tx + ty) % 3]; gx.fillRect(tx * TP + TP * 0.4, ty * TP + TP * 0.4, 2, 2); }
+    gx.fillStyle = base; gx.fillRect(tx * TP, ty * TP + padTop, TP, TP);
+    if (outdoor && nz > 0.95) { gx.fillStyle = ["#f2e34d", "#e46b8a", "#d7d7ff"][(tx + ty) % 3]; gx.fillRect(tx * TP + TP * 0.4, ty * TP + padTop + TP * 0.4, 2, 2); }
   }
   gx.strokeStyle = "rgba(0,0,0,0.13)"; gx.lineWidth = 1;
-  for (let i = 0; i <= cols; i++) { gx.beginPath(); gx.moveTo(i * TP + 0.5, 0); gx.lineTo(i * TP + 0.5, ch); gx.stroke(); }
-  for (let i = 0; i <= rows; i++) { gx.beginPath(); gx.moveTo(0, i * TP + 0.5); gx.lineTo(cw, i * TP + 0.5); gx.stroke(); }
+  for (let i = 0; i <= cols; i++) { gx.beginPath(); gx.moveTo(i * TP + 0.5, padTop); gx.lineTo(i * TP + 0.5, ch); gx.stroke(); }
+  for (let i = 0; i <= rows; i++) { gx.beginPath(); gx.moveTo(0, i * TP + padTop + 0.5); gx.lineTo(cw, i * TP + padTop + 0.5); gx.stroke(); }
 
   const petActors = (pets || []).map((p, i) => {
-    const a = mkPet(p.pet_type, { x: TP * 0.5, y: TP * 0.5, w: cw - TP, h: ch - TP }, i);
+    const a = mkPet(p.pet_type, { x: TP * 0.5, y: padTop + TP * 0.5, w: cw - TP, h: rows * TP - TP }, i);
     a.name = p.name; return a;
   });
 
   return { cv, g: cv.getContext("2d"), house, room, placed: placed.slice(), pets: petActors,
-           cols, rows, TP, cw, ch, editable, groundCv: gc, hover: null, outdoor, smoke: [] };
+           cols, rows, TP, padTop, cw, ch, editable, groundCv: gc, hover: null, outdoor, smoke: [] };
 }
 
 function drawRoomInto(rs, now, dt) {
   if (!rs) return;
-  const { g, TP, cw, ch } = rs;
+  const { g, TP, padTop, cw, ch } = rs;
   const night = rs.outdoor ? nightAmount(timeOfDay) : 0;
   rs.pets.forEach(p => stepPet(p, dt));
   const isYard = rs.room.key === "yard";
-  const hs = isYard ? clamp(TP / 16, 1, 2.2) : 1;                 // house scale in the yard
-  const houseFeetY = isYard ? clamp(TP * 2.6, 46, ch * 0.42) : 0; // house sits on the top rows of the grid
+  const hs = isYard ? clamp(TP / 18, 1, 1.9) : 1;                 // house scale in the yard
+  const houseFeetY = isYard ? clamp(padTop + TP * 1.35, padTop + 34, padTop + rs.rows * TP * 0.42) : 0;
   if (isYard) stepSmoke(rs.smoke, dt, 0, -52);                    // smoke in house-local coords
 
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -1449,7 +1494,7 @@ function drawRoomInto(rs, now, dt) {
   GLOWS = [];
 
   const ents = [];
-  if (isYard) ents.push({ y: houseFeetY / TP, d: () => {
+  if (isYard) ents.push({ y: (houseFeetY - padTop) / TP, d: () => {
     const gi = GLOWS.length;
     g.save(); g.translate(cw / 2, houseFeetY); g.scale(hs, hs);
     drawHouse(g, rs.house, 0, 0, night, rs.smoke); g.restore();
@@ -1459,9 +1504,9 @@ function drawRoomInto(rs, now, dt) {
   } });
   rs.placed.forEach(it => {
     const [w, h] = fp(it);
-    ents.push({ y: it.y + h, d: () => drawItem(g, it, it.x * TP, it.y * TP, TP, now / 1000) });
+    ents.push({ y: it.y + h, d: () => drawItem(g, it, it.x * TP, it.y * TP + padTop, TP, now / 1000) });
   });
-  rs.pets.forEach(p => ents.push({ y: p.y / TP, d: () => drawPetActor(g, p, now / 1000) }));
+  rs.pets.forEach(p => ents.push({ y: (p.y - padTop) / TP, d: () => drawPetActor(g, p, now / 1000) }));
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
 
@@ -1472,10 +1517,10 @@ function drawRoomInto(rs, now, dt) {
       const [w, h] = fp(it);
       const ok = canPlace(it, rs.hover.x, rs.hover.y, rs.room, rs.placed, null);
       g.fillStyle = ok ? "rgba(0,200,160,0.28)" : "rgba(255,80,80,0.28)";
-      g.fillRect(rs.hover.x * TP, rs.hover.y * TP, w * TP, h * TP);
+      g.fillRect(rs.hover.x * TP, rs.hover.y * TP + padTop, w * TP, h * TP);
       g.strokeStyle = ok ? "#00d0a0" : "#ff5050"; g.lineWidth = 2;
-      g.strokeRect(rs.hover.x * TP + 1, rs.hover.y * TP + 1, w * TP - 2, h * TP - 2);
-      if (ok) { g.globalAlpha = 0.55; drawItem(g, it, rs.hover.x * TP, rs.hover.y * TP, TP, now / 1000); g.globalAlpha = 1; }
+      g.strokeRect(rs.hover.x * TP + 1, rs.hover.y * TP + padTop + 1, w * TP - 2, h * TP - 2);
+      if (ok) { g.globalAlpha = 0.55; drawItem(g, it, rs.hover.x * TP, rs.hover.y * TP + padTop, TP, now / 1000); g.globalAlpha = 1; }
     }
   }
 
@@ -1487,7 +1532,10 @@ function drawRoomInto(rs, now, dt) {
 function roomCellFromEvent(rs, e) {
   const r = rs.cv.getBoundingClientRect();
   const scale = rs.cw / r.width;
-  return { x: Math.floor((e.clientX - r.left) * scale / rs.TP), y: Math.floor((e.clientY - r.top) * scale / rs.TP) };
+  return {
+    x: Math.floor((e.clientX - r.left) * scale / rs.TP),
+    y: Math.floor(((e.clientY - r.top) * scale - rs.padTop) / rs.TP),
+  };
 }
 function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
   return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
@@ -1542,35 +1590,103 @@ function wireRoomCanvas(rs) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   DETAIL modal
+   Visiting a house — knock (one-time 50🪙 to the owner) → step inside
    ═══════════════════════════════════════════════════════════════════════ */
-async function openDetail(userId) {
-  const data = await api(`/house/${encodeURIComponent(userId)}`);
-  const yardRoom = (data.rooms || []).find(r => r.key === "yard") || (data.rooms || [])[0];
-  const yardItems = (data.placed || []).filter(i => i.room_key === (yardRoom && yardRoom.key));
-  const yardPets = (data.pets || []).filter(p => p.room_key === (yardRoom && yardRoom.key));
-  const c = document.getElementById("detailContent");
-  c.innerHTML = `
-    <h3 style="text-align:center; margin-top:0;">${escHtml(data.avatar_emoji || "🙂")} ${escHtml(data.name || "Member")}'s House</h3>
-    <div class="hn-detail-canvas-box"><canvas id="detailCanvas"></canvas></div>
-    <div class="hn-card-stats" style="display:flex; gap:14px; color:var(--muted); font-size:0.8rem; justify-content:center;">
-      <span>🚪 ${(data.rooms || []).length} room${(data.rooms || []).length === 1 ? "" : "s"}</span>
-      <span>🐾 ${(data.pets || []).length} pet${(data.pets || []).length === 1 ? "" : "s"}</span>
-      <span>🪴 ${yardItems.length} in the yard</span>
-    </div>`;
-  document.getElementById("detailModal").classList.add("open");
-  if (yardRoom) {
-    const cv = document.getElementById("detailCanvas");
-    // allow layout to settle so parentElement has width
-    requestAnimationFrame(() => {
-      DETAIL = buildRoomState(cv, data.house, yardRoom, yardItems, yardPets, false);
-    });
-  }
+let INSIDE = null;   // { data, roomKey } for the open house-visit modal
+
+function toast(msg) {
+  let t = document.getElementById("hnToast");
+  if (!t) { t = document.createElement("div"); t.id = "hnToast"; t.className = "hn-toast"; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 2800);
 }
-document.getElementById("closeDetail").addEventListener("click", () => { document.getElementById("detailModal").classList.remove("open"); DETAIL = null; });
-document.getElementById("detailModal").addEventListener("click", e => { if (e.target.id === "detailModal") { e.currentTarget.classList.remove("open"); DETAIL = null; } });
-document.getElementById("closePick").addEventListener("click", () => document.getElementById("pickModal").classList.remove("open"));
-document.getElementById("pickModal").addEventListener("click", e => { if (e.target.id === "pickModal") e.currentTarget.classList.remove("open"); });
+
+async function enterHouse(userId) {
+  const h = ((mapData && mapData.houses) || []).find(x => x.user_id === userId);
+  if (!h) return;
+  const isMine = currentUser && userId === currentUser.id;
+  if (!isMine) {
+    if (!currentUser) { toast("Log in on the Games hub to visit houses."); return; }
+    if (!h.visited && (h.visit_cost || 0) > 0 && !(await confirmVisit(h))) return;
+  }
+  let data;
+  try {
+    data = await api(`/enter/${encodeURIComponent(userId)}`, { method: "POST" });
+  } catch (e) {
+    // Server predates the /enter endpoint — fall back to the free read-only
+    // view so visiting still works until the API is redeployed.
+    try { data = await api(`/house/${encodeURIComponent(userId)}`); }
+    catch (e2) { toast(e.message || e2.message); return; }
+  }
+  if (currentUser && data.balance != null) { currentUser.kellscoins = data.balance; updateCoinChip(); }
+  if (data.visit_cost) { toast(`Knocked — paid 🪙${data.visit_cost} to ${(h.name || "").split(" ")[0]}`); h.visited = true; }
+  openInside(data);
+}
+
+function confirmVisit(h) {
+  return new Promise(resolve => {
+    const modal = document.getElementById("pickModal");
+    const first = (h.name || "them").split(" ")[0];
+    document.getElementById("pickContent").innerHTML = `
+      <h3 style="margin-top:0;">Knock on ${escHtml(first)}'s door?</h3>
+      <p style="color:var(--muted); font-size:0.86rem; line-height:1.5;">
+        Your first visit to a house costs <b style="color:#ffd166;">🪙 ${h.visit_cost || 50} KellsCoins</b>,
+        paid straight to ${escHtml(h.name || "them")}. Every visit after that is free.</p>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
+        <button class="hn-mini-btn ghost" id="visitNo">Not now</button>
+        <button class="hn-mini-btn" id="visitYes">Knock — 🪙 ${h.visit_cost || 50}</button>
+      </div>`;
+    modal.classList.add("open");
+    const done = v => { modal.classList.remove("open"); modal.__cancel = null; resolve(v); };
+    modal.__cancel = () => done(false);
+    document.getElementById("visitYes").onclick = () => done(true);
+    document.getElementById("visitNo").onclick = () => done(false);
+  });
+}
+
+function pickDefaultRoom(rooms) {
+  rooms = rooms || [];
+  const backyard = rooms.find(r => r.kind === "outdoor" && r.key !== "yard");   // the "closer, cooler" view
+  return ((backyard || rooms.find(r => r.key === "yard") || rooms[0]) || {}).key;
+}
+function openInside(data) {
+  INSIDE = { data, roomKey: pickDefaultRoom(data.rooms) };
+  renderInside();
+  document.getElementById("detailModal").classList.add("open");
+}
+function renderInside() {
+  const { data, roomKey } = INSIDE;
+  const room = (data.rooms || []).find(r => r.key === roomKey) || (data.rooms || [])[0];
+  const inYard = (data.placed || []).filter(i => i.room_key === (room && room.key)).length;
+  document.getElementById("detailContent").innerHTML = `
+    <h3 style="text-align:center; margin-top:0;">${escHtml(data.avatar_emoji || "🙂")} ${escHtml(data.name || "Member")}'s House</h3>
+    <div class="hn-roombar" id="insideRoomBar" style="justify-content:center;"></div>
+    <div class="hn-detail-canvas-box"><canvas id="detailCanvas"></canvas></div>
+    <p class="hn-hint" style="text-align:center;">
+      ${room ? (room.kind === "outdoor" ? "🌳" : "🛋️") + " " + escHtml(room.name) + " · " + inYard + " item" + (inYard === 1 ? "" : "s") : ""}
+      &nbsp;·&nbsp; you're a guest — look around</p>`;
+  const bar = document.getElementById("insideRoomBar");
+  bar.innerHTML = (data.rooms || []).map(r =>
+    `<div class="hn-room-pill ${r.key === roomKey ? "active" : ""}" data-key="${r.key}">${r.kind === "outdoor" ? "🌳" : "🛋️"} ${escHtml(r.name)}</div>`).join("");
+  bar.querySelectorAll(".hn-room-pill").forEach(p => p.addEventListener("click", () => { INSIDE.roomKey = p.dataset.key; renderInside(); }));
+  const cv = document.getElementById("detailCanvas");
+  requestAnimationFrame(() => {
+    if (!room) { DETAIL = null; return; }
+    DETAIL = buildRoomState(cv, data.house, room,
+      (data.placed || []).filter(i => i.room_key === room.key),
+      (data.pets || []).filter(pt => pt.room_key === room.key), false,
+      Math.min(window.innerHeight * 0.46, 380));
+  });
+}
+function closeInside() { document.getElementById("detailModal").classList.remove("open"); DETAIL = null; INSIDE = null; }
+document.getElementById("closeDetail").addEventListener("click", closeInside);
+document.getElementById("detailModal").addEventListener("click", e => { if (e.target.id === "detailModal") closeInside(); });
+document.getElementById("closePick").addEventListener("click", () => {
+  const m = document.getElementById("pickModal"); m.classList.remove("open"); if (m.__cancel) m.__cancel();
+});
+document.getElementById("pickModal").addEventListener("click", e => {
+  if (e.target.id === "pickModal") { e.currentTarget.classList.remove("open"); if (e.currentTarget.__cancel) e.currentTarget.__cancel(); }
+});
 
 /* ═══════════════════════════════════════════════════════════════════════
    MY HOUSE editor  (DOM panels + the room canvas)
