@@ -2,30 +2,42 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Neighborhood — Kelleher Innovations</title>
 <link rel="stylesheet" href="style.css">
 <style>
   /* ══════════════════════════════════════════════════════════════════════
-     Neighborhood — prefix .hn-. Every member gets a house with multiple
-     rooms (a backyard + an inside, plus rooms they build on), items they
-     buy and place per-room, and pets that wander whatever room they're
-     assigned to. Public to browse, login required to customize/buy/place.
+     Neighborhood — prefix .hn-. Every member gets a house on ONE shared,
+     pannable pixel-art street. Build rooms inside and out, fill them with
+     stuff, adopt pets that wander, and browse what everyone else built.
+     Public to look around; login required to customize/buy/place.
 
-     Rooms are a plain flat 2D grid — one clickable square per cell, every
-     cell placeable. (An earlier 2.5D "diorama" view was dropped: Alex,
-     2026-09-02, "too hard to drop anything and I can't place on every grid
-     square" — the tilted look + a pet layer over the grid ate clicks.)
-     House exteriors are SVG, pets are JS-animated emoji that wander the
-     grid without blocking it. No real 3D / WebGL.
+     Rendering (rewritten 2026-09-02, replaced the flat DOM grid + SVG
+     houses): a single <canvas> engine. Top-down pixel art, all sprites
+     drawn in code (tiny pixel grids blitted with fillRect + vector-rect
+     furniture) so there's still no art pipeline / no asset files. Three
+     scenes share the engine: the MAP (drag to pan, wheel/pinch to zoom,
+     click a house), the DETAIL modal (one member's yard, read-only), and
+     MY HOUSE (the editable room — click to place / pick up).
+
+     Items are drawn at their real footprint. `FOOTPRINTS` here MUST match
+     housing/catalog.py's FOOTPRINTS — the server sends w/h on every item
+     and /place rejects an overhang or an overlap, this is just the client
+     copy for drawing + the pre-check (and a fallback if the API predates
+     the footprint deploy). A flower pot is 1 tile, a bed is 3×4.
+
+     Still a flat grid, every cell placeable (Alex, 2026-09-02: the tilted
+     2.5D diorama was dropped because you couldn't drop things on every
+     square — the canvas grid keeps that, it's just drawn properly now).
+     No WebGL / no real 3D.
   ══════════════════════════════════════════════════════════════════════ */
-  .hn-hero { text-align: center; margin-bottom: 22px; }
+  .hn-hero { text-align: center; margin-bottom: 18px; }
   .hn-hero h1 { font-size: 1.8rem; margin-bottom: 8px; }
-  .hn-hero p { color: var(--muted); max-width: 580px; margin: 0 auto; }
+  .hn-hero p { color: var(--muted); max-width: 600px; margin: 0 auto; }
 
   .hn-topbar {
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
-    gap: 12px; margin-bottom: 22px;
+    gap: 12px; margin-bottom: 16px;
   }
   .hn-tabs { display: flex; gap: 4px; background: var(--bg2); border-radius: 8px; padding: 4px; }
   .hn-tab {
@@ -33,30 +45,38 @@
     color: var(--muted); transition: background 0.2s, color 0.2s;
   }
   .hn-tab.active { background: var(--accent); color: #000; }
+  .hn-topbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .hn-toggle {
+    padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.74rem; font-weight: 800;
+    color: var(--muted); background: var(--surface); border: 1px solid var(--border);
+    transition: border-color 0.15s, color 0.15s, background 0.15s; user-select: none;
+  }
+  .hn-toggle:hover { border-color: var(--accent); }
+  .hn-toggle.on { background: var(--accent); color: #04201f; border-color: var(--accent); }
   .hn-chip {
     display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
     background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
     font-size: 0.9rem; font-weight: 800; color: #ffd166;
   }
 
-  /* ── Map grid ─────────────────────────────────────────────────────── */
-  .hn-map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
-  .hn-house-card {
-    background: linear-gradient(180deg, var(--surface), var(--bg2));
-    border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 14px 12px 16px; text-align: center; cursor: pointer;
-    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+  /* ── Map canvas stage ─────────────────────────────────────────────── */
+  .hn-stage {
+    position: relative; width: 100%; height: 68vh; min-height: 420px;
+    border-radius: var(--radius); overflow: hidden;
+    border: 1px solid var(--border); background: #0c1024;
   }
-  .hn-house-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,0.45); }
-  .hn-house-card .hn-owner { margin-top: 8px; font-weight: 700; font-size: 0.9rem; }
-  .hn-card-stats { margin-top: 6px; display: flex; gap: 10px; justify-content: center; color: var(--muted); font-size: 0.74rem; }
-
-  /* ── House exterior (SVG wrapper) ─────────────────────────────────── */
-  .hn-ext { display: block; margin: 0 auto; filter: drop-shadow(0 8px 12px rgba(0,0,0,0.45)); }
+  .hn-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; cursor: grab; touch-action: none; }
+  .hn-stage canvas.dragging { cursor: grabbing; }
+  .hn-stage-hint {
+    position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+    background: rgba(10,11,22,0.8); border: 1px solid var(--border); border-radius: 999px;
+    padding: 6px 14px; font-size: 0.72rem; color: var(--muted); white-space: nowrap; pointer-events: none;
+  }
+  .hn-stage-hint b { color: var(--text); }
 
   /* ── "My House" layout ───────────────────────────────────────────── */
   .hn-mine-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
-  @media (min-width: 900px) { .hn-mine-grid { grid-template-columns: 1.35fr 1fr; align-items: start; } }
+  @media (min-width: 960px) { .hn-mine-grid { grid-template-columns: 1.4fr 1fr; align-items: start; } }
 
   .hn-panel {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -68,9 +88,7 @@
     margin: 0 0 10px;
   }
 
-  /* Room selector pills */
   .hn-roombar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-  .hn-room-label { text-align: center; font-weight: 800; font-size: 0.9rem; margin-bottom: 8px; color: var(--text); }
   .hn-room-pill {
     display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px;
     background: var(--bg2); border: 1px solid var(--border); color: var(--text);
@@ -78,51 +96,23 @@
   }
   .hn-room-pill:hover { border-color: var(--accent); }
   .hn-room-pill.active { background: var(--accent); color: #000; border-color: var(--accent); }
-  .hn-room-pill .lvl {
-    font-size: 0.64rem; font-weight: 800; padding: 1px 6px; border-radius: 999px;
-    background: rgba(0,0,0,0.25);
-  }
+  .hn-room-pill .lvl { font-size: 0.64rem; font-weight: 800; padding: 1px 6px; border-radius: 999px; background: rgba(0,0,0,0.25); }
   .hn-room-pill.active .lvl { background: rgba(0,0,0,0.18); }
   .hn-room-pill.add { border-style: dashed; color: var(--muted); }
 
-  /* Flat room grid — one clickable square per cell (the plain 2D grid) */
-  .hn-room-wrap { width: 100%; max-width: 520px; margin: 0 auto; }
-  .hn-room {
-    position: relative; width: 100%; display: grid; overflow: hidden;
-    border-radius: 10px; border: 1px solid rgba(0,0,0,0.45);
-    box-shadow: inset 0 0 40px rgba(0,0,0,0.30);
+  .hn-room-wrap { width: 100%; max-width: 560px; margin: 0 auto; }
+  .hn-room-canvas-box {
+    position: relative; width: 100%; border-radius: 10px; overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.45); box-shadow: inset 0 0 40px rgba(0,0,0,0.30); line-height: 0;
   }
-  .hn-cell {
-    position: relative; display: flex; align-items: center; justify-content: center;
-    border: 1px solid rgba(255,255,255,0.05);
-  }
-  .hn-cell .glyph { font-size: clamp(15px, 5vw, 30px); filter: drop-shadow(0 3px 2px rgba(0,0,0,0.45)); transition: transform 0.1s; }
-  .hn-room.editing .hn-cell { cursor: pointer; border-color: rgba(255,255,255,0.10); border-style: dashed; }
-  .hn-room.editing .hn-cell:hover { background: rgba(0,200,200,0.18); outline: 2px solid var(--accent); outline-offset: -2px; z-index: 2; }
-  .hn-room.editing .hn-cell:hover .glyph { transform: scale(1.1); }
-
-  /* Pets — decorative only, never intercept a grid click */
-  .hn-pet {
-    position: absolute; z-index: 4; font-size: clamp(18px, 4.6vw, 30px); pointer-events: none;
-    will-change: transform, left, top; filter: drop-shadow(0 5px 3px rgba(0,0,0,0.45));
-    animation: hn-bob 0.9s ease-in-out infinite;
-  }
-  .hn-pet .tag {
-    position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%);
-    font-size: 9px; font-weight: 800; color: #fff; background: rgba(0,0,0,0.55);
-    padding: 1px 5px; border-radius: 6px; white-space: nowrap; font-family: system-ui, sans-serif;
-  }
-  @keyframes hn-bob { 0%,100% { margin-top: 0; } 50% { margin-top: -4px; } }
-
+  .hn-room-canvas-box canvas { width: 100%; height: auto; display: block; image-rendering: pixelated; touch-action: none; }
   .hn-room-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
 
-  /* Swatches */
   .hn-swatch-row { display: flex; gap: 7px; flex-wrap: wrap; }
   .hn-swatch { width: 28px; height: 28px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
   .hn-swatch.selected { border-color: var(--accent); transform: scale(1.12); }
   .hn-sub { color: var(--muted); font-size: 0.72rem; margin: 12px 0 6px; font-weight: 700; }
 
-  /* Shop / inventory / pets grids */
   .hn-loc-toggle { display: flex; gap: 4px; background: var(--bg2); border-radius: 7px; padding: 3px; margin-bottom: 10px; }
   .hn-loc-toggle button {
     flex: 1; padding: 6px 8px; border: none; background: none; color: var(--muted);
@@ -130,12 +120,17 @@
   }
   .hn-loc-toggle button.active { background: var(--accent); color: #000; }
 
-  .hn-shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
+  .hn-shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 8px; max-height: 360px; overflow-y: auto; padding-right: 4px; }
   .hn-shop-item {
     background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 8px;
     text-align: center; display: flex; flex-direction: column; gap: 3px; align-items: center;
   }
-  .hn-shop-item .emoji { font-size: 1.7rem; }
+  .hn-shop-item canvas { image-rendering: pixelated; }
+  .hn-thumb { position: relative; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; }
+  .hn-thumb .sz {
+    position: absolute; right: -2px; bottom: -2px; font-size: 0.56rem; font-weight: 800;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 0 3px; color: var(--muted);
+  }
   .hn-shop-item .name { font-size: 0.68rem; font-weight: 700; line-height: 1.15; }
   .hn-shop-item .price { font-size: 0.68rem; color: #ffd166; font-weight: 800; }
   .hn-shop-item .loc { font-size: 0.58rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
@@ -148,18 +143,23 @@
 
   .hn-inv-row { display: flex; gap: 7px; flex-wrap: wrap; }
   .hn-inv-item {
-    width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
-    font-size: 1.5rem; background: var(--bg2); border: 2px solid var(--border); border-radius: 8px; cursor: pointer;
+    position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+    background: var(--bg2); border: 2px solid var(--border); border-radius: 8px; cursor: pointer;
   }
+  .hn-inv-item canvas { image-rendering: pixelated; }
   .hn-inv-item.armed { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,200,200,0.45); }
   .hn-inv-item.dim { opacity: 0.4; }
+  .hn-inv-item .sz {
+    position: absolute; right: -3px; bottom: -3px; font-size: 0.54rem; font-weight: 800;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 0 3px; color: var(--muted);
+  }
 
   .hn-pet-list { display: flex; flex-direction: column; gap: 8px; }
   .hn-pet-card {
     display: flex; align-items: center; gap: 10px; background: var(--bg2);
     border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
   }
-  .hn-pet-card .pemoji { font-size: 1.6rem; }
+  .hn-pet-card canvas { image-rendering: pixelated; flex: none; }
   .hn-pet-card input, .hn-pet-card select {
     background: var(--surface); border: 1px solid var(--border); color: var(--text);
     border-radius: 6px; padding: 4px 6px; font-size: 0.74rem; font-family: inherit;
@@ -170,7 +170,6 @@
   .hn-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; margin-top: 8px; }
   .hn-hint { color: var(--muted); font-size: 0.78rem; margin: 6px 0 0; }
 
-  /* Modal */
   .hn-modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.78); display: none;
     align-items: flex-start; justify-content: center; z-index: 600; padding: 24px 16px; overflow-y: auto;
@@ -178,19 +177,20 @@
   .hn-modal-overlay.open { display: flex; }
   .hn-modal {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    max-width: 620px; width: 100%; padding: 22px; position: relative;
+    max-width: 640px; width: 100%; padding: 22px; position: relative;
   }
   .hn-modal-close {
     position: absolute; top: 12px; right: 14px; background: none; border: none;
     color: var(--muted); font-size: 1.4rem; cursor: pointer; line-height: 1;
   }
   .hn-modal-close:hover { color: var(--text); }
+  .hn-detail-canvas-box { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); line-height: 0; margin-bottom: 12px; }
+  .hn-detail-canvas-box canvas { width: 100%; height: auto; display: block; image-rendering: pixelated; }
 
   .hn-login-hint {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 20px; text-align: center; max-width: 420px; margin: 0 auto;
   }
-
   .back-to-games {
     position: fixed; top: 12px; left: 12px; z-index: 500;
     display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px;
@@ -220,8 +220,8 @@
 <main>
   <div class="hn-hero">
     <h1>🏘️ Neighborhood</h1>
-    <p>Every member gets a house. Build rooms inside and out, fill them with stuff,
-       adopt pets that wander around, and see what everyone else has built.</p>
+    <p>Every member gets a house on the same street. Build rooms inside and out, fill them with
+       stuff drawn to real size, adopt pets that wander around, and see what everyone's built.</p>
   </div>
 
   <div class="hn-topbar">
@@ -229,11 +229,18 @@
       <div class="hn-tab active" data-tab="map">🗺️ Map</div>
       <div class="hn-tab" data-tab="mine">🏠 My House</div>
     </div>
-    <span class="hn-chip" id="coinChip" style="display:none;">🪙 <span id="coinBalance">0</span> KellsCoins</span>
+    <div class="hn-topbar-right">
+      <span class="hn-toggle on" id="labelsToggle">Labels</span>
+      <span class="hn-toggle" id="dayNightToggle">☀ Auto&nbsp;day/night</span>
+      <span class="hn-chip" id="coinChip" style="display:none;">🪙 <span id="coinBalance">0</span> KellsCoins</span>
+    </div>
   </div>
 
   <div id="mapView">
-    <div class="hn-map-grid" id="mapGrid"></div>
+    <div class="hn-stage" id="mapStage">
+      <canvas id="mapCanvas"></canvas>
+      <div class="hn-stage-hint"><b>Drag</b> to pan · <b>Scroll / pinch</b> to zoom · <b>Click a house</b> to visit</div>
+    </div>
   </div>
 
   <div id="mineView" style="display:none;">
@@ -259,550 +266,1671 @@
 </main>
 
 <script>
-  const API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
-    ? "http://localhost:4567/housing" : "https://api.kellinnovations.com/housing";
-  const GAMES_API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
-    ? "http://localhost:4567/games" : "https://api.kellinnovations.com/games";
+"use strict";
+/* ═══════════════════════════════════════════════════════════════════════
+   API layer (unchanged from the previous version)
+   ═══════════════════════════════════════════════════════════════════════ */
+const LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+const API = LOCAL ? "http://localhost:4567/housing" : "https://api.kellinnovations.com/housing";
+const GAMES_API = LOCAL ? "http://localhost:4567/games" : "https://api.kellinnovations.com/games";
 
-  async function api(path, opts) {
-    opts = opts || {};
-    const res = await fetch(API + path, {
-      method: opts.method || "GET", credentials: "include",
-      headers: opts.body ? { "Content-Type": "application/json" } : undefined,
-      body: opts.body ? JSON.stringify(opts.body) : undefined,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "Something went wrong");
-    return data;
+async function api(path, opts) {
+  opts = opts || {};
+  const res = await fetch(API + path, {
+    method: opts.method || "GET", credentials: "include",
+    headers: opts.body ? { "Content-Type": "application/json" } : undefined,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Something went wrong");
+  return data;
+}
+
+let currentUser = null;
+let catalogData = null;     // { items, pets, rooms, wall_colors, roof_colors, yard_colors, floor_colors }
+let mine = null;            // { house, rooms, placed, inventory, pets }
+let mapData = null;         // { houses: [...] }
+let selectedRoomKey = "yard";
+let armedItemId = null;
+let shopLocFilter = "all";
+
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let showLabels = true;
+let autoDayNight = false;
+let timeOfDay = 15.0;       // afternoon; no overlay
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+function hash2(x, y) {
+  let h = (x * 374761393 + y * 668265263) | 0;
+  h = (h ^ (h >>> 13)) * 1274126177 | 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+}
+function shade(hex, amt) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "#888888");
+  if (!m) return hex;
+  const f = v => {
+    v = parseInt(v, 16);
+    v = amt < 0 ? v * (1 + amt) : v + (255 - v) * amt;
+    return clamp(Math.round(v), 0, 255).toString(16).padStart(2, "0");
+  };
+  return `#${f(m[1])}${f(m[2])}${f(m[3])}`;
+}
+function rgba(hex, a) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "#000000");
+  if (!m) return hex;
+  return `rgba(${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)},${a})`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Footprints — MUST match housing/catalog.py FOOTPRINTS. The server also
+   sends w/h on every item; fp() prefers that and falls back to this table.
+   ═══════════════════════════════════════════════════════════════════════ */
+const FOOTPRINTS = {
+  rug: [3, 2], bed: [3, 4], sofa: [3, 2], tv: [2, 1], bookshelf: [1, 2], fridge: [1, 2],
+  piano: [3, 2], arcade: [2, 2], aquarium: [2, 1], home_theater: [4, 2], throne: [2, 2],
+  vault: [2, 2], disco: [2, 2],
+  bench: [2, 1], grill: [2, 1], firepit: [2, 2], hottub: [3, 2], hot_tub_gold: [3, 2],
+  jacuzzi_room: [3, 2], trampoline: [3, 3], hammock: [3, 1], gazebo: [3, 3], statue: [1, 2],
+  pool: [5, 4], court: [6, 4], helipad: [4, 4], ufo: [3, 2], dragon: [3, 3], mansion_gate: [4, 2],
+  basketball: [2, 1], palm: [2, 3], sunflower: [2, 2], fireworks: [2, 2],
+};
+function fp(itemOrKey) {
+  if (itemOrKey && typeof itemOrKey === "object") {
+    const t = FOOTPRINTS[itemOrKey.key] || [1, 1];
+    return [itemOrKey.w || t[0] || 1, itemOrKey.h || t[1] || 1];
   }
+  return FOOTPRINTS[itemOrKey] || [1, 1];
+}
+function catItem(key) { return (catalogData && catalogData.items || []).find(i => i.key === key) || null; }
 
-  let currentUser = null;
-  let catalogData = null;   // { items, pets, rooms, wall_colors, roof_colors, yard_colors, floor_colors }
-  let mine = null;          // { house, rooms, placed, inventory, pets }
-  let selectedRoomKey = "yard";
-  let armedItemId = null;
-  let shopLocFilter = "all";
-  let petTimers = [];       // active pet-wander intervals, cleared on every room re-render
-
-  function escHtml(s) {
-    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  }
-  function shade(hex, amt) {
-    // amt in [-1,1] — negative darkens, positive lightens. Cheap linear mix.
-    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "#888888");
-    if (!m) return hex;
-    const mix = v => {
-      v = parseInt(v, 16);
-      v = amt < 0 ? v * (1 + amt) : v + (255 - v) * amt;
-      return Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
-    };
-    return `#${mix(m[1])}${mix(m[2])}${mix(m[3])}`;
-  }
-
-  // ── House exterior (SVG) ────────────────────────────────────────────
-  function houseSVG(house, w) {
-    w = w || 150;
-    const h = w * 0.92;
-    const wall = house.wall_color, roof = house.roof_color;
-    const wallDk = shade(wall, -0.22), wallLt = shade(wall, 0.12);
-    const roofDk = shade(roof, -0.25);
-    const id = "hg" + Math.random().toString(36).slice(2, 8);
-    return `
-    <svg class="hn-ext" width="${w}" height="${h}" viewBox="0 0 150 138" role="img" aria-label="House">
-      <defs>
-        <linearGradient id="${id}w" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stop-color="${wallLt}"/><stop offset="0.5" stop-color="${wall}"/><stop offset="1" stop-color="${wallDk}"/>
-        </linearGradient>
-        <linearGradient id="${id}r" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="${shade(roof, 0.15)}"/><stop offset="1" stop-color="${roofDk}"/>
-        </linearGradient>
-      </defs>
-      <ellipse cx="75" cy="130" rx="62" ry="8" fill="rgba(0,0,0,0.25)"/>
-      <!-- walls -->
-      <rect x="26" y="60" width="98" height="66" rx="2" fill="url(#${id}w)"/>
-      <g stroke="rgba(0,0,0,0.10)" stroke-width="1">
-        <line x1="26" y1="74" x2="124" y2="74"/><line x1="26" y1="90" x2="124" y2="90"/>
-        <line x1="26" y1="106" x2="124" y2="106"/>
-      </g>
-      <!-- roof -->
-      <polygon points="75,20 134,62 16,62" fill="url(#${id}r)"/>
-      <polygon points="75,20 134,62 128,62 75,26" fill="rgba(255,255,255,0.14)"/>
-      <g stroke="${roofDk}" stroke-width="1.4" opacity="0.5">
-        <line x1="42" y1="52" x2="108" y2="52"/><line x1="30" y1="60" x2="120" y2="60"/>
-      </g>
-      <!-- chimney + smoke -->
-      <rect x="102" y="30" width="12" height="20" fill="${wallDk}"/>
-      <circle cx="108" cy="24" r="4" fill="rgba(255,255,255,0.16)"/>
-      <circle cx="113" cy="15" r="5" fill="rgba(255,255,255,0.10)"/>
-      <!-- door -->
-      <rect x="65" y="94" width="20" height="32" rx="2" fill="${shade(roof, -0.1)}"/>
-      <circle cx="80" cy="110" r="1.6" fill="#ffd166"/>
-      <!-- windows -->
-      <g>
-        <rect x="38" y="80" width="16" height="16" rx="2" fill="#cfe9ff" stroke="rgba(0,0,0,0.3)"/>
-        <rect x="96" y="80" width="16" height="16" rx="2" fill="#cfe9ff" stroke="rgba(0,0,0,0.3)"/>
-        <line x1="46" y1="80" x2="46" y2="96" stroke="rgba(0,0,0,0.25)"/>
-        <line x1="104" y1="80" x2="104" y2="96" stroke="rgba(0,0,0,0.25)"/>
-      </g>
-    </svg>`;
-  }
-
-  // ── Map ────────────────────────────────────────────────────────────
-  async function loadMap() {
-    const data = await api("/all");
-    const grid = document.getElementById("mapGrid");
-    grid.innerHTML = "";
-    data.houses.forEach(entry => {
-      const card = document.createElement("div");
-      card.className = "hn-house-card";
-      card.innerHTML = `
-        ${houseSVG(entry.house, 150)}
-        <div class="hn-owner">${escHtml(entry.avatar_emoji || "🙂")} ${escHtml(entry.name || "Member")}</div>
-        <div class="hn-card-stats">
-          <span>🚪 ${entry.room_count} room${entry.room_count === 1 ? "" : "s"}</span>
-          <span>🐾 ${entry.pet_count}</span>
-          <span>🪴 ${entry.yard_placed.length}</span>
-        </div>`;
-      card.addEventListener("click", () => openDetail(entry.user_id));
-      grid.appendChild(card);
-    });
-  }
-
-  async function openDetail(userId) {
-    const data = await api(`/house/${encodeURIComponent(userId)}`);
-    const yardRoom = (data.rooms || []).find(r => r.key === "yard");
-    const yardItems = (data.placed || []).filter(i => i.room_key === "yard");
-    const c = document.getElementById("detailContent");
-    c.innerHTML = `
-      <h3 style="text-align:center; margin-top:0;">${escHtml(data.avatar_emoji || "🙂")} ${escHtml(data.name || "Member")}'s House</h3>
-      <div style="display:flex; justify-content:center; margin-bottom:14px;">${houseSVG(data.house, 190)}</div>
-      <div class="hn-panel-title">Backyard</div>
-      <div id="detailRoom"></div>
-      <div class="hn-card-stats" style="justify-content:flex-start; margin-top:12px;">
-        <span>🚪 ${(data.rooms || []).length} rooms</span>
-        <span>🐾 ${(data.pets || []).length} pets</span>
-      </div>`;
-    document.getElementById("detailModal").classList.add("open");
-    if (yardRoom) {
-      renderRoom(document.getElementById("detailRoom"), data.house, yardRoom, yardItems,
-                 (data.pets || []).filter(p => p.room_key === "yard"), { editing: false, showHouse: false });
+/* ═══════════════════════════════════════════════════════════════════════
+   Pixel-sprite blitter — sprites are arrays of equal-length strings, each
+   char is a palette key, '.'/' ' transparent. 1 canvas unit per pixel.
+   ═══════════════════════════════════════════════════════════════════════ */
+function spr(str) {
+  const rows = str.split("\n").filter(r => r.length);
+  const w = Math.max(...rows.map(r => r.length));
+  return rows.map(r => r.padEnd(w, "."));
+}
+function blit(g, sprite, pal, ox, oy, flip) {
+  const w = sprite[0].length;
+  for (let r = 0; r < sprite.length; r++) {
+    const row = sprite[r];
+    for (let c = 0; c < w; c++) {
+      const ch = row[c];
+      if (ch === "." || ch === " ") continue;
+      const col = pal[ch];
+      if (!col) continue;
+      g.fillStyle = col;
+      g.fillRect(ox + (flip ? w - 1 - c : c), oy + r, 1, 1);
     }
   }
-  document.getElementById("closeDetail").addEventListener("click", () => document.getElementById("detailModal").classList.remove("open"));
-  document.getElementById("detailModal").addEventListener("click", e => { if (e.target.id === "detailModal") e.target.classList.remove("open"); });
-  document.getElementById("closePick").addEventListener("click", () => document.getElementById("pickModal").classList.remove("open"));
-  document.getElementById("pickModal").addEventListener("click", e => { if (e.target.id === "pickModal") e.target.classList.remove("open"); });
+}
 
-  // ── Flat 2D room grid (shared: editor + read-only detail view) ──────
-  // Plain grid of clickable squares — the room's ground colour with a light
-  // texture, one <div class="hn-cell"> per square, every one placeable.
-  // Pets are absolutely-positioned decoration *inside* the same element
-  // with pointer-events:none, so they never block a cell click.
-  function renderRoom(host, house, room, placedItems, pets, { editing, showHouse = true }) {
-    petTimers.forEach(clearInterval);
-    petTimers = [];
+/* people — 12×16, dirs S / N / E (W = E flipped), frames idle/a/b */
+const P_S_I = spr(`
+....hhhh....
+..hhhhhhhh..
+..hssssssh..
+..hs1ss1sh..
+..hssssssh..
+..hss11ssh..
+...hssssh...
+....1ss1....
+...tttttt...
+..tttttttt..
+.sttttttts..
+...tttttt...
+...pppppp...
+...pp..pp...
+...66..66...
+...66..66...`);
+const P_S_A = spr(`
+....hhhh....
+..hhhhhhhh..
+..hssssssh..
+..hs1ss1sh..
+..hssssssh..
+..hss11ssh..
+...hssssh...
+....1ss1....
+...tttttt...
+..tttttttt..
+s.tttttttt.s
+...tttttt...
+...pppppp...
+..ppp..pp...
+.66.....66..
+..6......6..`);
+const P_S_B = spr(`
+....hhhh....
+..hhhhhhhh..
+..hssssssh..
+..hs1ss1sh..
+..hssssssh..
+..hss11ssh..
+...hssssh...
+....1ss1....
+...tttttt...
+..tttttttt..
+s.tttttttt.s
+...tttttt...
+...pppppp...
+...pp..ppp..
+..66.....66.
+..6......6..`);
+const P_N_I = spr(`
+....hhhh....
+..hhhhhhhh..
+..hhhhhhhh..
+..hhhhhhhh..
+..hhhhhhhh..
+..hhhhhhhh..
+...hhhhhh...
+....1hh1....
+...tttttt...
+..tttttttt..
+.sttttttts..
+...tttttt...
+...pppppp...
+...pp..pp...
+...66..66...
+...66..66...`);
+const P_N_A = spr(`
+....hhhh....
+..hhhhhhhh..
+..hhhhhhhh..
+..hhhhhhhh..
+..hhhhhhhh..
+..hhhhhhhh..
+...hhhhhh...
+....1hh1....
+...tttttt...
+..tttttttt..
+s.tttttttt.s
+...tttttt...
+...pppppp...
+..ppp..pp...
+.66.....66..
+..6......6..`);
+const P_N_B = spr(`
+....hhhh....
+..hhhhhhhh..
+..hhhhhhhh..
+..hhhhhhhh..
+..hhhhhhhh..
+..hhhhhhhh..
+...hhhhhh...
+....1hh1....
+...tttttt...
+..tttttttt..
+s.tttttttt.s
+...tttttt...
+...pppppp...
+...pp..ppp..
+..66.....66.
+..6......6..`);
+const P_E_I = spr(`
+...hhhh.....
+..hhhhhh....
+..hhsssss...
+..hhss11s...
+..hhsssss...
+..hhssss1...
+...hhsss....
+....1ss.....
+...ttttt....
+..tttttt....
+..ttttts....
+...ttttt....
+...ppppp....
+...pp.pp....
+..66..6.....
+..6...6.....`);
+const P_E_A = spr(`
+...hhhh.....
+..hhhhhh....
+..hhsssss...
+..hhss11s...
+..hhsssss...
+..hhssss1...
+...hhsss....
+....1ss.....
+...ttttt....
+..tttttt....
+.stttttt....
+...ttttt....
+...ppppp....
+..pp...pp...
+.66.....6...
+.6......6...`);
+const P_E_B = spr(`
+...hhhh.....
+..hhhhhh....
+..hhsssss...
+..hhss11s...
+..hhsssss...
+..hhssss1...
+...hhsss....
+....1ss.....
+...ttttt....
+..tttttt....
+..tttttts...
+...ttttt....
+...ppppp....
+...ppp.pp...
+..6....66...
+..6.....6...`);
+const PEOPLE_SPR = { S: [P_S_I, P_S_A, P_S_B], N: [P_N_I, P_N_A, P_N_B], E: [P_E_I, P_E_A, P_E_B] };
+const HAIR  = ["#2b1b12", "#5a3821", "#141414", "#7a5c3a", "#caa24a", "#8a8a94", "#a83c2a"];
+const SHIRT = ["#c0432f", "#2f6dc0", "#3aa657", "#c99a2e", "#7d4fbf", "#c04f8a", "#d7d7e0", "#2b2b3a", "#1f8f8f"];
+const PANTS = ["#37415a", "#5a4632", "#2a2a33", "#6a2f2f", "#3a5a44", "#444"];
 
-    const cols = room.grid_cols, rows = room.grid_rows;
-    const outdoor = room.kind === "outdoor";
-    const ground = outdoor ? house.yard_color : house.floor_color;
-    const bg = outdoor
-      ? `repeating-linear-gradient(115deg, rgba(255,255,255,0.06) 0 2px, transparent 2px 24px),
-         linear-gradient(160deg, ${shade(ground, 0.12)}, ${shade(ground, -0.12)})`
-      : `repeating-linear-gradient(90deg, rgba(0,0,0,0.10) 0 1px, transparent 1px 32px),
-         linear-gradient(160deg, ${shade(ground, 0.08)}, ${shade(ground, -0.14)})`;
+/* pets — side view, face right, 4 walk frames + 1 sit */
+const CAT_W = [
+spr(`
+................
+.b.........bb...
+.bb.......b..b..
+..b......bbbbbb.
+..bb....bbdbbb1.
+..db...bbbbbbbb.
+...bbbbbbbbbbbc.
+..bbbbbbbbbbbbb.
+..bdbbdbbdbbbbb.
+..bccccccccccb..
+..b..b...b..b...
+..1..1...1..1...`),
+spr(`
+................
+b..........bb...
+bb........b..b..
+.b.......bbbbbb.
+.bb.....bbdbbb1.
+.db....bbbbbbbb.
+..bbbbbbbbbbbbc.
+.bbbbbbbbbbbbbb.
+.bdbbdbbdbbbbbb.
+.bccccccccccb...
+..b.b....b.b....
+..1.1....1.1....`),
+spr(`
+................
+.bb........bb...
+b..b......b..b..
+.bb......bbbbbb.
+..bb....bbdbbb1.
+..db...bbbbbbbb.
+...bbbbbbbbbbbc.
+..bbbbbbbbbbbbb.
+..bdbbdbbdbbbbb.
+..bccccccccccb..
+...b..b.b..b....
+...1..1.1..1....`),
+spr(`
+................
+..bb.......bb...
+.b..b.....b..b..
+..bb.....bbbbbb.
+...bb...bbdbbb1.
+...db..bbbbbbbb.
+....bbbbbbbbbbc.
+...bbbbbbbbbbbb.
+...bdbbdbbdbbbb.
+...bcccccccccb..
+....bb.....bb...
+....11.....11...`)];
+const CAT_SIT = spr(`
+................
+..........bb....
+.........b..b...
+.........bbbbb..
+.b.......bdbb1..
+.bb.....bbbbbbc.
+..b....bbbbbbbb.
+..bb..bbbbbbbbb.
+...bbbbbbbbbbcb.
+...bccccccccbb..
+...b.......b....
+...1.......1....`);
+const DOG_W = [
+spr(`
+....................
+.b................b.
+.bb..............bbb
+..b.............bbbb
+..bb..........bbbbb1
+...bbbbbbbbbbbbbbbmm
+..bbbbbbbbbbbbbbbbmm
+..bdbbbbbdbbbbbbbb1.
+..bbbbbbbbbbbbbbbb..
+..bmmmmmmmmmmmmmmb..
+..b..b......b...b...
+..b..b......b...b...
+..1..1......1...1...`),
+spr(`
+....................
+b.................b.
+bb...............bbb
+.b..............bbbb
+.bb...........bbbbb1
+..bbbbbbbbbbbbbbbbmm
+.bbbbbbbbbbbbbbbbbmm
+.bdbbbbbdbbbbbbbbb1.
+.bbbbbbbbbbbbbbbbb..
+.bmmmmmmmmmmmmmmmb..
+..b.b........b.b....
+..b.b........b.b....
+..1.1........1.1....`),
+spr(`
+....................
+.bb...............b.
+b..b.............bbb
+.bb.............bbbb
+..bb..........bbbbb1
+...bbbbbbbbbbbbbbbmm
+..bbbbbbbbbbbbbbbbmm
+..bdbbbbbdbbbbbbbb1.
+..bbbbbbbbbbbbbbbb..
+..bmmmmmmmmmmmmmmb..
+...b...b...b..b.....
+...b...b...b..b.....
+...1...1...1..1.....`),
+spr(`
+....................
+..bb..............b.
+.b..b............bbb
+..bb............bbbb
+...bb.........bbbbb1
+...bbbbbbbbbbbbbbbmm
+..bbbbbbbbbbbbbbbbmm
+..bdbbbbbdbbbbbbbb1.
+..bbbbbbbbbbbbbbbb..
+..bmmmmmmmmmmmmmmb..
+...bb.......bb......
+...bb.......bb......
+...11.......11......`)];
+const DOG_SIT = spr(`
+....................
+.................b..
+.b..............bbb.
+.bb............bbbbb
+..b..........bbbbbb1
+..bb......bbbbbbbbmm
+...bbbbbbbbbbbbbbbmm
+...bbbbbbbbbbbbbbb1.
+...bdbbbbbdbbbbbbb..
+...bmmmmmmmmmmmbb...
+...b..........b.b...
+...b..........b.b...
+...1..........1.1...`);
+const BUN_W = [
+spr(`
+...b........
+...bb.......
+.b.bb.......
+.bbbb.......
+.bbbb..bbbb.
+..bbbbbbbbb1
+..bbbbbbbbmm
+..bbbbbbbbb.
+..wwwwwwwww.
+..b.b...b.b.
+..1.1...1.1.`),
+spr(`
+...b........
+...bb.......
+.b.bb..bbbb.
+.bbbbbbbbbb1
+.bbbbbbbbbmm
+..bbbbbbbbb.
+..bbbbbbbbb.
+..wwwwwwwww.
+..bb.....bb.
+...b.....b..
+...1.....1..`)];
+const BUN_SIT = spr(`
+...b....
+...bb...
+.b.bb...
+.bbbbbb.
+.bbbbbb1
+..bbbbmm
+..bbbbb.
+..wwwww.
+..b...b.
+..1...1.`);
+const PAR_W = [
+spr(`
+....yy...
+...yyyy..
+..yyyyr1.
+..yyyyrr.
+.gyyyyg..
+.ggyygg..
+..gggg...
+..g..g...
+..1..1...`),
+spr(`
+....yy...
+...yyyy..
+..yyyyr1.
+..yyyyrr.
+.gyyyyg..
+gggyyggg.
+..gggg...
+..gg.g...
+..1..1...`)];
+const PAR_SIT = spr(`
+....yy...
+...yyyy..
+..yyyyr1.
+..yyyyrr.
+..gyyyg..
+..ggggg..
+..ggggg..
+...g.g...
+...1.1...`);
+const FOX_W = [
+spr(`
+r..............r..
+rr............rrr.
+.rr...........rrrr
+..r..........rrrr1
+..rr.......rrrrrww
+...rrrrrrrrrrrrrww
+..rrrrrrrrrrrrrr1.
+..rdrrrrdrrrrrrr..
+..rwwwwwwwwwwwwr..
+..r.r......r..r...
+..1.1......1..1...`),
+spr(`
+r.............r...
+rr...........rrr..
+.rr..........rrrr.
+..r.........rrrr1.
+..rr......rrrrrww.
+...rrrrrrrrrrrrww.
+..rrrrrrrrrrrrr1..
+..rdrrrrdrrrrrr...
+..rwwwwwwwwwwwr...
+...r.r....r.r.....
+...1.1....1.1.....`)];
+const FOX_SIT = spr(`
+r............r...
+rr..........rrr..
+.rr.........rrrr.
+..r........rrrr1.
+..rr.....rrrrrww.
+...rrrrrrrrrrrww.
+...rrrrrrrrrrr1..
+...rdrrrrdrrrr...
+...rwwwwwwwwbb...
+...r........b.b..
+...1........1.1..`);
+const PET_SPRITES = {
+  cat:    { walk: CAT_W, sit: CAT_SIT, w: 16, h: 12, pal: { b: "#e08a3c", d: "#c06a22", c: "#f6e7d4", 1: "#20140f" } },
+  dog:    { walk: DOG_W, sit: DOG_SIT, w: 20, h: 13, pal: { b: "#c8894a", d: "#a86a30", m: "#f2e6cf", 1: "#1c130e" } },
+  bunny:  { walk: BUN_W, sit: BUN_SIT, w: 12, h: 11, pal: { b: "#b9b0a6", w: "#f2ede4", m: "#e7c4cc", 1: "#1c130e" } },
+  parrot: { walk: PAR_W, sit: PAR_SIT, w: 9,  h: 9,  pal: { y: "#f2c53d", g: "#3aa657", r: "#d94e3c", 1: "#141414" } },
+  fox:    { walk: FOX_W, sit: FOX_SIT, w: 18, h: 12, pal: { r: "#d9743a", d: "#b4551f", w: "#f0e6d6", b: "#2a2a30", 1: "#141010" } },
+};
 
-    // The Front Yard shows the house exterior sitting right on top of the
-    // grid (house + front door + yard), the way the original neighborhood
-    // looked. Other rooms just get a small label.
-    let header = "";
-    if (room.key === "yard" && showHouse)
-      header = `<div style="display:flex; justify-content:center; margin-bottom:-8px;">${houseSVG(house, 190)}</div>`;
-    else if (room.key !== "yard")
-      header = `<div class="hn-room-label">${room.kind === "outdoor" ? "🌳" : "🛋️"} ${escHtml(room.name)}</div>`;
+/* ═══════════════════════════════════════════════════════════════════════
+   House exterior (pixel, palette-swapped per member)
+   ═══════════════════════════════════════════════════════════════════════ */
+function drawHouse(g, colors, bx, by, night, smoke) {
+  const wall = colors.wall_color, roof = colors.roof_color;
+  const bw = 50, bh = 34, rh = 21, over = 6;
+  const x0 = bx - bw / 2, y0 = by - bh;
+  g.fillStyle = "rgba(0,0,0,0.26)";
+  g.beginPath(); g.ellipse(bx, by, bw / 2 + 3, 8, 0, 0, 7); g.fill();
 
-    host.innerHTML = `
-      <div class="hn-room-wrap">
-        ${header}
-        <div class="hn-room ${editing ? "editing" : ""}"
-             style="aspect-ratio:${cols}/${rows};
-                    grid-template-columns:repeat(${cols},1fr);
-                    grid-template-rows:repeat(${rows},1fr);
-                    background:${bg};"></div>
-      </div>`;
+  g.fillStyle = wall; g.fillRect(x0, y0, bw, bh);
+  g.fillStyle = shade(wall, -0.13); g.fillRect(x0 + bw * 0.66, y0, bw * 0.34, bh);
+  g.fillStyle = shade(wall, 0.16);  g.fillRect(x0, y0, 2, bh);
+  g.fillStyle = shade(wall, -0.32); g.fillRect(x0, by - 4, bw, 4);
 
-    const roomEl = host.querySelector(".hn-room");
-    const byCell = {};
-    placedItems.forEach(i => { byCell[`${i.x},${i.y}`] = i; });
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        const cell = document.createElement("div");
-        cell.className = "hn-cell";
-        cell.dataset.x = x; cell.dataset.y = y;
-        const it = byCell[`${x},${y}`];
-        if (it) {
-          cell.dataset.itemId = it.id;
-          cell.innerHTML = `<span class="glyph" title="${escHtml(it.name)}">${it.emoji}</span>`;
-        }
-        if (editing) cell.addEventListener("click", () => onCellClick(x, y, it));
-        roomEl.appendChild(cell);
-      }
-    }
+  g.fillStyle = shade(roof, -0.18); g.fillRect(bx - 6, by - 21, 12, 21);
+  g.fillStyle = shade(roof, -0.34); g.fillRect(bx - 6, by - 21, 12, 2);
+  g.fillStyle = "#f4c65a"; g.fillRect(bx + 3, by - 11, 1, 2);
+  g.fillStyle = shade(wall, 0.2); g.fillRect(bx - 9, by - 2, 18, 2);
 
-    pets.forEach(p => spawnPet(roomEl, p));
-  }
-
-  function spawnPet(roomEl, pet) {
-    const el = document.createElement("div");
-    el.className = "hn-pet";
-    el.innerHTML = `${pet.emoji}<span class="tag">${escHtml(pet.name)}</span>`;
-    el.style.left = (10 + Math.random() * 70) + "%";
-    el.style.top = (12 + Math.random() * 66) + "%";
-    el.style.transition = "left 2s linear, top 2s linear, transform 0.3s";
-    roomEl.appendChild(el);
-    const step = () => {
-      const nx = 5 + Math.random() * 82, ny = 8 + Math.random() * 74;
-      const facing = nx < parseFloat(el.style.left) ? -1 : 1;
-      el.style.transform = `scaleX(${facing})`;
-      el.style.left = nx + "%";
-      el.style.top = ny + "%";
-    };
-    setTimeout(step, 200 + Math.random() * 1500);
-    petTimers.push(setInterval(step, 2600 + Math.random() * 1800));
-  }
-
-  // ── "My House" editor ──────────────────────────────────────────────
-  async function loadMine() {
-    mine = await api("/mine");
-    if (!mine.rooms.some(r => r.key === selectedRoomKey)) selectedRoomKey = mine.rooms[0] ? mine.rooms[0].key : "yard";
-    renderEditor();
-  }
-
-  function currentRoom() { return mine.rooms.find(r => r.key === selectedRoomKey) || mine.rooms[0]; }
-
-  function renderEditor() {
-    const wrap = document.getElementById("editorWrap");
-    const room = currentRoom();
-    const { house } = mine;
-
-    wrap.innerHTML = `
-      <div class="hn-mine-grid">
-        <div>
-          <div class="hn-panel">
-            <div class="hn-roombar" id="roomBar"></div>
-            <div id="roomHost"></div>
-            <div class="hn-room-actions" id="roomActions"></div>
-            <div class="hn-error" id="hnError"></div>
-            <p class="hn-hint" id="roomHint"></p>
-          </div>
-
-          <div class="hn-panel">
-            <div class="hn-panel-title">Colors</div>
-            <div class="hn-sub">Walls</div><div class="hn-swatch-row" data-kind="wall_color">${swatches(catalogData.wall_colors, house.wall_color)}</div>
-            <div class="hn-sub">Roof</div><div class="hn-swatch-row" data-kind="roof_color">${swatches(catalogData.roof_colors, house.roof_color)}</div>
-            <div class="hn-sub">Backyard grass</div><div class="hn-swatch-row" data-kind="yard_color">${swatches(catalogData.yard_colors, house.yard_color)}</div>
-            <div class="hn-sub">Indoor floor</div><div class="hn-swatch-row" data-kind="floor_color">${swatches(catalogData.floor_colors, house.floor_color)}</div>
-          </div>
-        </div>
-
-        <div>
-          <div class="hn-panel">
-            <div class="hn-panel-title">Inventory ${armedItemId ? "— pick a cell in the room" : "— click an item to place it"}</div>
-            <div class="hn-inv-row" id="invRow"></div>
-          </div>
-
-          <div class="hn-panel">
-            <div class="hn-panel-title">Pets</div>
-            <div class="hn-pet-list" id="petList"></div>
-            <button class="hn-mini-btn ghost" id="adoptBtn" style="margin-top:10px;">🐾 Adopt a pet</button>
-          </div>
-
-          <div class="hn-panel">
-            <div class="hn-panel-title">Shop</div>
-            <div class="hn-loc-toggle" id="locToggle">
-              <button data-loc="all" class="${shopLocFilter === "all" ? "active" : ""}">All</button>
-              <button data-loc="indoor" class="${shopLocFilter === "indoor" ? "active" : ""}">Indoor</button>
-              <button data-loc="outdoor" class="${shopLocFilter === "outdoor" ? "active" : ""}">Outdoor</button>
-            </div>
-            <div class="hn-shop-grid" id="shopGrid"></div>
-          </div>
-        </div>
-      </div>`;
-
-    renderRoomBar();
-    renderRoom(document.getElementById("roomHost"), house, room,
-               mine.placed.filter(i => i.room_key === selectedRoomKey),
-               mine.pets.filter(p => p.room_key === selectedRoomKey), { editing: true });
-    renderRoomActions();
-    renderInventory();
-    renderPets();
-    renderShop();
-    updateRoomHint();
-
-    wrap.querySelectorAll(".hn-swatch-row").forEach(rowEl => {
-      rowEl.querySelectorAll(".hn-swatch").forEach(sw => sw.addEventListener("click", async () => {
-        try {
-          const body = {}; body[rowEl.dataset.kind] = sw.dataset.color;
-          mine.house = await api("/customize", { method: "POST", body });
-          renderEditor();
-        } catch (e) { showError(e.message); }
-      }));
-    });
-    document.getElementById("locToggle").querySelectorAll("button").forEach(b =>
-      b.addEventListener("click", () => { shopLocFilter = b.dataset.loc; renderShop();
-        document.getElementById("locToggle").querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b)); }));
-    document.getElementById("adoptBtn").addEventListener("click", openAdoptPicker);
-  }
-
-  function swatches(colors, current) {
-    return colors.map(c => `<div class="hn-swatch ${c === current ? "selected" : ""}" style="background:${c};" data-color="${c}"></div>`).join("");
-  }
-
-  function renderRoomBar() {
-    const bar = document.getElementById("roomBar");
-    bar.innerHTML = mine.rooms.map(r =>
-      `<div class="hn-room-pill ${r.key === selectedRoomKey ? "active" : ""}" data-key="${r.key}">
-         ${r.kind === "outdoor" ? "🌳" : "🛋️"} ${escHtml(r.name)}
-         <span class="lvl">Lv ${r.level}</span>
-       </div>`).join("") +
-      `<div class="hn-room-pill add" id="buildRoomPill">＋ Build room</div>`;
-    bar.querySelectorAll(".hn-room-pill[data-key]").forEach(p => p.addEventListener("click", () => {
-      selectedRoomKey = p.dataset.key; armedItemId = null; renderEditor();
-    }));
-    document.getElementById("buildRoomPill").addEventListener("click", openBuildPicker);
-  }
-
-  function renderRoomActions() {
-    const room = currentRoom();
-    const host = document.getElementById("roomActions");
-    const maxLvl = catalogData.rooms.max_level;
-    if (room.level >= maxLvl) {
-      host.innerHTML = `<span class="hn-empty-note">${escHtml(room.name)} is fully upgraded (Lv ${maxLvl}).</span>`;
-      return;
-    }
-    const next = room.level + 1;
-    const cost = catalogData.rooms.upgrade_cost[next] ?? catalogData.rooms.upgrade_cost[String(next)];
-    const afford = currentUser && currentUser.kellscoins >= cost;
-    host.innerHTML = `<button class="hn-mini-btn" id="upgradeBtn" ${afford ? "" : "disabled"}>
-      ⬆ Upgrade to Lv ${next} — 🪙 ${cost.toLocaleString()} (bigger grid)</button>`;
-    document.getElementById("upgradeBtn").addEventListener("click", async () => {
-      try {
-        const res = await api("/rooms/upgrade", { method: "POST", body: { room_key: room.key } });
-        currentUser.kellscoins = res.balance; updateCoinChip();
-        const idx = mine.rooms.findIndex(r => r.key === room.key);
-        mine.rooms[idx] = res.room;
-        renderEditor();
-      } catch (e) { showError(e.message); }
-    });
-  }
-
-  function updateRoomHint() {
-    const room = currentRoom();
-    const el = document.getElementById("roomHint");
-    if (armedItemId) {
-      const it = mine.inventory.find(i => i.id === armedItemId);
-      el.textContent = it ? `Placing "${it.name}" — click an empty cell. Click it again to cancel.` : "";
+  const winY = y0 + 9;
+  for (const wx of [x0 + 6, x0 + bw - 18]) {
+    if (night > 0.05) {
+      g.fillStyle = "#ffce6b"; g.fillRect(wx, winY, 12, 10);
+      g.fillStyle = "#fff0c2"; g.fillRect(wx + 1, winY + 1, 4, 3);
+      GLOWS.push({ x: wx + 6, y: winY + 5, r: 34, col: "#ffcf7a", i: night * 0.9 });
     } else {
-      el.textContent = `${room.kind === "outdoor" ? "Outdoor" : "Indoor"} room, ${room.grid_cols}×${room.grid_rows}. Click a placed item to pick it back up.`;
+      g.fillStyle = "#bfe3f2"; g.fillRect(wx, winY, 12, 10);
+      g.fillStyle = "#dff3fb"; g.fillRect(wx + 1, winY + 1, 4, 3);
+    }
+    g.fillStyle = shade(wall, -0.4);
+    g.fillRect(wx - 1, winY - 1, 14, 1); g.fillRect(wx - 1, winY + 10, 14, 1);
+    g.fillRect(wx - 1, winY - 1, 1, 12); g.fillRect(wx + 12, winY - 1, 1, 12);
+    g.fillRect(wx + 5, winY, 1, 10); g.fillRect(wx, winY + 4, 12, 1);
+  }
+
+  g.fillStyle = roof;
+  g.beginPath();
+  g.moveTo(x0 - over, y0); g.lineTo(x0 + bw + over, y0);
+  g.lineTo(bx + bw / 2 - 5, y0 - rh); g.lineTo(bx - bw / 2 + 5, y0 - rh);
+  g.closePath(); g.fill();
+  g.fillStyle = shade(roof, 0.22);
+  g.fillRect(bx - bw / 2 + 5, y0 - rh, bw - 10, 2);
+  g.strokeStyle = shade(roof, -0.24); g.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const yy = y0 - rh + (rh / 4) * i, inset = (over + 5) * (i / 4);
+    g.beginPath(); g.moveTo(x0 - over + inset, yy); g.lineTo(x0 + bw + over - inset, yy); g.stroke();
+  }
+  g.fillStyle = shade(wall, 0.1);
+  g.beginPath();
+  g.moveTo(bx, y0 - rh + 3); g.lineTo(bx - 7, y0 - 1); g.lineTo(bx + 7, y0 - 1);
+  g.closePath(); g.fill();
+
+  if (smoke) {
+    g.fillStyle = shade(wall, -0.3); g.fillRect(bx + 13, y0 - rh + 1, 7, 15);
+    g.fillStyle = shade(wall, -0.45); g.fillRect(bx + 13, y0 - rh + 1, 7, 2);
+    for (const s of smoke) {
+      g.fillStyle = rgba("#e8e8ef", s.a * (0.35 + night * 0.4));
+      g.fillRect(Math.round(s.x), Math.round(s.y), s.sz, s.sz);
+    }
+  }
+}
+function stepSmoke(arr, dt, ox, oy) {
+  if (REDUCED) return;
+  arr._acc = (arr._acc || 0) + dt;
+  if (arr._acc > 0.42) { arr._acc = 0; arr.push({ x: ox, y: oy, vy: 7 + Math.random() * 4, a: 0.6, sz: 2, life: 0 }); }
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const s = arr[i];
+    s.life += dt; s.y -= s.vy * dt; s.x += Math.sin(s.life * 2) * 6 * dt;
+    s.a -= dt * 0.28; s.sz = 2 + s.life * 2.4;
+    if (s.a <= 0) arr.splice(i, 1);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Item sprites — drawn to footprint. px,py = top-left px; TP = tile px;
+   w,h = footprint tiles; t = time seconds. Core set hand-drawn, everything
+   else falls back to a category shape sized to the same footprint. Add
+   more real ones here freely; nothing breaks if a key is missing.
+   ═══════════════════════════════════════════════════════════════════════ */
+function R(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(x, y, w, h); }
+
+const ITEM_DRAW = {
+  rug(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x, y, W, H, "#8a4b3a"); R(g, x + TP * 0.18, y + TP * 0.18, W - TP * 0.36, H - TP * 0.36, "#a05c47");
+    g.strokeStyle = "#c98a6a"; g.lineWidth = Math.max(2, TP * 0.09);
+    g.beginPath();
+    g.moveTo(x + TP * 0.3, y + H / 2); g.lineTo(x + W / 2, y + TP * 0.3);
+    g.lineTo(x + W - TP * 0.3, y + H / 2); g.lineTo(x + W / 2, y + H - TP * 0.3);
+    g.closePath(); g.stroke();
+    g.fillStyle = "#d8b48c";
+    for (let i = x + TP * 0.1; i < x + W - TP * 0.1; i += TP * 0.3) { g.fillRect(i, y - TP * 0.12, TP * 0.12, TP * 0.18); g.fillRect(i, y + H - TP * 0.06, TP * 0.12, TP * 0.18); }
+  },
+  bed(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x, y - TP * 0.28, W, H + TP * 0.28, "#6b4a30");
+    R(g, x + TP * 0.12, y, W - TP * 0.24, H - TP * 0.16, "#e9e4d7");
+    R(g, x + TP * 0.12, y + H * 0.42, W - TP * 0.24, H * 0.58 - TP * 0.16, "#4f7cae");
+    R(g, x + TP * 0.12, y + H * 0.42, W - TP * 0.24, TP * 0.12, "#6f9ac8");
+    R(g, x + TP * 0.25, y + TP * 0.18, (W - TP * 0.5) / 2 - TP * 0.1, TP * 0.5, "#fbfbf5");
+    R(g, x + TP * 0.25 + (W - TP * 0.5) / 2 + TP * 0.05, y + TP * 0.18, (W - TP * 0.5) / 2 - TP * 0.1, TP * 0.5, "#fbfbf5");
+  },
+  sofa(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x, y - TP * 0.5, W, TP * 0.62, "#3f6f52");
+    R(g, x, y, W, H, "#4f8466");
+    for (let i = 1; i < w; i++) R(g, x + i * TP - 1, y, 2, H, "#3f6f52");
+    R(g, x - TP * 0.12, y - TP * 0.35, TP * 0.26, H + TP * 0.35, "#3a6249");
+    R(g, x + W - TP * 0.14, y - TP * 0.35, TP * 0.26, H + TP * 0.35, "#3a6249");
+  },
+  tv(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x + TP * 0.1, y + H * 0.2, W - TP * 0.2, H * 0.7, "#3d2f24");     // stand
+    const sw = W * 0.96, sh = TP * 1.9, sx = x + (W - sw) / 2, sy = y - sh + H * 0.15;
+    R(g, x + W / 2 - 2, sy + sh - 2, 4, 6, "#222");
+    R(g, sx, sy, sw, sh, "#15151a"); R(g, sx + 3, sy + 3, sw - 6, sh - 6, "#2b3b4a");
+    g.fillStyle = "#41586b";
+    g.beginPath(); g.moveTo(sx + 3, sy + sh - 3); g.lineTo(sx + sw * 0.5, sy + 3);
+    g.lineTo(sx + sw * 0.5 + 8, sy + 3); g.closePath(); g.fill();
+  },
+  bookshelf(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x, y, W, H, "#6b4a30"); R(g, x + 2, y + 2, W - 4, H - 4, "#4a3320");
+    for (let s = 0; s < h; s++) {
+      const sy = y + 3 + s * ((H - 6) / h);
+      R(g, x + 2, sy + (H - 6) / h - 3, W - 4, 3, "#6b4a30");
+      for (let b = 0, bx = x + 4; bx < x + W - 4; b++, bx += Math.max(4, TP * 0.16)) {
+        g.fillStyle = ["#c0432f", "#2f6dc0", "#3aa657", "#c99a2e", "#7d4fbf", "#d7d7e0"][(s * 3 + b) % 6];
+        g.fillRect(bx, sy + 3, Math.max(3, TP * 0.11), (H - 6) / h - 8);
+      }
+    }
+  },
+  fridge(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x + TP * 0.05, y, W - TP * 0.1, H, "#d9dde2");
+    R(g, x + TP * 0.05, y, TP * 0.14, H, "#eef1f4");
+    R(g, x + TP * 0.05, y + H * 0.42, W - TP * 0.1, 2, "#9aa0a6");
+    R(g, x + W - TP * 0.34, y + H * 0.12, TP * 0.14, H * 0.22, "#9aa0a6");
+    R(g, x + W - TP * 0.34, y + H * 0.55, TP * 0.14, H * 0.3, "#9aa0a6");
+  },
+  bench(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x, y + H * 0.28, W, H * 0.22, "#9a6b3f");
+    R(g, x, y, W, H * 0.12, "#8a5c33");
+    R(g, x + TP * 0.1, y + H * 0.5, TP * 0.16, H * 0.5, "#6b4a2b");
+    R(g, x + W - TP * 0.26, y + H * 0.5, TP * 0.16, H * 0.5, "#6b4a2b");
+  },
+  grill(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x + W * 0.3, y + H * 0.55, TP * 0.12, H * 0.45, "#333");
+    R(g, x + W * 0.62, y + H * 0.55, TP * 0.12, H * 0.45, "#333");
+    g.fillStyle = "#2b2b2f"; g.beginPath(); g.ellipse(x + W / 2, y + H * 0.45, W * 0.4, H * 0.32, 0, 0, 7); g.fill();
+    g.fillStyle = "#555"; g.beginPath(); g.ellipse(x + W / 2, y + H * 0.4, W * 0.36, H * 0.22, 0, Math.PI, 0); g.fill();
+    R(g, x + W * 0.1, y + H * 0.15, TP * 0.5, TP * 0.12, "#444");
+  },
+  firepit(g, x, y, TP, w, h, t) {
+    const cx = x + w * TP / 2, cy = y + h * TP / 2, rr = Math.min(w, h) * TP * 0.42;
+    g.fillStyle = "#6a6a72";
+    for (let a = 0; a < 8; a++) { const an = a / 8 * Math.PI * 2; g.fillRect(cx + Math.cos(an) * rr - 3, cy + Math.sin(an) * rr - 3, 6, 6); }
+    const f = REDUCED ? 0.6 : 0.5 + Math.abs(Math.sin(t * 6)) * 0.5;
+    g.fillStyle = "#e8622a"; g.beginPath(); g.ellipse(cx, cy, rr * 0.55, rr * 0.75 * f, 0, 0, 7); g.fill();
+    g.fillStyle = "#f6b23c"; g.beginPath(); g.ellipse(cx, cy + 2, rr * 0.3, rr * 0.5 * f, 0, 0, 7); g.fill();
+    GLOWS.push({ x: cx, y: cy, r: 40, col: "#ff8a3c", i: 0.5 });
+  },
+  hottub(g, x, y, TP, w, h, t) {
+    const W = w * TP, H = h * TP;
+    R(g, x, y, W, H, "#5a3f2b"); R(g, x + TP * 0.16, y + TP * 0.16, W - TP * 0.32, H - TP * 0.32, "#2f7f9c");
+    g.fillStyle = "#bfe6f0";
+    for (let i = 0; i < 6; i++) {
+      const px = x + TP * 0.3 + (hash2(i, 3) * (W - TP * 0.6));
+      const py = y + TP * 0.3 + ((t * 20 + i * 14) % (H - TP * 0.6));
+      g.fillRect(px, y + H - TP * 0.3 - py + y, 3, 3);
+    }
+  },
+  hot_tub_gold(g, x, y, TP, w, h, t) {
+    const W = w * TP, H = h * TP;
+    R(g, x, y, W, H, "#b9902e"); R(g, x + TP * 0.16, y + TP * 0.16, W - TP * 0.32, H - TP * 0.32, "#2f7f9c");
+    R(g, x, y, W, TP * 0.12, "#e8c964");
+  },
+  pool(g, x, y, TP, w, h, t) {
+    const W = w * TP, H = h * TP;
+    R(g, x, y, W, H, "#cfd4d8"); R(g, x + TP * 0.2, y + TP * 0.2, W - TP * 0.4, H - TP * 0.4, "#2f9fd4");
+    g.strokeStyle = rgba("#ffffff", 0.5); g.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      g.beginPath();
+      const yy = y + TP * 0.5 + i * (H - TP) / 3 + (REDUCED ? 0 : Math.sin(t * 2 + i) * 3);
+      g.moveTo(x + TP * 0.3, yy); g.lineTo(x + W - TP * 0.3, yy); g.stroke();
+    }
+    R(g, x + W - TP * 0.5, y - TP * 0.15, TP * 0.12, TP * 0.5, "#dfe3e6");
+  },
+  trampoline(g, x, y, TP, w, h) {
+    const cx = x + w * TP / 2, cy = y + h * TP / 2, rx = w * TP * 0.46, ry = h * TP * 0.4;
+    g.fillStyle = "#2b2b33"; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, 7); g.fill();
+    g.fillStyle = "#3a3f52"; g.beginPath(); g.ellipse(cx, cy, rx * 0.82, ry * 0.82, 0, 0, 7); g.fill();
+    g.strokeStyle = "#8a8f9c"; g.lineWidth = 1;
+    for (let a = 0; a < 12; a++) { const an = a / 12 * 7; g.beginPath(); g.moveTo(cx + Math.cos(an) * rx * 0.82, cy + Math.sin(an) * ry * 0.82); g.lineTo(cx + Math.cos(an) * rx, cy + Math.sin(an) * ry); g.stroke(); }
+  },
+  statue(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x + W * 0.1, y + H * 0.8, W * 0.8, H * 0.2, "#9a9a9a");
+    R(g, x + W * 0.28, y + H * 0.18, W * 0.44, H * 0.62, "#c2c2c2");
+    R(g, x + W * 0.34, y, W * 0.32, H * 0.22, "#cfcfcf");
+  },
+  plant_pot(g, x, y, TP) {
+    const cx = x + TP / 2;
+    R(g, cx - TP * 0.24, y + TP * 0.58, TP * 0.48, TP * 0.34, "#c07a48");
+    R(g, cx - TP * 0.28, y + TP * 0.46, TP * 0.56, TP * 0.16, "#a5602f");
+    R(g, cx - TP * 0.2, y + TP * 0.08, TP * 0.4, TP * 0.42, "#3f7d38");
+    R(g, cx - TP * 0.12, y - TP * 0.06, TP * 0.22, TP * 0.24, "#5aa94d");
+    R(g, cx - TP * 0.16, y + TP * 0.2, TP * 0.1, TP * 0.1, "#f2e34d");
+    R(g, cx + TP * 0.06, y + TP * 0.28, TP * 0.1, TP * 0.1, "#e46b8a");
+  },
+  lamp(g, x, y, TP) {
+    const cx = x + TP / 2;
+    g.fillStyle = "#333"; g.beginPath(); g.ellipse(cx, y + TP * 0.92, TP * 0.24, TP * 0.1, 0, 0, 7); g.fill();
+    R(g, cx - TP * 0.06, y - TP * 1.1, TP * 0.12, TP * 2.0, "#444");
+    g.fillStyle = "#e8cf8a";
+    g.beginPath(); g.moveTo(cx - TP * 0.36, y - TP * 1.1); g.lineTo(cx + TP * 0.36, y - TP * 1.1);
+    g.lineTo(cx + TP * 0.24, y - TP * 1.5); g.lineTo(cx - TP * 0.24, y - TP * 1.5); g.closePath(); g.fill();
+    GLOWS.push({ x: cx, y: y - TP * 1.2, r: 30, col: "#ffdb8a", i: 0.5 });
+  },
+  sapling(g, x, y, TP) {
+    const cx = x + TP / 2;
+    R(g, cx - TP * 0.06, y + TP * 0.5, TP * 0.12, TP * 0.4, "#6b4a2e");
+    g.fillStyle = "#3f7d38"; g.beginPath(); g.ellipse(cx, y + TP * 0.4, TP * 0.34, TP * 0.34, 0, 0, 7); g.fill();
+    g.fillStyle = "#5aa94d"; g.beginPath(); g.ellipse(cx - TP * 0.08, y + TP * 0.3, TP * 0.16, TP * 0.16, 0, 0, 7); g.fill();
+  },
+  bush(g, x, y, TP) {
+    const cx = x + TP / 2, cy = y + TP * 0.6;
+    g.fillStyle = "#2f5f2b"; g.beginPath(); g.ellipse(cx, cy, TP * 0.42, TP * 0.34, 0, 0, 7); g.fill();
+    g.fillStyle = "#3f7d38"; g.beginPath(); g.ellipse(cx - TP * 0.1, cy - TP * 0.06, TP * 0.28, TP * 0.24, 0, 0, 7); g.fill();
+    g.fillStyle = "#5aa94d"; g.fillRect(cx - TP * 0.2, cy - TP * 0.14, 3, 3); g.fillRect(cx + TP * 0.08, cy, 3, 3);
+  },
+  flowers(g, x, y, TP) {
+    R(g, x + TP * 0.1, y + TP * 0.62, TP * 0.8, TP * 0.3, "#6b4a2e");
+    const cols = ["#e46b8a", "#f2e34d", "#d7d7ff", "#ff8a3c"];
+    for (let i = 0; i < 4; i++) { R(g, x + TP * 0.16 + i * TP * 0.2, y + TP * 0.32, TP * 0.12, TP * 0.32, "#3f7d38"); g.fillStyle = cols[i]; g.fillRect(x + TP * 0.13 + i * TP * 0.2, y + TP * 0.22, TP * 0.18, TP * 0.18); }
+  },
+  mailbox(g, x, y, TP) {
+    const cx = x + TP / 2;
+    R(g, cx - TP * 0.05, y + TP * 0.4, TP * 0.12, TP * 0.5, "#5a5a68");
+    R(g, cx - TP * 0.28, y + TP * 0.08, TP * 0.6, TP * 0.34, "#37415a");
+    R(g, cx - TP * 0.28, y + TP * 0.08, TP * 0.6, TP * 0.1, "#2a3247");
+    R(g, cx + TP * 0.34, y + TP * 0.12, TP * 0.1, TP * 0.2, "#c0432f");
+  },
+  sunflower(g, x, y, TP, w, h) {
+    const W = w * TP;
+    for (let i = 0; i < 2; i++) {
+      const cx = x + W * (i ? 0.66 : 0.34);
+      R(g, cx - TP * 0.06, y + TP * 0.5, TP * 0.12, (h * TP) * 0.5, "#3f7d38");
+      g.fillStyle = "#f2c020"; g.beginPath(); g.ellipse(cx, y + TP * 0.5, TP * 0.34, TP * 0.34, 0, 0, 7); g.fill();
+      g.fillStyle = "#6b4a1e"; g.beginPath(); g.ellipse(cx, y + TP * 0.5, TP * 0.16, TP * 0.16, 0, 0, 7); g.fill();
+    }
+  },
+  palm(g, x, y, TP, w, h) {
+    const cx = x + w * TP / 2, base = y + h * TP;
+    R(g, cx - TP * 0.1, y + TP * 0.4, TP * 0.2, base - (y + TP * 0.4), "#8a6a3a");
+    g.fillStyle = "#3f9040";
+    for (let a = 0; a < 5; a++) {
+      const an = -Math.PI / 2 + (a - 2) * 0.7;
+      g.beginPath(); g.moveTo(cx, y + TP * 0.4);
+      g.quadraticCurveTo(cx + Math.cos(an) * TP * 0.9, y + TP * 0.4 + Math.sin(an) * TP * 0.6, cx + Math.cos(an) * TP * 1.5, y + TP * 0.5 + Math.sin(an) * TP * 0.4);
+      g.lineWidth = TP * 0.22; g.strokeStyle = "#3f9040"; g.stroke();
+    }
+  },
+  piano(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x, y - TP * 0.4, W, H + TP * 0.4, "#1c1c22");
+    R(g, x, y - TP * 0.4, W, TP * 0.2, "#2c2c34");
+    R(g, x + TP * 0.15, y + H * 0.5, W - TP * 0.3, TP * 0.34, "#f2efe6");
+    g.fillStyle = "#1c1c22";
+    for (let i = x + TP * 0.25; i < x + W - TP * 0.3; i += TP * 0.28) g.fillRect(i, y + H * 0.5, TP * 0.1, TP * 0.2);
+  },
+  arcade(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x + TP * 0.08, y, W - TP * 0.16, H, "#2a2f6a");
+    R(g, x + TP * 0.22, y + H * 0.12, W - TP * 0.44, H * 0.32, "#0c1024");
+    g.fillStyle = "#3ad6d6"; g.fillRect(x + TP * 0.3, y + H * 0.18, W - TP * 0.6, H * 0.2);
+    R(g, x + TP * 0.24, y + H * 0.5, W - TP * 0.48, H * 0.16, "#c0432f");
+    GLOWS.push({ x: x + W / 2, y: y + H * 0.28, r: 22, col: "#3ad6d6", i: 0.4 });
+  },
+  gnome(g, x, y, TP) {
+    const cx = x + TP / 2;
+    R(g, cx - TP * 0.16, y + TP * 0.5, TP * 0.32, TP * 0.4, "#2f6dc0");
+    g.fillStyle = "#f0c8a4"; g.beginPath(); g.ellipse(cx, y + TP * 0.45, TP * 0.14, TP * 0.14, 0, 0, 7); g.fill();
+    R(g, cx - TP * 0.1, y + TP * 0.5, TP * 0.2, TP * 0.16, "#d7d7d7");
+    g.fillStyle = "#c0432f"; g.beginPath(); g.moveTo(cx - TP * 0.2, y + TP * 0.4); g.lineTo(cx + TP * 0.2, y + TP * 0.4); g.lineTo(cx, y - TP * 0.05); g.closePath(); g.fill();
+  },
+};
+const CAT_FALLBACK = {
+  plant(g, x, y, TP, w, h) {
+    const cx = x + w * TP / 2, cy = y + h * TP * 0.55;
+    R(g, cx - w * TP * 0.06, cy, w * TP * 0.12, h * TP * 0.45, "#6b4a2e");
+    g.fillStyle = "#3f7d38"; g.beginPath(); g.ellipse(cx, cy, w * TP * 0.42, h * TP * 0.44, 0, 0, 7); g.fill();
+    g.fillStyle = "#5aa94d"; g.beginPath(); g.ellipse(cx - w * TP * 0.12, cy - h * TP * 0.1, w * TP * 0.2, h * TP * 0.2, 0, 0, 7); g.fill();
+  },
+  furniture(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x + 1, y + 1, W - 2, H - 2, "#7b5a3c");
+    R(g, x + 1, y + 1, W - 2, Math.max(2, H * 0.14), "#8d6c4c");
+    R(g, x + 1, y + H - 4, W - 2, 3, "#5a4028");
+  },
+  fun(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x + 1, y + 1, W - 2, H - 2, "#c0432f");
+    g.fillStyle = "#ffd166"; g.beginPath();
+    const cx = x + W / 2, cy = y + H / 2, rr = Math.min(W, H) * 0.28;
+    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * Math.PI * 4 / 5; g.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+    g.closePath(); g.fill();
+  },
+  structure(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    R(g, x + 1, y + 1, W - 2, H - 2, "#8a8f9c");
+    g.strokeStyle = "#6a6f7c"; g.lineWidth = 1;
+    for (let yy = y + H / 3; yy < y + H; yy += H / 3) { g.beginPath(); g.moveTo(x + 1, yy); g.lineTo(x + W - 1, yy); g.stroke(); }
+  },
+  decor(g, x, y, TP, w, h) {
+    const cx = x + w * TP / 2, cy = y + h * TP / 2;
+    g.fillStyle = "#c99a2e"; g.beginPath(); g.ellipse(cx, cy, w * TP * 0.32, h * TP * 0.32, 0, 0, 7); g.fill();
+    g.fillStyle = "#ffe6a2"; g.beginPath(); g.ellipse(cx - 2, cy - 2, w * TP * 0.14, h * TP * 0.14, 0, 0, 7); g.fill();
+  },
+};
+function drawItem(g, item, px, py, TP, t) {
+  const [w, h] = fp(item);
+  const fn = ITEM_DRAW[item.key];
+  if (fn) { fn(g, px, py, TP, w, h, t, item); return; }
+  const cat = (catItem(item.key) || {}).category || item.category || "furniture";
+  (CAT_FALLBACK[cat] || CAT_FALLBACK.furniture)(g, px, py, TP, w, h, t, item);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Shared canvas helpers — DPR-aware backing store, camera, glow buffer
+   ═══════════════════════════════════════════════════════════════════════ */
+let DPR = Math.min(2, window.devicePixelRatio || 1);
+let GLOWS = [];
+
+function fitCanvas(cv, cssW, cssH) {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.max(1, Math.round(cssW * DPR));
+  cv.height = Math.max(1, Math.round(cssH * DPR));
+}
+function nightAmount(h) {
+  if (h >= 20 || h < 5) return 1;
+  if (h >= 8 && h < 17) return 0;
+  if (h >= 5 && h < 8) return (8 - h) / 3;
+  return (h - 17) / 3;
+}
+function paintAmbient(g, W, H, h, indoor) {
+  if (indoor) return;
+  const n = nightAmount(h);
+  let warm = 0;
+  if (h >= 16 && h < 20) warm = Math.sin(((h - 16) / 4) * Math.PI) * 0.5;
+  if (h >= 5 && h < 8) warm = Math.max(warm, Math.sin(((h - 5) / 3) * Math.PI) * 0.4);
+  if (warm > 0) { g.fillStyle = rgba("#ff8f43", warm * 0.2); g.fillRect(0, 0, W, H); }
+  if (n > 0) { g.fillStyle = rgba("#0d1130", n * 0.62); g.fillRect(0, 0, W, H); }
+}
+function paintGlows(g, W, H, cam, zoom, cx, cy) {
+  if (!GLOWS.length) return;
+  g.globalCompositeOperation = "lighter";
+  for (const gl of GLOWS) {
+    const sx = cx + (gl.x - cam.x) * zoom, sy = cy + (gl.y - cam.y) * zoom;
+    const r = gl.r * zoom * 0.6;
+    const rg = g.createRadialGradient(sx, sy, 0, sx, sy, r);
+    rg.addColorStop(0, rgba(gl.col, 0.5 * gl.i));
+    rg.addColorStop(1, rgba(gl.col, 0));
+    g.fillStyle = rg; g.beginPath(); g.arc(sx, sy, r, 0, 7); g.fill();
+  }
+  g.globalCompositeOperation = "source-over";
+}
+
+/* generic actor steppers ─────────────────────────────────────────────── */
+function stepWalker(a, dt) {
+  if (a.wait > 0) { a.wait -= dt; a.moving = false; return; }
+  a.moving = true;
+  const [tx, ty] = a.path[a.idx];
+  const dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy);
+  if (d < 2) {
+    a.idx = (a.idx + 1) % a.path.length;
+    if (hash2(a.x | 0, a.y | 0) < 0.25) a.wait = 0.6 + Math.random() * 1.6;
+    return;
+  }
+  const mv = Math.min(d, a.speed * dt);
+  a.x += dx / d * mv; a.y += dy / d * mv; a.phase += mv;
+  a.dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "E" : "W") : (dy > 0 ? "S" : "N");
+}
+function stepPet(p, dt) {
+  if (p.idle > 0) { p.idle -= dt; return; }
+  const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
+  if (d < 2) {
+    p.idle = 1.2 + Math.random() * 3.2;
+    p.tx = p.rgn.x + Math.random() * p.rgn.w;
+    p.ty = p.rgn.y + Math.random() * p.rgn.h;
+    p.dash = p.type === "dog" && Math.random() < 0.2;
+    return;
+  }
+  const sp = p.speed * (p.dash ? 2.3 : 1);
+  const mv = Math.min(d, sp * dt);
+  p.x += dx / d * mv; p.y += dy / d * mv; p.phase += mv * (p.dash ? 1.5 : 1);
+  if (Math.abs(dx) > 0.5) p.flip = dx < 0;
+}
+function drawWalker(g, a) {
+  const dir = a.dir === "W" ? "E" : a.dir, flip = a.dir === "W";
+  const frame = (!a.moving || a.wait > 0) ? PEOPLE_SPR[dir][0]
+    : PEOPLE_SPR[dir][Math.floor(a.phase / 5) % 2 ? 1 : 2];
+  g.fillStyle = "rgba(0,0,0,0.25)"; g.beginPath(); g.ellipse(a.x, a.y, 6, 2.5, 0, 0, 7); g.fill();
+  blit(g, frame, a.pal, Math.round(a.x - 6), Math.round(a.y - 16), flip);
+}
+function drawPetActor(g, p, t) {
+  const S = PET_SPRITES[p.type] || PET_SPRITES.cat;
+  const moving = Math.hypot(p.tx - p.x, p.ty - p.y) > 2 && p.idle <= 0;
+  const sprite = moving ? S.walk[Math.floor(p.phase / 4) % S.walk.length] : S.sit;
+  g.fillStyle = "rgba(0,0,0,0.25)";
+  g.beginPath(); g.ellipse(p.x, p.y, S.w * 0.4, 2.6, 0, 0, 7); g.fill();
+  blit(g, sprite, S.pal, Math.round(p.x - S.w / 2), Math.round(p.y - S.h + 1), p.flip);
+}
+function mkWalker(i, path) {
+  return {
+    path, idx: 1, x: path[0][0], y: path[0][1], speed: 14 + hash2(i, 9) * 9,
+    dir: "S", phase: 0, wait: 0, moving: true,
+    pal: { h: HAIR[(i * 3 + 1) % HAIR.length], s: "#f0c8a4", 1: "#241a1e",
+           t: SHIRT[(i * 5 + 2) % SHIRT.length], p: PANTS[(i * 2) % PANTS.length], 6: "#3b2b2b" },
+  };
+}
+function mkPet(type, rgn, i) {
+  const cx = rgn.x + rgn.w / 2, cy = rgn.y + rgn.h / 2;
+  return { type, rgn, x: cx, y: cy, tx: cx, ty: cy, phase: 0, idle: 1 + hash2(i, 4) * 2,
+           flip: false, speed: type === "cat" ? 15 : type === "dog" || type === "fox" ? 20 : 12 };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MAP scene
+   ═══════════════════════════════════════════════════════════════════════ */
+const mapStage = document.getElementById("mapStage");
+const mapCv = document.getElementById("mapCanvas");
+const mapG = mapCv.getContext("2d");
+const MAP = {
+  houses: [], npcs: [], pets: [], groundCv: document.createElement("canvas"),
+  worldW: 800, worldH: 600, cam: { x: 400, y: 300, zoom: 3 }, userZoomed: false, ready: false,
+};
+const PLOT_W = 210, PLOT_H = 210, ROAD_W = 24, MARGIN = 54;
+
+function layoutMap() {
+  const houses = (mapData && mapData.houses) || [];
+  const n = Math.max(1, houses.length);
+  const cols = Math.max(2, Math.ceil(Math.sqrt(n)));
+  const rows = Math.ceil(n / cols);
+  MAP.worldW = MARGIN * 2 + cols * PLOT_W;
+  MAP.worldH = MARGIN * 2 + rows * PLOT_H;
+
+  MAP.houses = houses.map((entry, i) => {
+    const col = i % cols, row = (i / cols) | 0;
+    const plotX = MARGIN + col * PLOT_W, plotY = MARGIN + row * PLOT_H;
+    const bx = plotX + ROAD_W + (PLOT_W - ROAD_W) * 0.5;      // centred in the green
+    const by = plotY + ROAD_W + (PLOT_H - ROAD_W) * 0.62;
+    return { ...entry, bx, by, smoke: [], plotX, plotY };
+  });
+
+  // NPCs stroll the road lattice (road = the ROAD_W-wide gutters between plots)
+  MAP.npcs = [];
+  const laneY = r => MARGIN + r * PLOT_H - 4;
+  const laneX = c => MARGIN + c * PLOT_W - 4;
+  const nNpc = Math.min(9, n + 3);
+  for (let i = 0; i < nNpc; i++) {
+    const r = i % (rows + 1), horiz = i % 2 === 0;
+    const path = horiz
+      ? [[MARGIN * 0.4, laneY(r)], [MAP.worldW - MARGIN * 0.4, laneY(r)]]
+      : [[laneX(i % (cols + 1)), MARGIN * 0.4], [laneX(i % (cols + 1)), MAP.worldH - MARGIN * 0.4]];
+    if (i % 3 === 0) path.push([laneX((i + 1) % (cols + 1)), laneY(r)]);
+    MAP.npcs.push(mkWalker(i, path));
+  }
+  MAP.pets = [];
+  const petTypes = ["dog", "cat", "fox"];
+  for (let i = 0; i < Math.min(3, MAP.houses.length); i++) {
+    const hh = MAP.houses[(i * 2) % MAP.houses.length];
+    // keep them in the front yard, clear of the house/roof
+    MAP.pets.push(mkPet(petTypes[i % 3], { x: hh.plotX + 46, y: hh.plotY + PLOT_H * 0.52, w: PLOT_W - 120, h: PLOT_H * 0.36 }, i + 40));
+  }
+  buildMapGround();
+  fitMapView();
+}
+function onMapRoad(x, y) {
+  const rx = (x - MARGIN) % PLOT_W, ry = (y - MARGIN) % PLOT_H;
+  if (x < MARGIN || y < MARGIN || x > MAP.worldW - MARGIN || y > MAP.worldH - MARGIN) return true;
+  return (rx >= 0 && rx < ROAD_W) || (ry >= 0 && ry < ROAD_W);
+}
+function buildMapGround() {
+  const c = MAP.groundCv; c.width = MAP.worldW; c.height = MAP.worldH;
+  const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
+  for (let yy = 0; yy < MAP.worldH; yy += 4) {
+    for (let xx = 0; xx < MAP.worldW; xx += 4) {
+      const nz = hash2(xx, yy);
+      let col;
+      if (onMapRoad(xx, yy)) col = nz < 0.14 ? "#b6935f" : nz > 0.9 ? "#d0b083" : "#c6a878";
+      else col = nz < 0.12 ? "#4d8a38" : nz > 0.88 ? "#72b657" : "#5fa246";
+      x.fillStyle = col; x.fillRect(xx, yy, 4, 4);
+      if (!onMapRoad(xx, yy) && nz > 0.985) { x.fillStyle = ["#f2e34d", "#e8ecef", "#e46b8a", "#d7d7ff"][((xx + yy) >> 2) & 3]; x.fillRect(xx + 1, yy + 1, 2, 2); }
+    }
+  }
+  MAP.ready = true;
+}
+function fitMapView() {
+  const W = mapStage.clientWidth || 800, H = mapStage.clientHeight || 460;
+  if (!MAP.userZoomed) MAP.cam.zoom = clamp(Math.min(W / MAP.worldW, H / MAP.worldH) * 0.94, 0.5, 3.4);
+  MAP.cam.x = MAP.worldW / 2; MAP.cam.y = MAP.worldH / 2;
+  clampMapCam();
+}
+function clampMapCam() {
+  const W = mapStage.clientWidth, H = mapStage.clientHeight, z = MAP.cam.zoom;
+  const hw = W / (2 * z), hh = H / (2 * z);
+  MAP.cam.x = MAP.worldW <= hw * 2 ? MAP.worldW / 2 : clamp(MAP.cam.x, hw - 40, MAP.worldW - hw + 40);
+  MAP.cam.y = MAP.worldH <= hh * 2 ? MAP.worldH / 2 : clamp(MAP.cam.y, hh - 40, MAP.worldH - hh + 40);
+}
+function drawMapScene(now, dt) {
+  const W = mapStage.clientWidth, H = mapStage.clientHeight;
+  if (mapCv.width !== Math.round(W * DPR) || mapCv.height !== Math.round(H * DPR)) fitCanvas(mapCv, W, H);
+  const g = mapG, z = MAP.cam.zoom;
+  const night = nightAmount(timeOfDay);
+
+  MAP.npcs.forEach(a => stepWalker(a, dt));
+  MAP.pets.forEach(p => stepPet(p, dt));
+  MAP.houses.forEach(h => { if (h.chimney !== false && (h.pet_count >= 0)) stepSmoke(h.smoke, dt, h.bx + 15.5, h.by - 55); });
+
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.imageSmoothingEnabled = false;
+  g.fillStyle = night > 0.5 ? "#0c1024" : "#7ec6e6";
+  g.fillRect(0, 0, W, H);
+
+  const f = z * DPR;
+  g.setTransform(f, 0, 0, f, Math.round(W * DPR / 2 - MAP.cam.x * f), Math.round(H * DPR / 2 - MAP.cam.y * f));
+  g.imageSmoothingEnabled = false;
+  if (MAP.ready) g.drawImage(MAP.groundCv, 0, 0);
+  GLOWS = [];
+
+  const ents = [];
+  MAP.houses.forEach(h => ents.push({ y: h.by, d: () => {
+    drawHouse(g, h.house, h.bx, h.by, night, h.smoke);
+    // curb decor: whatever they've placed in the yard, as little sprites
+    (h.yard_placed || []).slice(0, 10).forEach(it => {
+      const gx = h.plotX + 26 + (it.x % 6) * ((PLOT_W - 60) / 6);
+      const gy = h.plotY + 22 + (it.y % 4) * 12;
+      if (gy < h.by - 30) drawItem(g, it, gx, gy, 12, now / 1000);
+    });
+  } }));
+  MAP.npcs.forEach(a => ents.push({ y: a.y, d: () => drawWalker(g, a) }));
+  MAP.pets.forEach(p => ents.push({ y: p.y, d: () => drawPetActor(g, p, now / 1000) }));
+  ents.sort((a, b) => a.y - b.y);
+  ents.forEach(e => e.d());
+
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  paintAmbient(g, W, H, timeOfDay, false);
+  paintGlows(g, W, H, MAP.cam, z, W / 2, H / 2);
+
+  if (showLabels) {
+    g.font = "700 11px system-ui, sans-serif"; g.textAlign = "center";
+    for (const h of MAP.houses) {
+      const sx = W / 2 + (h.bx - MAP.cam.x) * z, sy = H / 2 + (h.by - 62 - MAP.cam.y) * z;
+      if (sx < -80 || sx > W + 80 || sy < -20 || sy > H + 20) continue;
+      const label = `${h.avatar_emoji || "🙂"} ${h.name || "Member"}`;
+      const w = g.measureText(label).width + 14;
+      g.fillStyle = "rgba(10,11,22,0.82)"; g.fillRect(sx - w / 2, sy - 12, w, 17);
+      g.fillStyle = "#00c8c8"; g.fillRect(sx - w / 2, sy + 5, w, 1);
+      g.fillStyle = "#e9e9f4"; g.fillText(label, sx, sy);
+    }
+  }
+}
+function mapScreenToWorld(sx, sy) {
+  const W = mapStage.clientWidth, H = mapStage.clientHeight;
+  return { x: MAP.cam.x + (sx - W / 2) / MAP.cam.zoom, y: MAP.cam.y + (sy - H / 2) / MAP.cam.zoom };
+}
+(function wireMap() {
+  let down = false, moved = false, lx = 0, ly = 0, pinch = 0;
+  mapCv.addEventListener("pointerdown", e => { down = true; moved = false; lx = e.clientX; ly = e.clientY; mapCv.setPointerCapture(e.pointerId); mapCv.classList.add("dragging"); });
+  mapCv.addEventListener("pointermove", e => {
+    if (!down) return;
+    const dx = e.clientX - lx, dy = e.clientY - ly;
+    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+    MAP.cam.x -= dx / MAP.cam.zoom; MAP.cam.y -= dy / MAP.cam.zoom;
+    lx = e.clientX; ly = e.clientY; MAP.userZoomed = true; clampMapCam();
+  });
+  mapCv.addEventListener("pointerup", e => {
+    down = false; mapCv.classList.remove("dragging");
+    if (moved) return;
+    const r = mapCv.getBoundingClientRect();
+    const w = mapScreenToWorld(e.clientX - r.left, e.clientY - r.top);
+    for (const h of MAP.houses) {
+      if (w.x > h.bx - 28 && w.x < h.bx + 28 && w.y > h.by - 58 && w.y < h.by + 8) { openDetail(h.user_id); return; }
+    }
+  });
+  mapCv.addEventListener("pointercancel", () => { down = false; mapCv.classList.remove("dragging"); });
+  mapCv.addEventListener("wheel", e => {
+    e.preventDefault();
+    const r = mapCv.getBoundingClientRect();
+    const b = mapScreenToWorld(e.clientX - r.left, e.clientY - r.top);
+    MAP.cam.zoom = clamp(MAP.cam.zoom * (e.deltaY < 0 ? 1.12 : 0.89), 0.6, 6); MAP.userZoomed = true;
+    const a = mapScreenToWorld(e.clientX - r.left, e.clientY - r.top);
+    MAP.cam.x += b.x - a.x; MAP.cam.y += b.y - a.y; clampMapCam();
+  }, { passive: false });
+  mapCv.addEventListener("touchmove", e => {
+    if (e.touches.length !== 2) return; e.preventDefault();
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    if (pinch) { MAP.cam.zoom = clamp(MAP.cam.zoom * (d / pinch), 0.6, 6); MAP.userZoomed = true; clampMapCam(); }
+    pinch = d;
+  }, { passive: false });
+  mapCv.addEventListener("touchend", () => { pinch = 0; });
+})();
+
+async function loadMap() {
+  mapData = await api("/all");
+  layoutMap();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ROOM renderer — shared by the editor (editable) and detail modal (read)
+   ═══════════════════════════════════════════════════════════════════════ */
+let ROOM = null;   // active editable-room render state
+let DETAIL = null; // active detail-modal render state
+
+function buildRoomState(cv, house, room, placed, pets, editable) {
+  const cols = room.grid_cols, rows = room.grid_rows;
+  const box = cv.parentElement;
+  const cssW = box.clientWidth || 520;
+  const TP = clamp(Math.floor(cssW / cols), 22, 60);
+  const cw = cols * TP, ch = rows * TP;
+  cv.style.width = cw + "px";
+  fitCanvas(cv, cw, ch);
+
+  // static ground → offscreen
+  const gc = document.createElement("canvas"); gc.width = cw; gc.height = ch;
+  const gx = gc.getContext("2d"); gx.imageSmoothingEnabled = false;
+  const outdoor = room.kind === "outdoor";
+  const ground = outdoor ? house.yard_color : house.floor_color;
+  for (let ty = 0; ty < rows; ty++) for (let tx = 0; tx < cols; tx++) {
+    const nz = hash2(tx * 7, ty * 7);
+    const base = outdoor
+      ? (nz < 0.12 ? shade(ground, -0.12) : nz > 0.88 ? shade(ground, 0.12) : ground)
+      : ((tx + ty) % 2 ? shade(ground, -0.05) : ground);
+    gx.fillStyle = base; gx.fillRect(tx * TP, ty * TP, TP, TP);
+    if (outdoor && nz > 0.95) { gx.fillStyle = ["#f2e34d", "#e46b8a", "#d7d7ff"][(tx + ty) % 3]; gx.fillRect(tx * TP + TP * 0.4, ty * TP + TP * 0.4, 2, 2); }
+  }
+  gx.strokeStyle = "rgba(0,0,0,0.13)"; gx.lineWidth = 1;
+  for (let i = 0; i <= cols; i++) { gx.beginPath(); gx.moveTo(i * TP + 0.5, 0); gx.lineTo(i * TP + 0.5, ch); gx.stroke(); }
+  for (let i = 0; i <= rows; i++) { gx.beginPath(); gx.moveTo(0, i * TP + 0.5); gx.lineTo(cw, i * TP + 0.5); gx.stroke(); }
+
+  const petActors = (pets || []).map((p, i) => {
+    const a = mkPet(p.pet_type, { x: TP * 0.5, y: TP * 0.5, w: cw - TP, h: ch - TP }, i);
+    a.name = p.name; return a;
+  });
+
+  return { cv, g: cv.getContext("2d"), house, room, placed: placed.slice(), pets: petActors,
+           cols, rows, TP, cw, ch, editable, groundCv: gc, hover: null, outdoor, smoke: [] };
+}
+
+function drawRoomInto(rs, now, dt) {
+  if (!rs) return;
+  const { g, TP, cw, ch } = rs;
+  const night = rs.outdoor ? nightAmount(timeOfDay) : 0;
+  rs.pets.forEach(p => stepPet(p, dt));
+  const isYard = rs.room.key === "yard";
+  const hs = isYard ? clamp(TP / 16, 1, 2.2) : 1;                 // house scale in the yard
+  const houseFeetY = isYard ? clamp(TP * 2.6, 46, ch * 0.42) : 0; // house sits on the top rows of the grid
+  if (isYard) stepSmoke(rs.smoke, dt, 0, -52);                    // smoke in house-local coords
+
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.imageSmoothingEnabled = false;
+  g.clearRect(0, 0, cw, ch);
+  g.drawImage(rs.groundCv, 0, 0);
+  GLOWS = [];
+
+  const ents = [];
+  if (isYard) ents.push({ y: houseFeetY / TP, d: () => {
+    const gi = GLOWS.length;
+    g.save(); g.translate(cw / 2, houseFeetY); g.scale(hs, hs);
+    drawHouse(g, rs.house, 0, 0, night, rs.smoke); g.restore();
+    for (let i = gi; i < GLOWS.length; i++) {   // remap glows out of house-local space
+      GLOWS[i].x = cw / 2 + GLOWS[i].x * hs; GLOWS[i].y = houseFeetY + GLOWS[i].y * hs; GLOWS[i].r *= hs;
+    }
+  } });
+  rs.placed.forEach(it => {
+    const [w, h] = fp(it);
+    ents.push({ y: it.y + h, d: () => drawItem(g, it, it.x * TP, it.y * TP, TP, now / 1000) });
+  });
+  rs.pets.forEach(p => ents.push({ y: p.y / TP, d: () => drawPetActor(g, p, now / 1000) }));
+  ents.sort((a, b) => a.y - b.y);
+  ents.forEach(e => e.d());
+
+  // placement ghost
+  if (rs.editable && armedItemId != null && rs.hover) {
+    const it = (mine.inventory || []).find(i => i.id === armedItemId);
+    if (it) {
+      const [w, h] = fp(it);
+      const ok = canPlace(it, rs.hover.x, rs.hover.y, rs.room, rs.placed, null);
+      g.fillStyle = ok ? "rgba(0,200,160,0.28)" : "rgba(255,80,80,0.28)";
+      g.fillRect(rs.hover.x * TP, rs.hover.y * TP, w * TP, h * TP);
+      g.strokeStyle = ok ? "#00d0a0" : "#ff5050"; g.lineWidth = 2;
+      g.strokeRect(rs.hover.x * TP + 1, rs.hover.y * TP + 1, w * TP - 2, h * TP - 2);
+      if (ok) { g.globalAlpha = 0.55; drawItem(g, it, rs.hover.x * TP, rs.hover.y * TP, TP, now / 1000); g.globalAlpha = 1; }
     }
   }
 
-  function itemFitsRoom(item, room) {
-    return item.location === "any" || item.location === room.kind;
-  }
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (rs.outdoor) paintAmbient(g, cw, ch, timeOfDay, false);
+  paintGlows(g, cw, ch, { x: cw / 2, y: ch / 2 }, 1, cw / 2, ch / 2);
+}
 
-  function renderInventory() {
-    const room = currentRoom();
-    const host = document.getElementById("invRow");
-    if (!mine.inventory.length) { host.innerHTML = `<span class="hn-empty-note">Nothing in inventory — buy something from the shop.</span>`; return; }
-    host.innerHTML = mine.inventory.map(i => {
-      const fits = itemFitsRoom(i, room);
-      return `<div class="hn-inv-item ${i.id === armedItemId ? "armed" : ""} ${fits ? "" : "dim"}"
-                data-item-id="${i.id}" title="${escHtml(i.name)}${fits ? "" : " — " + i.location + " only"}">${i.emoji}</div>`;
-    }).join("");
-    host.querySelectorAll(".hn-inv-item").forEach(el => el.addEventListener("click", () => {
-      const id = parseInt(el.dataset.itemId, 10);
-      const it = mine.inventory.find(i => i.id === id);
-      if (!itemFitsRoom(it, room)) { showError(`${it.name} can only go in ${it.location} rooms — switch rooms first.`); return; }
-      armedItemId = armedItemId === id ? null : id;
-      renderEditor();
-    }));
+function roomCellFromEvent(rs, e) {
+  const r = rs.cv.getBoundingClientRect();
+  const scale = rs.cw / r.width;
+  return { x: Math.floor((e.clientX - r.left) * scale / rs.TP), y: Math.floor((e.clientY - r.top) * scale / rs.TP) };
+}
+function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
+function canPlace(item, x, y, room, placedInRoom, ignoreId) {
+  const [w, h] = fp(item);
+  if (x < 0 || y < 0 || x + w > room.grid_cols || y + h > room.grid_rows) return false;
+  for (const it of placedInRoom) {
+    if (ignoreId != null && it.id === ignoreId) continue;
+    const [iw, ih] = fp(it);
+    if (rectsOverlap(x, y, w, h, it.x, it.y, iw, ih)) return false;
   }
-
-  async function onCellClick(x, y, occupant) {
+  return true;
+}
+function itemAtCell(rs, x, y) {
+  // topmost (last drawn) placed item whose footprint covers (x,y)
+  for (let i = rs.placed.length - 1; i >= 0; i--) {
+    const it = rs.placed[i], [w, h] = fp(it);
+    if (x >= it.x && x < it.x + w && y >= it.y && y < it.y + h) return it;
+  }
+  return null;
+}
+function wireRoomCanvas(rs) {
+  const cv = rs.cv;
+  cv.addEventListener("pointermove", e => {
+    const c = roomCellFromEvent(rs, e);
+    rs.hover = (c.x >= 0 && c.y >= 0 && c.x < rs.cols && c.y < rs.rows) ? c : null;
+  });
+  cv.addEventListener("pointerleave", () => { rs.hover = null; });
+  cv.addEventListener("pointerup", async e => {
+    const c = roomCellFromEvent(rs, e);
+    if (c.x < 0 || c.y < 0 || c.x >= rs.cols || c.y >= rs.rows) return;
     try {
-      if (occupant && !armedItemId) {
-        const updated = await api("/unplace", { method: "POST", body: { item_id: occupant.id } });
-        mine.inventory.push(updated);
-        mine.placed = mine.placed.filter(i => i.id !== occupant.id);
-        renderEditor();
-      } else if (armedItemId && !occupant) {
-        const updated = await api("/place", { method: "POST", body: { item_id: armedItemId, room_key: selectedRoomKey, x, y } });
+      if (armedItemId != null) {
+        const it = (mine.inventory || []).find(i => i.id === armedItemId);
+        if (!it) { armedItemId = null; return; }
+        if (!canPlace(it, c.x, c.y, rs.room, rs.placed, null)) { showError("Won't fit there — needs " + fp(it).join("×") + " clear tiles."); return; }
+        const updated = await api("/place", { method: "POST", body: { item_id: armedItemId, room_key: rs.room.key, x: c.x, y: c.y } });
         mine.inventory = mine.inventory.filter(i => i.id !== armedItemId);
-        mine.placed.push(updated);
-        armedItemId = null;
+        mine.placed.push(updated); armedItemId = null;
+        renderEditor();
+      } else {
+        const it = itemAtCell(rs, c.x, c.y);
+        if (!it) return;
+        const updated = await api("/unplace", { method: "POST", body: { item_id: it.id } });
+        mine.inventory.push(updated);
+        mine.placed = mine.placed.filter(i => i.id !== it.id);
         renderEditor();
       }
-    } catch (e) { showError(e.message); }
-  }
+    } catch (err) { showError(err.message); }
+  });
+}
 
-  function renderShop() {
-    const host = document.getElementById("shopGrid");
-    const items = catalogData.items.filter(i =>
-      shopLocFilter === "all" ? true :
-      shopLocFilter === "indoor" ? (i.location === "indoor" || i.location === "any") :
-      (i.location === "outdoor" || i.location === "any"));
-    host.innerHTML = items.map(i => {
-      const afford = currentUser && currentUser.kellscoins >= i.price;
-      return `<div class="hn-shop-item">
-        <div class="emoji">${i.emoji}</div>
-        <div class="name">${escHtml(i.name)}</div>
-        <div class="loc">${i.location}</div>
-        <div class="price">🪙 ${i.price.toLocaleString()}</div>
-        <button class="hn-mini-btn" data-key="${i.key}" ${afford ? "" : "disabled"}>Buy</button>
-      </div>`;
-    }).join("");
-    host.querySelectorAll(".hn-mini-btn").forEach(btn => btn.addEventListener("click", async () => {
+/* ═══════════════════════════════════════════════════════════════════════
+   DETAIL modal
+   ═══════════════════════════════════════════════════════════════════════ */
+async function openDetail(userId) {
+  const data = await api(`/house/${encodeURIComponent(userId)}`);
+  const yardRoom = (data.rooms || []).find(r => r.key === "yard") || (data.rooms || [])[0];
+  const yardItems = (data.placed || []).filter(i => i.room_key === (yardRoom && yardRoom.key));
+  const yardPets = (data.pets || []).filter(p => p.room_key === (yardRoom && yardRoom.key));
+  const c = document.getElementById("detailContent");
+  c.innerHTML = `
+    <h3 style="text-align:center; margin-top:0;">${escHtml(data.avatar_emoji || "🙂")} ${escHtml(data.name || "Member")}'s House</h3>
+    <div class="hn-detail-canvas-box"><canvas id="detailCanvas"></canvas></div>
+    <div class="hn-card-stats" style="display:flex; gap:14px; color:var(--muted); font-size:0.8rem; justify-content:center;">
+      <span>🚪 ${(data.rooms || []).length} room${(data.rooms || []).length === 1 ? "" : "s"}</span>
+      <span>🐾 ${(data.pets || []).length} pet${(data.pets || []).length === 1 ? "" : "s"}</span>
+      <span>🪴 ${yardItems.length} in the yard</span>
+    </div>`;
+  document.getElementById("detailModal").classList.add("open");
+  if (yardRoom) {
+    const cv = document.getElementById("detailCanvas");
+    // allow layout to settle so parentElement has width
+    requestAnimationFrame(() => {
+      DETAIL = buildRoomState(cv, data.house, yardRoom, yardItems, yardPets, false);
+    });
+  }
+}
+document.getElementById("closeDetail").addEventListener("click", () => { document.getElementById("detailModal").classList.remove("open"); DETAIL = null; });
+document.getElementById("detailModal").addEventListener("click", e => { if (e.target.id === "detailModal") { e.currentTarget.classList.remove("open"); DETAIL = null; } });
+document.getElementById("closePick").addEventListener("click", () => document.getElementById("pickModal").classList.remove("open"));
+document.getElementById("pickModal").addEventListener("click", e => { if (e.target.id === "pickModal") e.currentTarget.classList.remove("open"); });
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MY HOUSE editor  (DOM panels + the room canvas)
+   ═══════════════════════════════════════════════════════════════════════ */
+async function loadMine() {
+  mine = await api("/mine");
+  if (!mine.rooms.some(r => r.key === selectedRoomKey)) selectedRoomKey = mine.rooms[0] ? mine.rooms[0].key : "yard";
+  renderEditor();
+}
+function currentRoom() { return mine.rooms.find(r => r.key === selectedRoomKey) || mine.rooms[0]; }
+
+function renderEditor() {
+  const wrap = document.getElementById("editorWrap");
+  const room = currentRoom();
+  const { house } = mine;
+
+  wrap.innerHTML = `
+    <div class="hn-mine-grid">
+      <div>
+        <div class="hn-panel">
+          <div class="hn-roombar" id="roomBar"></div>
+          <div class="hn-room-wrap"><div class="hn-room-canvas-box"><canvas id="roomCanvas"></canvas></div></div>
+          <div class="hn-room-actions" id="roomActions"></div>
+          <div class="hn-error" id="hnError"></div>
+          <p class="hn-hint" id="roomHint"></p>
+        </div>
+        <div class="hn-panel">
+          <div class="hn-panel-title">Colors</div>
+          <div class="hn-sub">Walls</div><div class="hn-swatch-row" data-kind="wall_color">${swatches(catalogData.wall_colors, house.wall_color)}</div>
+          <div class="hn-sub">Roof</div><div class="hn-swatch-row" data-kind="roof_color">${swatches(catalogData.roof_colors, house.roof_color)}</div>
+          <div class="hn-sub">Backyard grass</div><div class="hn-swatch-row" data-kind="yard_color">${swatches(catalogData.yard_colors, house.yard_color)}</div>
+          <div class="hn-sub">Indoor floor</div><div class="hn-swatch-row" data-kind="floor_color">${swatches(catalogData.floor_colors, house.floor_color)}</div>
+        </div>
+      </div>
+      <div>
+        <div class="hn-panel">
+          <div class="hn-panel-title" id="invTitle">Inventory ${armedItemId != null ? "— click a tile in the room" : "— click an item to place it"}</div>
+          <div class="hn-inv-row" id="invRow"></div>
+        </div>
+        <div class="hn-panel">
+          <div class="hn-panel-title">Pets</div>
+          <div class="hn-pet-list" id="petList"></div>
+          <button class="hn-mini-btn ghost" id="adoptBtn" style="margin-top:10px;">🐾 Adopt a pet</button>
+        </div>
+        <div class="hn-panel">
+          <div class="hn-panel-title">Shop</div>
+          <div class="hn-loc-toggle" id="locToggle">
+            <button data-loc="all" class="${shopLocFilter === "all" ? "active" : ""}">All</button>
+            <button data-loc="indoor" class="${shopLocFilter === "indoor" ? "active" : ""}">Indoor</button>
+            <button data-loc="outdoor" class="${shopLocFilter === "outdoor" ? "active" : ""}">Outdoor</button>
+          </div>
+          <div class="hn-shop-grid" id="shopGrid"></div>
+        </div>
+      </div>
+    </div>`;
+
+  renderRoomBar();
+  const cv = document.getElementById("roomCanvas");
+  requestAnimationFrame(() => {
+    ROOM = buildRoomState(cv, house, room,
+      mine.placed.filter(i => i.room_key === selectedRoomKey),
+      mine.pets.filter(p => p.room_key === selectedRoomKey), true);
+    wireRoomCanvas(ROOM);
+  });
+  renderRoomActions();
+  renderInventory();
+  renderPets();
+  renderShop();
+  updateRoomHint();
+
+  wrap.querySelectorAll(".hn-swatch-row").forEach(rowEl => {
+    rowEl.querySelectorAll(".hn-swatch").forEach(sw => sw.addEventListener("click", async () => {
       try {
-        const res = await api("/buy", { method: "POST", body: { item_key: btn.dataset.key } });
-        currentUser.kellscoins = res.balance; updateCoinChip();
-        mine.inventory.push(res.item);
+        const body = {}; body[rowEl.dataset.kind] = sw.dataset.color;
+        mine.house = await api("/customize", { method: "POST", body });
         renderEditor();
       } catch (e) { showError(e.message); }
     }));
+  });
+  document.getElementById("locToggle").querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => {
+      shopLocFilter = b.dataset.loc; renderShop();
+      document.getElementById("locToggle").querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
+    }));
+  document.getElementById("adoptBtn").addEventListener("click", openAdoptPicker);
+}
+function swatches(colors, current) {
+  return colors.map(c => `<div class="hn-swatch ${c === current ? "selected" : ""}" style="background:${c};" data-color="${c}"></div>`).join("");
+}
+function renderRoomBar() {
+  const bar = document.getElementById("roomBar");
+  bar.innerHTML = mine.rooms.map(r =>
+    `<div class="hn-room-pill ${r.key === selectedRoomKey ? "active" : ""}" data-key="${r.key}">
+       ${r.kind === "outdoor" ? "🌳" : "🛋️"} ${escHtml(r.name)} <span class="lvl">Lv ${r.level}</span>
+     </div>`).join("") + `<div class="hn-room-pill add" id="buildRoomPill">＋ Build room</div>`;
+  bar.querySelectorAll(".hn-room-pill[data-key]").forEach(p => p.addEventListener("click", () => {
+    selectedRoomKey = p.dataset.key; armedItemId = null; renderEditor();
+  }));
+  document.getElementById("buildRoomPill").addEventListener("click", openBuildPicker);
+}
+function renderRoomActions() {
+  const room = currentRoom(), host = document.getElementById("roomActions");
+  const maxLvl = catalogData.rooms.max_level;
+  if (room.level >= maxLvl) { host.innerHTML = `<span class="hn-empty-note">${escHtml(room.name)} is fully upgraded (Lv ${maxLvl}).</span>`; return; }
+  const next = room.level + 1;
+  const cost = catalogData.rooms.upgrade_cost[next] ?? catalogData.rooms.upgrade_cost[String(next)];
+  const afford = currentUser && currentUser.kellscoins >= cost;
+  host.innerHTML = `<button class="hn-mini-btn" id="upgradeBtn" ${afford ? "" : "disabled"}>⬆ Upgrade to Lv ${next} — 🪙 ${cost.toLocaleString()} (bigger grid)</button>`;
+  document.getElementById("upgradeBtn").addEventListener("click", async () => {
+    try {
+      const res = await api("/rooms/upgrade", { method: "POST", body: { room_key: room.key } });
+      currentUser.kellscoins = res.balance; updateCoinChip();
+      const idx = mine.rooms.findIndex(r => r.key === room.key);
+      mine.rooms[idx] = res.room; renderEditor();
+    } catch (e) { showError(e.message); }
+  });
+}
+function updateRoomHint() {
+  const room = currentRoom(), el = document.getElementById("roomHint");
+  if (armedItemId != null) {
+    const it = (mine.inventory || []).find(i => i.id === armedItemId);
+    el.textContent = it ? `Placing "${it.name}" (${fp(it).join("×")}) — click a clear spot. Click the item again to cancel.` : "";
+  } else {
+    el.textContent = `${room.kind === "outdoor" ? "Outdoor" : "Indoor"} room, ${room.grid_cols}×${room.grid_rows} tiles. Click a placed item to pick it back up.`;
   }
+}
+function itemFitsRoom(item, room) { return item.location === "any" || item.location === room.kind; }
 
-  // ── Pets panel ─────────────────────────────────────────────────────
-  function renderPets() {
-    const host = document.getElementById("petList");
-    if (!mine.pets.length) { host.innerHTML = `<span class="hn-empty-note">No pets yet. Adopt one below — it'll wander whatever room you put it in.</span>`; return; }
-    const roomOpts = seg => mine.rooms.map(r =>
-      `<option value="${r.key}" ${seg === r.key ? "selected" : ""}>${escHtml(r.name)}</option>`).join("");
-    host.innerHTML = mine.pets.map(p => `
-      <div class="hn-pet-card" data-pet-id="${p.id}">
-        <span class="pemoji">${p.emoji}</span>
-        <input type="text" maxlength="30" value="${escHtml(p.name)}" data-role="name" aria-label="Pet name">
-        <select data-role="room">
-          <option value="" ${p.room_key ? "" : "selected"}>— carrier —</option>
-          ${roomOpts(p.room_key)}
-        </select>
-        <button class="hn-mini-btn ghost" data-role="save">Save</button>
-      </div>`).join("");
-    host.querySelectorAll(".hn-pet-card").forEach(card => {
-      const id = parseInt(card.dataset.petId, 10);
-      card.querySelector('[data-role="save"]').addEventListener("click", async () => {
-        const name = card.querySelector('[data-role="name"]').value.trim();
-        const roomKey = card.querySelector('[data-role="room"]').value || null;
-        try {
-          const pet = mine.pets.find(p => p.id === id);
-          if (name && name !== pet.name) Object.assign(pet, await api("/pets/rename", { method: "POST", body: { pet_id: id, name } }));
-          Object.assign(pet, await api("/pets/assign", { method: "POST", body: { pet_id: id, room_key: roomKey } }));
-          renderEditor();
-        } catch (e) { showError(e.message); }
-      });
+function thumbCanvas(item, size) {
+  const cv = document.createElement("canvas");
+  cv.width = size * DPR; cv.height = size * DPR; cv.style.width = size + "px"; cv.style.height = size + "px";
+  const g = cv.getContext("2d"); g.setTransform(DPR, 0, 0, DPR, 0, 0); g.imageSmoothingEnabled = false;
+  const [w, h] = fp(item);
+  const TP = Math.floor((size - 6) / Math.max(w, h, 1));
+  const ox = (size - w * TP) / 2, oy = (size - h * TP) / 2;
+  GLOWS = [];
+  try { drawItem(g, item, ox, oy, TP, 0); } catch (e) {}
+  GLOWS = [];
+  return cv;
+}
+function renderInventory() {
+  const room = currentRoom(), host = document.getElementById("invRow");
+  if (!mine.inventory.length) { host.innerHTML = `<span class="hn-empty-note">Nothing in inventory — buy something from the shop.</span>`; return; }
+  host.innerHTML = "";
+  mine.inventory.forEach(i => {
+    const fits = itemFitsRoom(i, room);
+    const cell = document.createElement("div");
+    cell.className = `hn-inv-item ${i.id === armedItemId ? "armed" : ""} ${fits ? "" : "dim"}`;
+    cell.title = `${i.name}${fits ? "" : " — " + i.location + " only"}`;
+    cell.appendChild(thumbCanvas(i, 40));
+    const [w, h] = fp(i);
+    if (w > 1 || h > 1) { const b = document.createElement("span"); b.className = "sz"; b.textContent = `${w}×${h}`; cell.appendChild(b); }
+    cell.addEventListener("click", () => {
+      if (!itemFitsRoom(i, room)) { showError(`${i.name} only goes in ${i.location} rooms — switch rooms first.`); return; }
+      armedItemId = armedItemId === i.id ? null : i.id;
+      renderInventory(); updateRoomHint();
+      const t = document.getElementById("invTitle");
+      if (t) t.textContent = armedItemId != null ? "Inventory — click a tile in the room" : "Inventory — click an item to place it";
     });
-  }
-
-  function openAdoptPicker() {
-    const c = document.getElementById("pickContent");
-    c.innerHTML = `
-      <h3 style="margin-top:0;">Adopt a pet</h3>
-      <div class="hn-shop-grid" style="max-height:none;">
-        ${catalogData.pets.map(p => {
-          const afford = currentUser && currentUser.kellscoins >= p.price;
-          return `<div class="hn-shop-item">
-            <div class="emoji">${p.emoji}</div>
-            <div class="name">${escHtml(p.label)}</div>
-            <div class="price">🪙 ${p.price.toLocaleString()}</div>
-            <input type="text" maxlength="30" placeholder="Name (optional)" data-name-for="${p.pet_type}"
-              style="width:100%; background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 6px; font-size:0.7rem; font-family:inherit;">
-            <button class="hn-mini-btn" data-pet="${p.pet_type}" ${afford ? "" : "disabled"}>Adopt</button>
-          </div>`;
-        }).join("")}
-      </div>
-      <div class="hn-error" id="pickError"></div>`;
-    document.getElementById("pickModal").classList.add("open");
-    c.querySelectorAll(".hn-mini-btn[data-pet]").forEach(btn => btn.addEventListener("click", async () => {
-      const petType = btn.dataset.pet;
-      const name = c.querySelector(`[data-name-for="${petType}"]`).value.trim();
+    host.appendChild(cell);
+  });
+}
+function renderShop() {
+  const host = document.getElementById("shopGrid");
+  const items = catalogData.items.filter(i =>
+    shopLocFilter === "all" ? true :
+    shopLocFilter === "indoor" ? (i.location === "indoor" || i.location === "any") :
+    (i.location === "outdoor" || i.location === "any"));
+  host.innerHTML = "";
+  items.forEach(i => {
+    const afford = currentUser && currentUser.kellscoins >= i.price;
+    const [w, h] = fp(i);
+    const card = document.createElement("div");
+    card.className = "hn-shop-item";
+    card.innerHTML = `
+      <div class="hn-thumb"></div>
+      <div class="name">${escHtml(i.name)}</div>
+      <div class="loc">${i.location}${(w > 1 || h > 1) ? " · " + w + "×" + h : ""}</div>
+      <div class="price">🪙 ${i.price.toLocaleString()}</div>
+      <button class="hn-mini-btn" data-key="${i.key}" ${afford ? "" : "disabled"}>Buy</button>`;
+    card.querySelector(".hn-thumb").appendChild(thumbCanvas(i, 48));
+    card.querySelector(".hn-mini-btn").addEventListener("click", async () => {
       try {
-        const res = await api("/pets/adopt", { method: "POST", body: { pet_type: petType, name } });
+        const res = await api("/buy", { method: "POST", body: { item_key: i.key } });
+        currentUser.kellscoins = res.balance; updateCoinChip();
+        mine.inventory.push(res.item); renderEditor();
+      } catch (e) { showError(e.message); }
+    });
+    host.appendChild(card);
+  });
+}
+function petThumb(petType, size) {
+  const S = PET_SPRITES[petType] || PET_SPRITES.cat;
+  const cv = document.createElement("canvas");
+  cv.width = size * DPR; cv.height = size * DPR; cv.style.width = size + "px"; cv.style.height = size + "px";
+  const g = cv.getContext("2d"); g.setTransform(DPR, 0, 0, DPR, 0, 0); g.imageSmoothingEnabled = false;
+  const sc = Math.floor((size - 2) / Math.max(S.w, S.h));
+  g.setTransform(DPR * sc, 0, 0, DPR * sc, DPR * (size - S.w * sc) / 2, DPR * (size - S.h * sc) / 2);
+  blit(g, S.sit, S.pal, 0, 0, false);
+  return cv;
+}
+function renderPets() {
+  const host = document.getElementById("petList");
+  if (!mine.pets.length) { host.innerHTML = `<span class="hn-empty-note">No pets yet. Adopt one below — it'll wander whatever room you put it in.</span>`; return; }
+  const roomOpts = seg => mine.rooms.map(r => `<option value="${r.key}" ${seg === r.key ? "selected" : ""}>${escHtml(r.name)}</option>`).join("");
+  host.innerHTML = "";
+  mine.pets.forEach(p => {
+    const card = document.createElement("div");
+    card.className = "hn-pet-card"; card.dataset.petId = p.id;
+    card.innerHTML = `
+      <input type="text" maxlength="30" value="${escHtml(p.name)}" data-role="name" aria-label="Pet name">
+      <select data-role="room">
+        <option value="" ${p.room_key ? "" : "selected"}>— carrier —</option>
+        ${roomOpts(p.room_key)}
+      </select>
+      <button class="hn-mini-btn ghost" data-role="save">Save</button>`;
+    card.insertBefore(petThumb(p.pet_type, 34), card.firstChild);
+    card.querySelector('[data-role="save"]').addEventListener("click", async () => {
+      const name = card.querySelector('[data-role="name"]').value.trim();
+      const roomKey = card.querySelector('[data-role="room"]').value || null;
+      try {
+        const pet = mine.pets.find(x => x.id === p.id);
+        if (name && name !== pet.name) Object.assign(pet, await api("/pets/rename", { method: "POST", body: { pet_id: p.id, name } }));
+        Object.assign(pet, await api("/pets/assign", { method: "POST", body: { pet_id: p.id, room_key: roomKey } }));
+        renderEditor();
+      } catch (e) { showError(e.message); }
+    });
+    host.appendChild(card);
+  });
+}
+function openAdoptPicker() {
+  const c = document.getElementById("pickContent");
+  c.innerHTML = `<h3 style="margin-top:0;">Adopt a pet</h3><div class="hn-shop-grid" id="adoptGrid" style="max-height:none;"></div><div class="hn-error" id="pickError"></div>`;
+  document.getElementById("pickModal").classList.add("open");
+  const grid = document.getElementById("adoptGrid");
+  catalogData.pets.forEach(p => {
+    const afford = currentUser && currentUser.kellscoins >= p.price;
+    const card = document.createElement("div");
+    card.className = "hn-shop-item";
+    card.innerHTML = `
+      <div class="hn-thumb"></div>
+      <div class="name">${escHtml(p.label)}</div>
+      <div class="price">🪙 ${p.price.toLocaleString()}</div>
+      <input type="text" maxlength="30" placeholder="Name (optional)" data-name
+        style="width:100%; background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 6px; font-size:0.7rem; font-family:inherit;">
+      <button class="hn-mini-btn" ${afford ? "" : "disabled"}>Adopt</button>`;
+    card.querySelector(".hn-thumb").appendChild(petThumb(p.pet_type, 44));
+    card.querySelector(".hn-mini-btn").addEventListener("click", async () => {
+      try {
+        const res = await api("/pets/adopt", { method: "POST", body: { pet_type: p.pet_type, name: card.querySelector("[data-name]").value.trim() } });
         currentUser.kellscoins = res.balance; updateCoinChip();
         mine.pets.push(res.pet);
         document.getElementById("pickModal").classList.remove("open");
         renderEditor();
       } catch (e) { document.getElementById("pickError").textContent = e.message; }
-    }));
-  }
-
-  function openBuildPicker() {
-    const owned = new Set(mine.rooms.map(r => r.key));
-    const available = catalogData.rooms.buildable.filter(r => !owned.has(r.key));
-    const c = document.getElementById("pickContent");
-    c.innerHTML = `
-      <h3 style="margin-top:0;">Build a room</h3>
-      ${available.length ? `<div class="hn-shop-grid" style="max-height:none;">
-        ${available.map(r => {
-          const afford = currentUser && currentUser.kellscoins >= r.price;
-          return `<div class="hn-shop-item">
-            <div class="emoji">${r.kind === "outdoor" ? "🌳" : "🛋️"}</div>
-            <div class="name">${escHtml(r.name)}</div>
-            <div class="loc">${r.kind}</div>
-            <div class="price">🪙 ${r.price.toLocaleString()}</div>
-            <button class="hn-mini-btn" data-room="${r.key}" ${afford ? "" : "disabled"}>Build</button>
-          </div>`;
-        }).join("")}
-      </div>` : `<p class="hn-empty-note">You've built every room available.</p>`}
-      <div class="hn-error" id="pickError"></div>`;
-    document.getElementById("pickModal").classList.add("open");
-    c.querySelectorAll(".hn-mini-btn[data-room]").forEach(btn => btn.addEventListener("click", async () => {
-      try {
-        const res = await api("/rooms/build", { method: "POST", body: { room_key: btn.dataset.room } });
-        currentUser.kellscoins = res.balance; updateCoinChip();
-        mine.rooms.push(res.room);
-        selectedRoomKey = res.room.key;
-        document.getElementById("pickModal").classList.remove("open");
-        renderEditor();
-      } catch (e) { document.getElementById("pickError").textContent = e.message; }
-    }));
-  }
-
-  function showError(msg) {
-    const el = document.getElementById("hnError");
-    if (el) { el.textContent = msg; clearTimeout(showError._t); showError._t = setTimeout(() => { el.textContent = ""; }, 4000); }
-  }
-  function updateCoinChip() {
-    if (!currentUser) return;
-    document.getElementById("coinChip").style.display = "inline-flex";
-    document.getElementById("coinBalance").textContent = currentUser.kellscoins.toLocaleString();
-  }
-
-  // ── Tabs ───────────────────────────────────────────────────────────
-  document.querySelectorAll(".hn-tab").forEach(tab => tab.addEventListener("click", async () => {
-    document.querySelectorAll(".hn-tab").forEach(t => t.classList.remove("active"));
-    tab.classList.add("active");
-    const which = tab.dataset.tab;
-    document.getElementById("mapView").style.display = which === "map" ? "block" : "none";
-    document.getElementById("mineView").style.display = which === "mine" ? "block" : "none";
-    if (which === "mine" && currentUser && !mine) await loadMine();
-    if (which === "map") loadMap();
-  }));
-
-  async function boot() {
-    catalogData = await api("/catalog");
+    });
+    grid.appendChild(card);
+  });
+}
+function openBuildPicker() {
+  const owned = new Set(mine.rooms.map(r => r.key));
+  const available = catalogData.rooms.buildable.filter(r => !owned.has(r.key));
+  const c = document.getElementById("pickContent");
+  c.innerHTML = `
+    <h3 style="margin-top:0;">Build a room</h3>
+    ${available.length ? `<div class="hn-shop-grid" style="max-height:none;">
+      ${available.map(r => {
+        const afford = currentUser && currentUser.kellscoins >= r.price;
+        return `<div class="hn-shop-item">
+          <div class="hn-thumb" style="font-size:1.7rem;">${r.kind === "outdoor" ? "🌳" : "🛋️"}</div>
+          <div class="name">${escHtml(r.name)}</div>
+          <div class="loc">${r.kind}</div>
+          <div class="price">🪙 ${r.price.toLocaleString()}</div>
+          <button class="hn-mini-btn" data-room="${r.key}" ${afford ? "" : "disabled"}>Build</button>
+        </div>`;
+      }).join("")}
+    </div>` : `<p class="hn-empty-note">You've built every room available.</p>`}
+    <div class="hn-error" id="pickError"></div>`;
+  document.getElementById("pickModal").classList.add("open");
+  c.querySelectorAll(".hn-mini-btn[data-room]").forEach(btn => btn.addEventListener("click", async () => {
     try {
-      currentUser = await (await fetch(GAMES_API + "/auth/me", { credentials: "include" })).json();
-      if (!currentUser || !currentUser.id) currentUser = null;
-    } catch (e) { currentUser = null; }
+      const res = await api("/rooms/build", { method: "POST", body: { room_key: btn.dataset.room } });
+      currentUser.kellscoins = res.balance; updateCoinChip();
+      mine.rooms.push(res.room); selectedRoomKey = res.room.key;
+      document.getElementById("pickModal").classList.remove("open");
+      renderEditor();
+    } catch (e) { document.getElementById("pickError").textContent = e.message; }
+  }));
+}
 
-    updateCoinChip();
-    if (!currentUser) {
-      document.getElementById("loginHint").style.display = "block";
-    } else {
-      document.getElementById("editorWrap").style.display = "block";
-    }
-    await loadMap();
-  }
-  boot();
+function showError(msg) {
+  const el = document.getElementById("hnError");
+  if (el) { el.textContent = msg; clearTimeout(showError._t); showError._t = setTimeout(() => { el.textContent = ""; }, 4000); }
+}
+function updateCoinChip() {
+  if (!currentUser) return;
+  document.getElementById("coinChip").style.display = "inline-flex";
+  document.getElementById("coinBalance").textContent = (currentUser.kellscoins || 0).toLocaleString();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RAF loop + tabs + boot
+   ═══════════════════════════════════════════════════════════════════════ */
+let activeTab = "map";
+let lastT = performance.now();
+function tick(now) {
+  let dt = (now - lastT) / 1000; lastT = now;
+  if (dt > 0.05) dt = 0.05;
+  if (autoDayNight && !REDUCED) timeOfDay = (timeOfDay + dt * 0.35) % 24;
+
+  if (activeTab === "map" && mapData) drawMapScene(now, dt);
+  if (activeTab === "mine" && ROOM) drawRoomInto(ROOM, now, dt);
+  if (document.getElementById("detailModal").classList.contains("open") && DETAIL) drawRoomInto(DETAIL, now, dt);
+  requestAnimationFrame(tick);
+}
+
+document.querySelectorAll(".hn-tab").forEach(tab => tab.addEventListener("click", async () => {
+  document.querySelectorAll(".hn-tab").forEach(t => t.classList.remove("active"));
+  tab.classList.add("active");
+  activeTab = tab.dataset.tab;
+  document.getElementById("mapView").style.display = activeTab === "map" ? "block" : "none";
+  document.getElementById("mineView").style.display = activeTab === "mine" ? "block" : "none";
+  if (activeTab === "mine" && currentUser && !mine) { try { await loadMine(); } catch (e) { showError(e.message); } }
+  if (activeTab === "map") { fitMapView(); }
+}));
+
+document.getElementById("labelsToggle").addEventListener("click", e => {
+  showLabels = !showLabels; e.currentTarget.classList.toggle("on", showLabels);
+});
+document.getElementById("dayNightToggle").addEventListener("click", e => {
+  autoDayNight = !autoDayNight; e.currentTarget.classList.toggle("on", autoDayNight);
+  e.currentTarget.innerHTML = (autoDayNight ? "☾" : "☀") + "&nbsp;Auto&nbsp;day/night";
+  if (!autoDayNight) timeOfDay = 15.0;
+});
+if (REDUCED) document.getElementById("dayNightToggle").style.display = "none";
+
+let _resizeT = 0;
+window.addEventListener("resize", () => {
+  fitMapView();
+  clearTimeout(_resizeT);
+  _resizeT = setTimeout(() => { if (mine && ROOM && activeTab === "mine") renderEditor(); }, 220);
+});
+
+async function boot() {
+  try { catalogData = await api("/catalog"); }
+  catch (e) { document.getElementById("mapStage").insertAdjacentHTML("beforeend", `<div class="hn-stage-hint" style="bottom:auto;top:12px;">Couldn't reach the neighborhood server.</div>`); return; }
+
+  try {
+    currentUser = await (await fetch(GAMES_API + "/auth/me", { credentials: "include" })).json();
+    if (!currentUser || !currentUser.id) currentUser = null;
+  } catch (e) { currentUser = null; }
+
+  updateCoinChip();
+  if (!currentUser) document.getElementById("loginHint").style.display = "block";
+  else document.getElementById("editorWrap").style.display = "block";
+
+  try { await loadMap(); } catch (e) { console.warn(e); }
+  requestAnimationFrame(tick);
+}
+boot();
 </script>
 
 </body>
