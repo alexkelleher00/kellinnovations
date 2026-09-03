@@ -284,21 +284,29 @@
 
   // ── Sound (Web Audio oscillator beeps — same technique as 2048.html/
   // letterfall.html/3man.html elsewhere on this site, no audio files) ──
+  // Sound is best-effort only — every entry point is wrapped so a missing
+  // AudioContext / autoplay block / anything else can never break a spin.
   let audioCtx = null;
   function ensureAudio() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!audioCtx) audioCtx = new AC();
     if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
   }
   function beep(freq, dur, type, gain) {
-    ensureAudio();
-    const osc = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    osc.type = type; osc.frequency.value = freq;
-    osc.connect(g); g.connect(audioCtx.destination);
-    const now = audioCtx.currentTime;
-    g.gain.setValueAtTime(gain, now);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-    osc.start(now); osc.stop(now + dur);
+    try {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = type; osc.frequency.value = freq;
+      osc.connect(g); g.connect(ctx.destination);
+      const now = ctx.currentTime;
+      g.gain.setValueAtTime(gain, now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+      osc.start(now); osc.stop(now + dur);
+    } catch (e) { /* no audio — not worth interrupting the game */ }
   }
   function playReelStop() { beep(240, 0.06, "square", 0.05); }
   function playResultSound(outcome, net) {
