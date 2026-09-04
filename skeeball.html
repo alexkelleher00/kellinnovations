@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skee-Ball Alley — Kelleher Innovations</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .sk-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .sk-topbar { width: 100%; max-width: 400px; }
+  .sk-exit-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 0.82rem; font-weight: 700; text-decoration: none;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .sk-exit-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .sk-hud { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .sk-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .sk-chip.balance { color: #ffd166; }
+  #skCanvas {
+    background: linear-gradient(180deg, #2a1f14 0%, #1a130b 100%);
+    border: 2px solid var(--border); border-radius: 10px; touch-action: manipulation; cursor: pointer;
+    max-width: 100%;
+  }
+  .sk-hint { color: var(--muted); font-size: 0.85rem; text-align: center; max-width: 400px; }
+  .sk-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; }
+  .sk-btn {
+    padding: 9px 18px; background: var(--accent); color: #000; border: none;
+    border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    font-family: inherit; transition: background 0.2s, transform 0.15s;
+  }
+  .sk-btn:hover { background: #00e0e0; transform: translateY(-1px); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="games.html">Games</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="sk-wrap">
+    <div class="sk-topbar">
+      <a href="games.html" class="sk-exit-btn">&larr; Exit to Games</a>
+    </div>
+    <h2>🎯 Skee-Ball Alley</h2>
+    <div class="sk-hud">
+      <span class="sk-chip">Ball: <span id="ballEl">1</span>/9</span>
+      <span class="sk-chip">Score: <span id="scoreEl">0</span></span>
+      <span class="sk-chip">Best: <span id="bestEl">0</span></span>
+      <span class="sk-chip balance" id="coinChip" style="display:none;">🪙 <span id="coinBalance">0</span></span>
+    </div>
+    <canvas id="skCanvas" width="360" height="520"></canvas>
+    <p class="sk-hint">Tap or press Space to release the ball while the power meter is in your target ring. 9 balls a game, 1 KellsCoin per point if you're logged in — <span id="loginHint"><a href="games.html">log in</a> to earn coins.</span></p>
+    <div class="sk-error" id="skError"></div>
+    <button class="sk-btn" id="restartBtn" style="display:none;">Play Again</button>
+  </div>
+</main>
+
+<script>
+  const GAMES_API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/games" : "https://api.kellinnovations.com/games";
+
+  let currentUser = null;
+  (async () => {
+    try {
+      currentUser = await (await fetch(GAMES_API + "/auth/me", { credentials: "include" })).json();
+      if (currentUser && currentUser.id) {
+        document.getElementById("coinChip").style.display = "inline-flex";
+        document.getElementById("coinBalance").textContent = currentUser.kellscoins.toLocaleString();
+        document.getElementById("loginHint").textContent = "";
+      } else {
+        currentUser = null;
+      }
+    } catch (e) { currentUser = null; }
+  })();
+
+  async function claimCoins(score) {
+    if (!currentUser || score <= 0) return;
+    try {
+      const res = await fetch(GAMES_API + "/claim_scored", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ game: "skeeball", score }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById("coinBalance").textContent =
+          (data.balance !== undefined ? data.balance : currentUser.kellscoins).toLocaleString();
+        if (data.awarded) document.getElementById("skError").textContent = "";
+      } else if (res.status !== 429) {
+        document.getElementById("skError").textContent = data.error || "";
+      }
+    } catch (e) { /* offline — silently skip */ }
+  }
+
+  // ── Game ────────────────────────────────────────────────────────────
+  // Same meter-timing skeleton as Buzzer Beater, but a fixed 9-ball session
+  // with additive scoring across bands instead of a sudden-death streak —
+  // real skee-ball's roll distance maps naturally onto a single power axis.
+  // Bands, widest (easy/low value) to narrowest (hard/high value):
+  //   0–38   gutter   0 pts
+  //   38–58  outer    10 pts
+  //   58–74  mid      20 pts
+  //   74–86  inner    30 pts
+  //   86–94  small    40 pts
+  //   94–99  tiny     50 pts
+  //   99–100 bullseye 100 pts
+  const BANDS = [
+    { lo: 0, hi: 38, pts: 0, label: "Gutter" },
+    { lo: 38, hi: 58, pts: 10, label: "10" },
+    { lo: 58, hi: 74, pts: 20, label: "20" },
+    { lo: 74, hi: 86, pts: 30, label: "30" },
+    { lo: 86, hi: 94, pts: 40, label: "40" },
+    { lo: 94, hi: 99, pts: 50, label: "50" },
+    { lo: 99, hi: 100.01, pts: 100, label: "BULLSEYE!" },
+  ];
+  const TOTAL_BALLS = 9;
+  const RESULT_HOLD_STEPS = 55;
+
+  const canvas = document.getElementById("skCanvas");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+
+  const STEP_MS = 1000 / 60;
+  const MAX_FRAME_MS = 250;
+
+  let phase; // "aim" | "result" | "gameover"
+  let meter, meterSpeed, frame, ballNum, score, best;
+  let lastResult, resultStep;
+  let acc = 0, lastTs = 0;
+
+  function loadBest() { return parseInt(localStorage.getItem("skeeball_best") || "0", 10); }
+  function saveBest(v) { localStorage.setItem("skeeball_best", String(v)); }
+
+  function bandFor(v) { return BANDS.find(b => v >= b.lo && v < b.hi) || BANDS[0]; }
+
+  function reset() {
+    phase = "aim";
+    meter = 0;
+    frame = 0;
+    ballNum = 1;
+    score = 0;
+    meterSpeed = 0.05;
+    best = loadBest();
+    acc = 0;
+    lastTs = 0;
+    document.getElementById("ballEl").textContent = "1";
+    document.getElementById("scoreEl").textContent = "0";
+    document.getElementById("bestEl").textContent = best;
+    document.getElementById("restartBtn").style.display = "none";
+    document.getElementById("skError").textContent = "";
+  }
+
+  function release() {
+    if (phase !== "aim") return;
+    lastResult = bandFor(meter);
+    score += lastResult.pts;
+    document.getElementById("scoreEl").textContent = score;
+    phase = "result";
+    resultStep = 0;
+  }
+
+  function step() {
+    frame++;
+    if (phase === "aim") {
+      meter = 50 + 50 * Math.sin(frame * meterSpeed);
+    } else if (phase === "result") {
+      resultStep++;
+      if (resultStep >= RESULT_HOLD_STEPS) {
+        if (ballNum >= TOTAL_BALLS) {
+          endGame();
+        } else {
+          ballNum++;
+          document.getElementById("ballEl").textContent = ballNum;
+          meterSpeed = Math.min(0.09, 0.05 + ballNum * 0.004);
+          phase = "aim";
+        }
+      }
+    }
+  }
+
+  function endGame() {
+    phase = "gameover";
+    if (score > best) { best = score; saveBest(best); document.getElementById("bestEl").textContent = best; }
+    document.getElementById("restartBtn").style.display = "inline-block";
+    claimCoins(score);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Concentric rings viewed head-on at the top of the lane, tightest (highest
+    // value) ring innermost — visually mirrors the BANDS ordering above.
+    const cx = W / 2, cy = 110;
+    const ringR = [90, 74, 58, 42, 26, 14, 6];
+    const ringColor = ["#5a3a1e", "#7a4e26", "#9a622e", "#ba7636", "#da8a3e", "#f5a94a", "#ffd166"];
+    for (let i = 0; i < ringR.length; i++) {
+      ctx.fillStyle = ringColor[i];
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, ringR[i], ringR[i] * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Lane
+    ctx.fillStyle = "#4a3320";
+    ctx.beginPath();
+    ctx.moveTo(cx - 70, cy + 15);
+    ctx.lineTo(cx + 70, cy + 15);
+    ctx.lineTo(cx + 30, H - 60);
+    ctx.lineTo(cx - 30, H - 60);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.15)";
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + 15);
+    ctx.lineTo(cx, H - 60);
+    ctx.stroke();
+
+    // Power meter
+    const barX = 30, barY = H - 230, barW = 26, barH = 190;
+    ctx.fillStyle = "rgba(255,255,255,0.1)";
+    ctx.fillRect(barX, barY, barW, barH);
+    BANDS.forEach((b, i) => {
+      const top = barY + barH * (1 - Math.min(100, b.hi) / 100);
+      const h = barH * (Math.min(100, b.hi) - b.lo) / 100;
+      ctx.fillStyle = ringColor[ringColor.length - 1 - i] + "cc";
+      ctx.fillRect(barX, top, barW, h);
+    });
+    if (phase === "aim") {
+      const markerY = barY + barH * (1 - meter / 100);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(barX - 4, markerY - 3, barW + 8, 6);
+    }
+    ctx.strokeStyle = "var(--border)";
+    ctx.strokeRect(barX, barY, barW, barH);
+
+    if (phase === "result") {
+      ctx.fillStyle = lastResult.pts > 0 ? "#00e696" : "#ff6b6b";
+      ctx.font = "bold 30px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(lastResult.label, W / 2, H - 20);
+    }
+
+    if (phase === "gameover") {
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 26px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Game Over", W / 2, H / 2 - 16);
+      ctx.font = "16px sans-serif";
+      ctx.fillText(`Final score: ${score}`, W / 2, H / 2 + 14);
+    }
+  }
+
+  function loop(ts) {
+    if (!lastTs) lastTs = ts;
+    let elapsed = ts - lastTs;
+    lastTs = ts;
+    if (elapsed > MAX_FRAME_MS) elapsed = STEP_MS;
+    acc += elapsed;
+    let guard = 0;
+    while (acc >= STEP_MS && guard++ < 8) {
+      step();
+      acc -= STEP_MS;
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (phase === "gameover") { reset(); return; }
+    release();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (phase === "gameover") { reset(); return; }
+      release();
+    }
+  });
+  document.getElementById("restartBtn").addEventListener("click", reset);
+
+  reset();
+  requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rooftop Runner — Kelleher Innovations</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .rr-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .rr-topbar { width: 100%; max-width: 400px; }
+  .rr-exit-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 0.82rem; font-weight: 700; text-decoration: none;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .rr-exit-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .rr-hud { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .rr-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .rr-chip.balance { color: #ffd166; }
+  #rrCanvas {
+    background: linear-gradient(180deg, #2b1f4a 0%, #6b3f6b 55%, #d97a5a 80%, #d97a5a 100%);
+    border: 2px solid var(--border); border-radius: 10px; touch-action: manipulation; cursor: pointer;
+    max-width: 100%;
+  }
+  .rr-hint { color: var(--muted); font-size: 0.85rem; text-align: center; max-width: 400px; }
+  .rr-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; }
+  .rr-btn {
+    padding: 9px 18px; background: var(--accent); color: #000; border: none;
+    border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    font-family: inherit; transition: background 0.2s, transform 0.15s;
+  }
+  .rr-btn:hover { background: #00e0e0; transform: translateY(-1px); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="games.html">Games</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="rr-wrap">
+    <div class="rr-topbar">
+      <a href="games.html" class="rr-exit-btn">&larr; Exit to Games</a>
+    </div>
+    <h2>🏃 Rooftop Runner</h2>
+    <div class="rr-hud">
+      <span class="rr-chip">Roofs: <span id="scoreEl">0</span></span>
+      <span class="rr-chip">Best: <span id="bestEl">0</span></span>
+      <span class="rr-chip balance" id="coinChip" style="display:none;">🪙 <span id="coinBalance">0</span></span>
+    </div>
+    <canvas id="rrCanvas" width="360" height="520"></canvas>
+    <p class="rr-hint">Tap, click, or press Space to jump the gaps between rooftops — it speeds up the longer you survive. 12 KellsCoins per rooftop cleared if you're logged in — <span id="loginHint"><a href="games.html">log in</a> to earn coins.</span></p>
+    <div class="rr-error" id="rrError"></div>
+    <button class="rr-btn" id="restartBtn" style="display:none;">Play Again</button>
+  </div>
+</main>
+
+<script>
+  const GAMES_API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/games" : "https://api.kellinnovations.com/games";
+
+  let currentUser = null;
+  (async () => {
+    try {
+      currentUser = await (await fetch(GAMES_API + "/auth/me", { credentials: "include" })).json();
+      if (currentUser && currentUser.id) {
+        document.getElementById("coinChip").style.display = "inline-flex";
+        document.getElementById("coinBalance").textContent = currentUser.kellscoins.toLocaleString();
+        document.getElementById("loginHint").textContent = "";
+      } else {
+        currentUser = null;
+      }
+    } catch (e) { currentUser = null; }
+  })();
+
+  async function claimCoins(score) {
+    if (!currentUser || score <= 0) return;
+    try {
+      const res = await fetch(GAMES_API + "/claim_scored", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ game: "rooftoprunner", score }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById("coinBalance").textContent =
+          (data.balance !== undefined ? data.balance : currentUser.kellscoins).toLocaleString();
+        if (data.awarded) document.getElementById("rrError").textContent = "";
+      } else if (res.status !== 429) {
+        document.getElementById("rrError").textContent = data.error || "";
+      }
+    } catch (e) { /* offline — silently skip */ }
+  }
+
+  // ── Game ────────────────────────────────────────────────────────────
+  // Endless runner: the world scrolls left under a fixed-x runner. Rooftop
+  // segments at varying heights scroll by with gaps between them; a single
+  // jump (fixed impulse, real gravity) must clear each gap. Gap width is
+  // capped by the runner's actual max jump distance at the *current* speed
+  // so every gap stays fair even as difficulty ramps. Same fixed-60Hz-step +
+  // render-interpolation pattern as the other arcade games on the site.
+  const canvas = document.getElementById("rrCanvas");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+
+  const STEP_MS = 1000 / 60;
+  const MAX_FRAME_MS = 250;
+
+  const RUNNER_X = 90;
+  const RUNNER_W = 22, RUNNER_H = 30;
+  const GRAVITY = 0.62;
+  const JUMP_VY = -12.5;
+  const SPEED_START = 3.2;
+  const SPEED_MAX = 6.5;
+  const ROOF_THICK = 18;
+
+  let runner, roofs, speed, frame, score, best, running, gameOver;
+  let acc = 0, lastTs = 0;
+
+  function loadBest() { return parseInt(localStorage.getItem("rooftoprunner_best") || "0", 10); }
+  function saveBest(v) { localStorage.setItem("rooftoprunner_best", String(v)); }
+
+  // Max horizontal distance the jump arc covers at a given scroll speed —
+  // time-in-air (2*|JUMP_VY|/GRAVITY steps) * speed, with a safety margin.
+  function maxJumpDistance(spd) {
+    const airSteps = (2 * Math.abs(JUMP_VY)) / GRAVITY;
+    return airSteps * spd * 0.82;
+  }
+
+  function reset() {
+    runner = { y: H - 200, vy: 0, onGround: true, prevY: H - 200 };
+    roofs = [{ xStart: 0, xEnd: 260, y: H - 170, prevXStart: 0, prevXEnd: 260, passed: true }];
+    speed = SPEED_START;
+    frame = 0;
+    score = 0;
+    running = true;
+    gameOver = false;
+    best = loadBest();
+    acc = 0;
+    lastTs = 0;
+    document.getElementById("scoreEl").textContent = "0";
+    document.getElementById("bestEl").textContent = best;
+    document.getElementById("restartBtn").style.display = "none";
+    document.getElementById("rrError").textContent = "";
+  }
+
+  function spawnRoof() {
+    const last = roofs[roofs.length - 1];
+    const maxGap = maxJumpDistance(speed);
+    const gap = 40 + Math.random() * Math.max(10, maxGap - 40);
+    const width = 100 + Math.random() * 90;
+    const heightDelta = (Math.random() - 0.5) * 90;
+    const y = Math.max(H - 280, Math.min(H - 120, last.y + heightDelta));
+    const xStart = last.xEnd + gap;
+    roofs.push({ xStart, xEnd: xStart + width, y, prevXStart: xStart, prevXEnd: xStart + width, passed: false });
+  }
+
+  function currentRoof() {
+    // Roof the runner's x currently sits over (for ground height / falling checks).
+    return roofs.find(r => RUNNER_X >= r.xStart && RUNNER_X <= r.xEnd);
+  }
+
+  function jump() {
+    if (gameOver) return;
+    if (!running) { running = true; return; }
+    if (runner.onGround) {
+      runner.vy = JUMP_VY;
+      runner.onGround = false;
+    }
+  }
+
+  function step() {
+    if (!running || gameOver) return;
+    frame++;
+    speed = Math.min(SPEED_MAX, SPEED_START + score * 0.05);
+
+    roofs.forEach(r => { r.prevXStart = r.xStart; r.prevXEnd = r.xEnd; r.xStart -= speed; r.xEnd -= speed; });
+    roofs = roofs.filter(r => r.xEnd > -20);
+    if (roofs[roofs.length - 1].xEnd < W + 150) spawnRoof();
+
+    roofs.forEach(r => {
+      if (!r.passed && r.xEnd < RUNNER_X) {
+        r.passed = true;
+        score++;
+        document.getElementById("scoreEl").textContent = score;
+      }
+    });
+
+    runner.prevY = runner.y;
+    const under = currentRoof();
+    if (runner.onGround) {
+      if (under) {
+        runner.y = under.y - RUNNER_H;
+      } else {
+        runner.onGround = false;
+        runner.vy = 0;
+      }
+    } else {
+      runner.vy += GRAVITY;
+      runner.y += runner.vy;
+      if (under && runner.vy >= 0 && runner.y + RUNNER_H >= under.y) {
+        runner.y = under.y - RUNNER_H;
+        runner.vy = 0;
+        runner.onGround = true;
+      }
+    }
+
+    if (runner.y > H) endGame();
+  }
+
+  function endGame() {
+    gameOver = true;
+    running = false;
+    if (score > best) { best = score; saveBest(best); document.getElementById("bestEl").textContent = best; }
+    document.getElementById("restartBtn").style.display = "inline-block";
+    claimCoins(score);
+  }
+
+  function draw(alpha) {
+    if (!running || gameOver) alpha = 1;
+    const ry = runner.prevY + (runner.y - runner.prevY) * alpha;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Distant skyline (parallax, cheap sine-based silhouette)
+    ctx.fillStyle = "rgba(20,15,35,0.55)";
+    for (let i = 0; i < 6; i++) {
+      const bx = ((i * 90 - frame * 0.3 * 0.4) % (W + 100)) - 50;
+      ctx.fillRect(bx, H - 260 - (i % 3) * 25, 60, 260);
+    }
+
+    // Rooftops
+    roofs.forEach(r => {
+      const xs = (r.prevXStart ?? r.xStart) + (r.xStart - (r.prevXStart ?? r.xStart)) * alpha;
+      const xe = (r.prevXEnd ?? r.xEnd) + (r.xEnd - (r.prevXEnd ?? r.xEnd)) * alpha;
+      ctx.fillStyle = "#3a2c52";
+      ctx.fillRect(xs, r.y, xe - xs, ROOF_THICK);
+      ctx.fillStyle = "#241a38";
+      ctx.fillRect(xs, r.y + ROOF_THICK, xe - xs, H - (r.y + ROOF_THICK));
+      ctx.fillStyle = "#5a4878";
+      ctx.fillRect(xs, r.y, xe - xs, 4);
+    });
+
+    // Runner
+    ctx.fillStyle = "#ffd166";
+    ctx.fillRect(RUNNER_X - RUNNER_W / 2, ry, RUNNER_W, RUNNER_H);
+    ctx.fillStyle = "#1a1a1a";
+    ctx.fillRect(RUNNER_X - RUNNER_W / 2 + 4, ry + 5, 5, 5);
+
+    if (!running && !gameOver) {
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 18px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Tap or press Space to run & jump", W / 2, H / 2);
+    }
+    if (gameOver) {
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 26px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Fell off!", W / 2, H / 2 - 16);
+      ctx.font = "16px sans-serif";
+      ctx.fillText(`Rooftops cleared: ${score}`, W / 2, H / 2 + 14);
+    }
+  }
+
+  function loop(ts) {
+    if (!lastTs) lastTs = ts;
+    let elapsed = ts - lastTs;
+    lastTs = ts;
+    if (elapsed > MAX_FRAME_MS) elapsed = STEP_MS;
+    acc += elapsed;
+    let guard = 0;
+    while (acc >= STEP_MS && guard++ < 8) {
+      step();
+      acc -= STEP_MS;
+    }
+    draw(acc / STEP_MS);
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (gameOver) { reset(); return; }
+    jump();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (gameOver) { reset(); return; }
+      jump();
+    }
+  });
+  document.getElementById("restartBtn").addEventListener("click", reset);
+
+  reset();
+  running = false;
+  requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>

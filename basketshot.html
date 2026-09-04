@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buzzer Beater — Kelleher Innovations</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .bs-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .bs-topbar { width: 100%; max-width: 400px; }
+  .bs-exit-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 0.82rem; font-weight: 700; text-decoration: none;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .bs-exit-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .bs-hud { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .bs-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .bs-chip.balance { color: #ffd166; }
+  #bsCanvas {
+    background: linear-gradient(180deg, #16324a 0%, #0d2033 100%);
+    border: 2px solid var(--border); border-radius: 10px; touch-action: manipulation; cursor: pointer;
+    max-width: 100%;
+  }
+  .bs-hint { color: var(--muted); font-size: 0.85rem; text-align: center; max-width: 400px; }
+  .bs-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; }
+  .bs-btn {
+    padding: 9px 18px; background: var(--accent); color: #000; border: none;
+    border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    font-family: inherit; transition: background 0.2s, transform 0.15s;
+  }
+  .bs-btn:hover { background: #00e0e0; transform: translateY(-1px); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="games.html">Games</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="bs-wrap">
+    <div class="bs-topbar">
+      <a href="games.html" class="bs-exit-btn">&larr; Exit to Games</a>
+    </div>
+    <h2>🏀 Buzzer Beater</h2>
+    <div class="bs-hud">
+      <span class="bs-chip">Streak: <span id="scoreEl">0</span></span>
+      <span class="bs-chip">Best: <span id="bestEl">0</span></span>
+      <span class="bs-chip balance" id="coinChip" style="display:none;">🪙 <span id="coinBalance">0</span></span>
+    </div>
+    <canvas id="bsCanvas" width="360" height="520"></canvas>
+    <p class="bs-hint">Tap or press Space to freeze the power meter in the green window and sink the shot. First miss ends the streak — 25 KellsCoins per make if you're logged in — <span id="loginHint"><a href="games.html">log in</a> to earn coins.</span></p>
+    <div class="bs-error" id="bsError"></div>
+    <button class="bs-btn" id="restartBtn" style="display:none;">Play Again</button>
+  </div>
+</main>
+
+<script>
+  const GAMES_API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/games" : "https://api.kellinnovations.com/games";
+
+  let currentUser = null;
+  (async () => {
+    try {
+      currentUser = await (await fetch(GAMES_API + "/auth/me", { credentials: "include" })).json();
+      if (currentUser && currentUser.id) {
+        document.getElementById("coinChip").style.display = "inline-flex";
+        document.getElementById("coinBalance").textContent = currentUser.kellscoins.toLocaleString();
+        document.getElementById("loginHint").textContent = "";
+      } else {
+        currentUser = null;
+      }
+    } catch (e) { currentUser = null; }
+  })();
+
+  async function claimCoins(score) {
+    if (!currentUser || score <= 0) return;
+    try {
+      const res = await fetch(GAMES_API + "/claim_scored", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ game: "basketshot", score }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById("coinBalance").textContent =
+          (data.balance !== undefined ? data.balance : currentUser.kellscoins).toLocaleString();
+        if (data.awarded) document.getElementById("bsError").textContent = "";
+      } else if (res.status !== 429) {
+        document.getElementById("bsError").textContent = data.error || "";
+      }
+    } catch (e) { /* offline — silently skip */ }
+  }
+
+  // ── Game ────────────────────────────────────────────────────────────
+  // A "meter" timing game rather than a physics sim: a marker sweeps a power
+  // bar; locking it inside the (shrinking) green window is a make. The ball's
+  // arc is purely cosmetic feedback, driven by a fixed-duration animation
+  // rather than the meter value, so misses can still look like real bricks.
+  // Same fixed-60Hz-step render pattern as the other arcade games on the site.
+  const canvas = document.getElementById("bsCanvas");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+
+  const STEP_MS = 1000 / 60;
+  const MAX_FRAME_MS = 250;
+
+  const HOOP_X = W - 70, HOOP_Y = 150, HOOP_R = 26;
+  const BALL_START_X = 70, BALL_START_Y = H - 90, BALL_R = 12;
+  const SHOT_STEPS = 55; // fixed-step duration of the ball's flight animation
+
+  let phase; // "aim" | "flight" | "gameover"
+  let meter, meterSpeed, windowCenter, windowHalf, locked;
+  let score, best, frame;
+  let ball, shotStep, shotMade;
+  let acc = 0, lastTs = 0;
+
+  function loadBest() { return parseInt(localStorage.getItem("basketshot_best") || "0", 10); }
+  function saveBest(v) { localStorage.setItem("basketshot_best", String(v)); }
+
+  function newShotWindow() {
+    // Window shrinks and the meter speeds up as the streak grows — same
+    // "gets harder the better you're doing" ramp as the other arcade games.
+    windowCenter = 35 + Math.random() * 30; // 35–65
+    windowHalf = Math.max(4, 11 - score * 0.35);
+    meterSpeed = Math.min(0.11, 0.045 + score * 0.003);
+  }
+
+  function reset() {
+    phase = "aim";
+    meter = 0;
+    frame = 0;
+    score = 0;
+    locked = false;
+    ball = { x: BALL_START_X, y: BALL_START_Y };
+    newShotWindow();
+    best = loadBest();
+    acc = 0;
+    lastTs = 0;
+    document.getElementById("scoreEl").textContent = "0";
+    document.getElementById("bestEl").textContent = best;
+    document.getElementById("restartBtn").style.display = "none";
+    document.getElementById("bsError").textContent = "";
+  }
+
+  function lockShot() {
+    if (phase !== "aim") return;
+    shotMade = Math.abs(meter - windowCenter) <= windowHalf;
+    phase = "flight";
+    shotStep = 0;
+  }
+
+  function step() {
+    frame++;
+    if (phase === "aim") {
+      meter = 50 + 50 * Math.sin(frame * meterSpeed);
+    } else if (phase === "flight") {
+      shotStep++;
+      const t = shotStep / SHOT_STEPS;
+      if (shotMade) {
+        ball.x = BALL_START_X + (HOOP_X - BALL_START_X) * t;
+        ball.y = BALL_START_Y + (HOOP_Y - BALL_START_Y) * t - 140 * Math.sin(Math.PI * t);
+        if (t >= 1) {
+          score++;
+          document.getElementById("scoreEl").textContent = score;
+          if (score > best) { best = score; saveBest(best); document.getElementById("bestEl").textContent = best; }
+          phase = "aim";
+          newShotWindow();
+        }
+      } else {
+        // Undershoot/overshoot the rim depending on which side of the window
+        // was missed, then drop.
+        const missT = Math.min(1, t * 1.15);
+        const targetX = meter < windowCenter ? HOOP_X - 55 : HOOP_X + 30;
+        ball.x = BALL_START_X + (targetX - BALL_START_X) * Math.min(1, missT);
+        ball.y = BALL_START_Y + (HOOP_Y + 30 - BALL_START_Y) * missT - 110 * Math.sin(Math.PI * Math.min(1, missT));
+        if (t >= 1) {
+          endGame();
+        }
+      }
+    }
+  }
+
+  function endGame() {
+    phase = "gameover";
+    document.getElementById("restartBtn").style.display = "inline-block";
+    claimCoins(score);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Backboard + hoop
+    ctx.fillStyle = "#e8ecff";
+    ctx.fillRect(HOOP_X - 4, HOOP_Y - 55, 8, 55);
+    ctx.strokeStyle = "#ff8c42";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.ellipse(HOOP_X - 26, HOOP_Y, HOOP_R, 7, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255,255,255,0.4)";
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 5; i++) {
+      const nx = HOOP_X - 26 - HOOP_R + (HOOP_R * 2 / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(nx, HOOP_Y);
+      ctx.lineTo(nx + 4, HOOP_Y + 22);
+      ctx.stroke();
+    }
+
+    // Ball
+    ctx.fillStyle = "#ff8c42";
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(ball.x - BALL_R, ball.y);
+    ctx.lineTo(ball.x + BALL_R, ball.y);
+    ctx.moveTo(ball.x, ball.y - BALL_R);
+    ctx.lineTo(ball.x, ball.y + BALL_R);
+    ctx.stroke();
+
+    // Power meter
+    const barX = 30, barY = H - 240, barW = 26, barH = 200;
+    ctx.fillStyle = "rgba(255,255,255,0.12)";
+    ctx.fillRect(barX, barY, barW, barH);
+    const winTop = barY + barH * (1 - Math.min(100, windowCenter + windowHalf) / 100);
+    const winH = barH * (Math.min(100, windowCenter + windowHalf) - Math.max(0, windowCenter - windowHalf)) / 100;
+    ctx.fillStyle = "rgba(0,230,150,0.55)";
+    ctx.fillRect(barX, winTop, barW, winH);
+    if (phase === "aim") {
+      const markerY = barY + barH * (1 - meter / 100);
+      ctx.fillStyle = "#ffd166";
+      ctx.fillRect(barX - 4, markerY - 3, barW + 8, 6);
+    }
+    ctx.strokeStyle = "var(--border)";
+    ctx.strokeRect(barX, barY, barW, barH);
+
+    if (phase === "gameover") {
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 26px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Brick!", W / 2, H / 2 - 16);
+      ctx.font = "16px sans-serif";
+      ctx.fillText(`Streak: ${score}`, W / 2, H / 2 + 14);
+    }
+  }
+
+  function loop(ts) {
+    if (!lastTs) lastTs = ts;
+    let elapsed = ts - lastTs;
+    lastTs = ts;
+    if (elapsed > MAX_FRAME_MS) elapsed = STEP_MS;
+    acc += elapsed;
+    let guard = 0;
+    while (acc >= STEP_MS && guard++ < 8) {
+      step();
+      acc -= STEP_MS;
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (phase === "gameover") { reset(); return; }
+    lockShot();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (phase === "gameover") { reset(); return; }
+      lockShot();
+    }
+  });
+  document.getElementById("restartBtn").addEventListener("click", reset);
+
+  reset();
+  requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>

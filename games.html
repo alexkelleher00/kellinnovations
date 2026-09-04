@@ -289,6 +289,38 @@
           <span class="gm-earn-tag">🪙 200 for playing</span>
         </div>
       </a>
+      <a href="thrustorbust.html" class="project-card gm-game-card">
+        <div class="project-card-icon">🚀</div>
+        <div class="project-card-body">
+          <h3>Thrust or Bust</h3>
+          <p>Hold left or right to thrust your rocket and weave through the gates.</p>
+          <span class="gm-earn-tag">🪙 20 per gate cleared</span>
+        </div>
+      </a>
+      <a href="basketshot.html" class="project-card gm-game-card">
+        <div class="project-card-icon">🏀</div>
+        <div class="project-card-body">
+          <h3>Buzzer Beater</h3>
+          <p>Freeze the power meter in the window to sink the shot. One miss ends the streak.</p>
+          <span class="gm-earn-tag">🪙 25 per make</span>
+        </div>
+      </a>
+      <a href="skeeball.html" class="project-card gm-game-card">
+        <div class="project-card-icon">🎯</div>
+        <div class="project-card-body">
+          <h3>Skee-Ball Alley</h3>
+          <p>9 balls, time your release into the rings for points.</p>
+          <span class="gm-earn-tag">🪙 1 per point</span>
+        </div>
+      </a>
+      <a href="rooftoprunner.html" class="project-card gm-game-card">
+        <div class="project-card-icon">🏃</div>
+        <div class="project-card-body">
+          <h3>Rooftop Runner</h3>
+          <p>Tap to jump the gaps between rooftops as the run speeds up.</p>
+          <span class="gm-earn-tag">🪙 12 per rooftop cleared</span>
+        </div>
+      </a>
       <a href="uno.html" class="project-card gm-game-card">
         <div class="project-card-icon">🃏</div>
         <div class="project-card-body">
@@ -405,6 +437,8 @@
     casino_plinko: "Plinko", casino_slots: "Slots", flappybird: "Flappy Bird",
     flappygolf: "Flappy Golf · Course 1", flappygolf2: "Flappy Golf · Course 2",
     flappygolf3: "Flappy Golf · Course 3", tetris: "Tetris",
+    thrustorbust: "Thrust or Bust", basketshot: "Buzzer Beater",
+    skeeball: "Skee-Ball Alley", rooftoprunner: "Rooftop Runner",
   };
 
   // best_score is a single integer column but it means something different
@@ -417,6 +451,10 @@
     flappygolf: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
     flappygolf2: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
     flappygolf3: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
+    thrustorbust: v => `${v.toLocaleString()} gates`,
+    basketshot: v => `${v.toLocaleString()} makes`,
+    skeeball: v => `${v.toLocaleString()} pts`,
+    rooftoprunner: v => `${v.toLocaleString()} roofs`,
   };
   const fmtBest = (game, v) => (BEST_FMT[game] ? BEST_FMT[game](v) : v.toLocaleString());
 
@@ -500,7 +538,8 @@
     try {
       const { games } = await api("/leaderboard");
       const box = document.getElementById("leaderboardGrid");
-      const order = ["flappygolf", "flappygolf2", "flappygolf3", "flappybird", "2048", "letterfall"];
+      const order = ["flappygolf", "flappygolf2", "flappygolf3", "flappybird",
+                     "thrustorbust", "basketshot", "skeeball", "rooftoprunner", "2048", "letterfall"];
       box.innerHTML = order.filter(g => games[g]).map(g => {
         const rows = games[g];
         const body = rows.length
