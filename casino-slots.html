@@ -135,6 +135,31 @@
   }
   .sl-pay-row .syms { font-size: 1.2rem; }
   .sl-pay-row .mult { color: #ffd166; font-weight: 700; }
+
+  /* Progressive jackpot — pulled straight from the shared prize pot. */
+  .sl-jackpot {
+    background: #0d0616; border: 1px solid #4a2a5a; border-radius: 12px;
+    padding: 10px 16px; text-align: center; margin-bottom: 16px;
+  }
+  .sl-jackpot-label { font-size: 0.7rem; letter-spacing: 0.1em; color: #ff9ec6; text-transform: uppercase; }
+  .sl-jackpot-amt {
+    display: block; font-size: 1.6rem; font-weight: 900; color: #ffd166;
+    text-shadow: 0 0 12px rgba(255,209,102,0.5); margin: 2px 0 8px;
+  }
+  .sl-jackpot-heat {
+    height: 6px; border-radius: 4px; background: rgba(255,255,255,0.08);
+    overflow: hidden; max-width: 240px; margin: 0 auto;
+  }
+  .sl-jackpot-heat-fill {
+    height: 100%; border-radius: 4px; width: 0%;
+    background: linear-gradient(90deg, #ff6b9d, #ffd166);
+    transition: width 0.4s ease;
+  }
+  .sl-jackpot-hint { font-size: 0.68rem; color: var(--muted); margin-top: 6px; }
+  .sl-potwin {
+    margin-top: 8px; font-size: 1rem; font-weight: 800; color: #ffd166;
+    animation: sl-pulse 0.5s ease infinite alternate;
+  }
 </style>
 </head>
 <body>
@@ -190,6 +215,12 @@
 
     <div class="sl-machine">
       <div class="sl-title">🎰 Kells Slots 🎰</div>
+      <div class="sl-jackpot">
+        <span class="sl-jackpot-label">Jackpot Pool</span>
+        <span class="sl-jackpot-amt" id="jackpotAmt">🪙 –</span>
+        <div class="sl-jackpot-heat"><div class="sl-jackpot-heat-fill" id="jackpotHeatFill"></div></div>
+        <div class="sl-jackpot-hint" id="jackpotHint">Land 7️⃣7️⃣7️⃣ to win it</div>
+      </div>
       <div class="sl-reels" id="reels">
         <div class="sl-reel">❔</div>
         <div class="sl-reel">❔</div>
@@ -328,13 +359,29 @@
     } catch (e) { /* keep default */ }
     document.getElementById("gameWrap").style.display = "block";
     renderUser();
-    const { paytable } = await api("/slots/meta");
-    document.getElementById("paytable").innerHTML = paytable.map(p => `
+    const meta = await api("/slots/meta");
+    document.getElementById("paytable").innerHTML = meta.paytable.map(p => `
       <div class="sl-pay-row">
         <div class="syms">${p.symbols.join(" ")}</div>
         <div class="mult">${p.multiplier}:1</div>
       </div>
     `).join("");
+    jackpotPot = meta.pot_balance;
+    renderJackpot(meta.jackpot.jackpot_pph / meta.jackpot.max_pph);
+  }
+
+  // jackpotPot tracks the live pool so the amount shown updates immediately
+  // after every spin (from res.pot_balance) without a round-trip just to ask.
+  let jackpotPot = null;
+  function renderJackpot(heat) {
+    if (jackpotPot != null) document.getElementById("jackpotAmt").textContent = `🪙 ${jackpotPot.toLocaleString()}`;
+    if (heat == null) return;
+    heat = Math.max(0, Math.min(1, heat));
+    document.getElementById("jackpotHeatFill").style.width = `${Math.round(heat * 100)}%`;
+    const hint = document.getElementById("jackpotHint");
+    hint.textContent = heat > 0.85 ? "🔥 it's due — odds are maxed out"
+      : heat > 0.4 ? "🔥 heating up — no one's hit it in a while"
+      : "Land 7️⃣7️⃣7️⃣ to win it";
   }
 
   async function boot() {
@@ -367,7 +414,8 @@
 
     try {
       const res = await api("/slots/spin", { method: "POST", body: { bet } });
-      const { symbols, outcome, multiplier, net } = res.result;
+      const { symbols, outcome, multiplier, net, pot_win, jackpot_heat } = res.result;
+      jackpotPot = res.pot_balance;
 
       // Stagger each reel stopping so it reads as a real spin, not an instant snap.
       const stopDelays = [500, 850, 1200];
@@ -388,7 +436,11 @@
           : net > 0 ? `You won ${net.toLocaleString()} KellsCoins!`
           : net === 0 ? "Push — bet returned"
           : `You lost ${Math.abs(net).toLocaleString()} KellsCoins`;
-        box.innerHTML = `<div class="sl-result ${cls}">${msg}</div>`;
+        const potWinLine = pot_win ? `<div class="sl-potwin">+ 🪙 ${pot_win.toLocaleString()} from the jackpot pool!</div>` : "";
+        box.innerHTML = `<div class="sl-result ${cls}">${msg}</div>${potWinLine}`;
+        // A hit resets the odds server-side, so show that reset rather than
+        // the (now-stale) heat this particular spin was actually drawn at.
+        renderJackpot(outcome === "jackpot" ? 0 : jackpot_heat);
         playResultSound(outcome, net);
         spinning = false;
         spinBtn.disabled = false;
