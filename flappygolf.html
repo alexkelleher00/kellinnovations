@@ -52,6 +52,14 @@
     font-family: inherit; transition: background 0.2s, transform 0.15s;
   }
   .fg-btn:hover { background: #00e0e0; transform: translateY(-1px); }
+  .fg-courses { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .fg-course-tab {
+    padding: 7px 16px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 999px; color: var(--muted); font-family: inherit; font-weight: 700;
+    font-size: 0.82rem; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .fg-course-tab:hover { border-color: var(--accent); color: var(--text); }
+  .fg-course-tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -75,8 +83,13 @@
       <a href="games.html" class="fg-exit-btn">&larr; Exit to Games</a>
     </div>
     <h2>⛳ Flappy Golf</h2>
+    <div class="fg-courses" id="courseTabs">
+      <button type="button" class="fg-course-tab active" data-course="0">Course 1 · The Meadow</button>
+      <button type="button" class="fg-course-tab" data-course="1">Course 2 · The Bluffs</button>
+    </div>
     <div class="fg-hud">
-      <span class="fg-chip">Hole <span id="holeEl">1</span> / <span id="holeTotal">6</span></span>
+      <span class="fg-chip" id="courseNameEl">Course 1 · The Meadow</span>
+      <span class="fg-chip">Hole <span id="holeEl">1</span> / <span id="holeTotal">5</span></span>
       <span class="fg-chip">Par <span id="parEl">2</span></span>
       <span class="fg-chip">Strokes <span id="strokeEl">0</span></span>
       <span class="fg-chip">Total <span id="totalEl">0</span></span>
@@ -90,8 +103,8 @@
     <div class="fg-ball-picker" id="ballPicker"><span>Ball colour</span></div>
     <p class="fg-hint">
       Tap the left / right side of the course — or press <b>A</b>/<b>D</b> or <b>←</b>/<b>→</b> — to flap that way.
-      Every flap is a stroke; sink it in as few as you can. Finish all 6 holes to bank coins —
-      <span id="loginHint"><a href="games.html">log in</a> to earn them.</span>
+      Every flap is a stroke; sink it in as few as you can. Finish all 5 holes of a course to bank coins —
+      each course keeps its own leaderboard. <span id="loginHint"><a href="games.html">log in</a> to earn them.</span>
     </p>
     <div class="fg-error" id="fgError"></div>
     <button class="fg-btn" id="restartBtn" style="display:none;">Play Again</button>
@@ -127,7 +140,9 @@
       const res = await fetch(GAMES_API + "/claim_scored", {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ game: "flappygolf", score, stat_score: statScore }),
+        // course().key is "flappygolf" (Course 1) or "flappygolf2" (Course 2) —
+        // the two courses bank to separate leaderboards / trophy bests.
+        body: JSON.stringify({ game: course().key, score, stat_score: statScore }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -169,7 +184,9 @@
   // Each hole: par, tee (ball start, centre), cup {x,y,r}, and a list of
   // axis-aligned solid rects. Cups at y === GROUND_Y sit flush in the turf;
   // cups above it sit on top of a platform.
-  const HOLES = [
+
+  // ── Course 1 · The Meadow — the original gentle five ──────────────────
+  const COURSE_1_HOLES = [
     {
       name: "Warm-Up", par: 2,
       tee: { x: 95, y: GROUND_Y - BALL_R },
@@ -218,11 +235,55 @@
       ],
       cup: { x: 685, y: 170, r: 13 },
     },
+  ];
+
+  // ── Course 2 · The Bluffs — longer carries, tighter gaps, real pits ───
+  const COURSE_2_HOLES = [
+    {
+      // Big opening carry: launch off the tee shelf, clear the cliff wall
+      // over open air, and stick the narrow landing green. Short of it is a
+      // pit straight back to the tee.
+      name: "Cliffside", par: 3,
+      tee: { x: 80, y: 392 - BALL_R },
+      walls: [
+        { x: 18, y: 392, w: 150, h: 90 },                 // tee shelf
+        { x: 360, y: 250, w: 22, h: GROUND_Y - 250 },     // cliff wall to carry (pit below it)
+        { x: 430, y: 392, w: 400, h: 90 },                // landing green
+        { x: 720, y: 336, w: 18, h: GROUND_Y - 336 },     // backstop
+      ],
+      cup: { x: 620, y: 392, r: 13 },
+    },
+    {
+      // Thread the needle: a stalactite from the ceiling and a spike from
+      // the floor leave one ~64px slot to fly through, near flat.
+      name: "Needle's Eye", par: 4,
+      tee: { x: 70, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 338, y: 0,   w: 26, h: 246 },                // stalactite
+        { x: 338, y: 310, w: 26, h: GROUND_Y - 310 },     // floor spike — 64px gap between
+        { x: 660, y: 396, w: 18, h: GROUND_Y - 396 },     // catch curb
+      ],
+      cup: { x: 560, y: GROUND_Y, r: 13 },
+    },
+    {
+      // Over, under, over. Three tall walls — clear the first, dive under
+      // the ceiling-hung second, clear the third to the cup.
+      name: "Switchbacks", par: 4,
+      tee: { x: 64, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 240, y: 150, w: 22, h: GROUND_Y - 150 },     // over this (150px gap above)
+        { x: 400, y: 0,   w: 22, h: 250 },                // under this (186px gap below)
+        { x: 560, y: 170, w: 22, h: GROUND_Y - 170 },     // over this
+        { x: 715, y: 392, w: 16, h: GROUND_Y - 392 },     // curb
+      ],
+      cup: { x: 660, y: GROUND_Y, r: 13 },
+    },
     {
       // A vertical shaft: slip in through the gap under the left wall, then
       // climb the chimney with small alternating taps and peel off right
-      // over the shorter wall to the cup. Nothing else on the course plays
-      // like it — sustained control instead of one big carry.
+      // over the shorter wall to the cup. Sustained control, not one carry.
       name: "The Chimney", par: 5,
       tee: { x: 110, y: GROUND_Y - BALL_R },
       walls: [
@@ -233,13 +294,49 @@
       ],
       cup: { x: 620, y: GROUND_Y, r: 13 },
     },
+    {
+      // Long bomb over a canyon. Optional mid platform to break the carry;
+      // tall backstop so a hot approach doesn't sail the green.
+      name: "Long Bomb", par: 5,
+      tee: { x: 90, y: GROUND_Y - BALL_R },
+      walls: [
+        { x: -80, y: GROUND_Y, w: 260, h: 160 },          // left ground ends at x=180
+        { x: 360, y: 330, w: 96, h: 16 },                 // mid platform (optional bounce)
+        { x: 600, y: GROUND_Y, w: 240, h: 160 },          // far green
+        { x: 735, y: 300, w: 20, h: GROUND_Y - 300 },     // tall backstop
+      ],
+      cup: { x: 680, y: GROUND_Y, r: 13 },
+    },
   ];
+
+  const COURSES = [
+    { key: "flappygolf",  name: "Course 1 · The Meadow", holes: COURSE_1_HOLES, bestKey: "flappygolf_best_vs_par" },
+    { key: "flappygolf2", name: "Course 2 · The Bluffs", holes: COURSE_2_HOLES, bestKey: "flappygolf2_best_vs_par" },
+  ];
+  let courseIdx = 0;
+  try {
+    const c = parseInt(localStorage.getItem("flappygolf_course") || "0", 10);
+    if (c === 1) courseIdx = 1;
+  } catch (e) {}
+  function course() { return COURSES[courseIdx]; }
+  let HOLES = course().holes;   // live binding — repointed by setCourse()
 
   let holeIdx, strokes, ball, state, anim, oobFlash, awardedCoins, best;
   // state: "play" | "sunk" | "done"
 
-  function loadBest() { return localStorage.getItem("flappygolf_best_vs_par"); }
-  function saveBest(v) { localStorage.setItem("flappygolf_best_vs_par", String(v)); }
+  function loadBest() { return localStorage.getItem(course().bestKey); }
+  function saveBest(v) { localStorage.setItem(course().bestKey, String(v)); }
+
+  function setCourse(i) {
+    if (i === courseIdx) { resetRound(); return; }
+    courseIdx = i;
+    HOLES = course().holes;
+    try { localStorage.setItem("flappygolf_course", String(i)); } catch (e) {}
+    document.querySelectorAll(".fg-course-tab").forEach((t, ti) => t.classList.toggle("active", ti === i));
+    document.getElementById("holeTotal").textContent = HOLES.length;
+    document.getElementById("courseNameEl").textContent = course().name;
+    resetRound();
+  }
 
   function totalStrokes() { return strokes.reduce((a, b) => a + b, 0); }
 
@@ -261,7 +358,7 @@
   }
 
   function resetRound() {
-    strokes = [0, 0, 0, 0, 0];
+    strokes = new Array(HOLES.length).fill(0);
     claimed = false;
     claimDone = false;
     awardedCoins = 0;
@@ -520,7 +617,10 @@
       ctx.textAlign = "center";
       ctx.fillStyle = "#fff";
       ctx.font = "bold 24px sans-serif";
-      ctx.fillText("Round Complete", W / 2, 66);
+      ctx.fillText("Round Complete", W / 2, 58);
+      ctx.font = "13px sans-serif";
+      ctx.fillStyle = "#9fe0ff";
+      ctx.fillText(course().name, W / 2, 80);
 
       ctx.font = "14px sans-serif";
       HOLES.forEach((h, i) => {
@@ -601,12 +701,24 @@
   document.getElementById("flapRBtn").addEventListener("click", () => flap(1));
   document.getElementById("restartBtn").addEventListener("click", resetRound);
 
+  // ── Course picker ───────────────────────────────────────────────────
+  document.querySelectorAll(".fg-course-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      const i = parseInt(tab.dataset.course, 10);
+      if (i !== courseIdx && state === "play" && totalStrokes() > 0
+          && !confirm("Switch courses? This round won't be recorded.")) return;
+      setCourse(i);
+    });
+  });
+
   // Local-only hook so the physics and holes can be exercised from a test
   // harness. Guarded to localhost / file:// — no effect on the live site.
   if (location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1") {
     window.FG_DEBUG = {
-      flap, retryHole, resetRound,
+      flap, retryHole, resetRound, setCourse,
       get state() { return state; },
+      get courseIdx() { return courseIdx; },
+      get courseKey() { return course().key; },
       get hole() { return holeIdx; },
       get strokes() { return strokes.slice(); },
       get ball() { return { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy }; },
@@ -617,6 +729,9 @@
     };
   }
 
+  // Reflect the restored-from-localStorage course before the first paint.
+  document.querySelectorAll(".fg-course-tab").forEach((t, ti) => t.classList.toggle("active", ti === courseIdx));
+  document.getElementById("courseNameEl").textContent = course().name;
   document.getElementById("holeTotal").textContent = HOLES.length;
   resetRound();
   loop();

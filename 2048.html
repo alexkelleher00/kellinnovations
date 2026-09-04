@@ -648,6 +648,7 @@ async function submitScore() {
   try {
     const r = await fetch(SERVER + '/leaderboard', {
       method: 'POST',
+      credentials: 'include',  // without this the session cookie doesn't ride along and a top-10 run earns 0 coins
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ initials, score, boardSize: SIZE, account_id: gamesAccountId })
     });

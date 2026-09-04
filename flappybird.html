@@ -112,24 +112,36 @@
   const ctx = canvas.getContext("2d");
   const W = canvas.width, H = canvas.height;
 
-  const GRAVITY = 0.19; // Alex, 2026-09-01: "way too hard" — slower again (was 0.27, 0.34, originally 0.45)
-  const FLAP_VELOCITY = -5.1; // scaled down alongside gravity so flaps don't overshoot as high
+  // Physics run on a FIXED 60 Hz timestep, decoupled from the display's
+  // refresh rate — on a 120/144 Hz screen the old rAF-per-frame loop ran the
+  // sim 2-2.4x too fast; now the feel is identical everywhere and motion is
+  // interpolated between steps so it still looks buttery on a high-refresh
+  // panel. Tuning values below are unchanged (Alex, 2026-09-01: "way too
+  // hard" → these are the numbers that felt right at 60 Hz).
+  const STEP_MS = 1000 / 60;
+  const MAX_FRAME_MS = 250; // clamp huge dt (tab was backgrounded) so we don't spiral
+
+  const GRAVITY = 0.19;
+  const FLAP_VELOCITY = -5.1;
   const PIPE_WIDTH = 56;
   const PIPE_GAP = 150;
-  const PIPE_SPEED = 1.7; // Alex, 2026-09-01: pipes were crossing the screen too fast too (was 2.6)
-  const PIPE_INTERVAL = 105; // frames between new pipes
+  const PIPE_SPEED = 1.7;
+  const PIPE_INTERVAL = 105; // fixed steps between new pipes
   const BIRD_X = 70;
   const BIRD_R = 14;
 
   let bird, pipes, frame, score, best, running, gameOver;
+  let acc = 0, lastTs = 0; // fixed-timestep accumulator
 
   function loadBest() { return parseInt(localStorage.getItem("flappybird_best") || "0", 10); }
   function saveBest(v) { localStorage.setItem("flappybird_best", String(v)); }
 
   function reset() {
-    bird = { y: H / 2, vy: 0 };
+    bird = { y: H / 2, prevY: H / 2, vy: 0 };
     pipes = [];
     frame = 0;
+    acc = 0;
+    lastTs = 0;
     score = 0;
     running = true;
     gameOver = false;
@@ -149,18 +161,20 @@
   function spawnPipe() {
     const margin = 60;
     const gapCenter = margin + Math.random() * (H - margin * 2 - 80);
-    pipes.push({ x: W, gapCenter, passed: false });
+    pipes.push({ x: W, prevX: W, gapCenter, passed: false });
   }
 
-  function update() {
+  // One fixed 60 Hz physics step.
+  function step() {
     if (!running || gameOver) return;
     frame++;
+    bird.prevY = bird.y;
     bird.vy += GRAVITY;
     bird.y += bird.vy;
 
     if (frame % PIPE_INTERVAL === 0) spawnPipe();
 
-    pipes.forEach(p => { p.x -= PIPE_SPEED; });
+    pipes.forEach(p => { p.prevX = p.x; p.x -= PIPE_SPEED; });
     pipes = pipes.filter(p => p.x > -PIPE_WIDTH);
 
     pipes.forEach(p => {
@@ -198,7 +212,13 @@
     claimFlappyCoins(score);
   }
 
-  function draw() {
+  function draw(alpha) {
+    // alpha (0..1) interpolates between the last two physics steps so motion
+    // stays smooth on any refresh rate. Frozen states (pre-start / game over)
+    // just render at the current position.
+    if (!running || gameOver) alpha = 1;
+    const birdY = bird.prevY + (bird.y - bird.prevY) * alpha;
+
     ctx.clearRect(0, 0, W, H);
     // Sky handled by CSS gradient background showing through; just draw pipes/bird/ground accents.
     // Darker, more saturated greens than the original (Alex, 2026-08-31: pipes
@@ -208,24 +228,25 @@
     const PIPE_BODY_LIGHT = "#2e8442";
     const PIPE_RIM = "#123d1e";
     pipes.forEach(p => {
+      const px = (p.prevX ?? p.x) + (p.x - (p.prevX ?? p.x)) * alpha;
       const topEnd = p.gapCenter - PIPE_GAP / 2;
       const botStart = p.gapCenter + PIPE_GAP / 2;
 
       ctx.fillStyle = PIPE_BODY;
-      ctx.fillRect(p.x, 0, PIPE_WIDTH, topEnd);
-      ctx.fillRect(p.x, botStart, PIPE_WIDTH, H - botStart);
+      ctx.fillRect(px, 0, PIPE_WIDTH, topEnd);
+      ctx.fillRect(px, botStart, PIPE_WIDTH, H - botStart);
       ctx.fillStyle = PIPE_BODY_LIGHT;
-      ctx.fillRect(p.x, 0, 6, topEnd);
-      ctx.fillRect(p.x, botStart, 6, H - botStart);
+      ctx.fillRect(px, 0, 6, topEnd);
+      ctx.fillRect(px, botStart, 6, H - botStart);
 
       ctx.fillStyle = PIPE_RIM;
-      ctx.fillRect(p.x - 3, topEnd - 18, PIPE_WIDTH + 6, 18);
-      ctx.fillRect(p.x - 3, botStart, PIPE_WIDTH + 6, 18);
+      ctx.fillRect(px - 3, topEnd - 18, PIPE_WIDTH + 6, 18);
+      ctx.fillRect(px - 3, botStart, PIPE_WIDTH + 6, 18);
     });
 
     // Bird
     ctx.save();
-    ctx.translate(BIRD_X, bird.y);
+    ctx.translate(BIRD_X, birdY);
     const angle = Math.max(-0.5, Math.min(0.9, bird.vy / 10));
     ctx.rotate(angle);
     ctx.fillStyle = "#ffd166";
@@ -264,19 +285,33 @@
     }
   }
 
-  function loop() {
-    update();
-    draw();
+  function loop(ts) {
+    if (!lastTs) lastTs = ts;
+    let elapsed = ts - lastTs;
+    lastTs = ts;
+    if (elapsed > MAX_FRAME_MS) elapsed = STEP_MS; // backgrounded tab — don't fast-forward
+    acc += elapsed;
+    let guard = 0;
+    while (acc >= STEP_MS && guard++ < 8) {
+      step();
+      acc -= STEP_MS;
+    }
+    draw(acc / STEP_MS);
     requestAnimationFrame(loop);
   }
 
-  canvas.addEventListener("click", () => {
+  // pointerdown (not click) + preventDefault: fires the instant a finger
+  // touches instead of waiting on the ~300 ms synthetic-click delay, and
+  // stops the tap from scrolling/zooming the page. Covers mouse, touch, pen.
+  canvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
     if (gameOver) { reset(); return; }
     flap();
   });
   document.addEventListener("keydown", (e) => {
     if (e.code === "Space") {
       e.preventDefault();
+      if (e.repeat) return; // holding Space shouldn't machine-gun flaps
       if (gameOver) { reset(); return; }
       flap();
     }
@@ -285,7 +320,7 @@
 
   reset();
   running = false; // wait for first input before the bird starts falling
-  loop();
+  requestAnimationFrame(loop); // hand rAF the first timestamp itself — loop() needs a real ts
 </script>
 
 </body>

@@ -202,6 +202,7 @@
   let currentUser = null;
   let kellscoinsPerUsd = 10000;
   let puzzleId = null;
+  let puzzleToken = null; // HMAC-signed puzzle from /new — restart-proof, no server memory needed
   let given = null; // 9x9, 0 = blank
 
   document.getElementById("googleLoginBtn").addEventListener("click", (e) => {
@@ -325,6 +326,7 @@
     document.getElementById("resultArea").innerHTML = "";
     const res = await api("/new", { method: "POST" });
     puzzleId = res.puzzle_id;
+    puzzleToken = res.token || null;
     given = res.puzzle;
     buildBoard();
   }
@@ -339,7 +341,7 @@
       return;
     }
     try {
-      const res = await api("/submit", { method: "POST", body: { puzzle_id: puzzleId, grid } });
+      const res = await api("/submit", { method: "POST", body: { token: puzzleToken, puzzle_id: puzzleId, grid } });
       const area = document.getElementById("resultArea");
       if (res.correct) {
         const coinsMsg = res.coins_awarded ? ` +${res.coins_awarded} KellsCoins!` : "";
