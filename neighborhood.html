@@ -1363,7 +1363,11 @@ const MAP = {
   houses: [], walkers: [], mapPets: [], townHall: null, groundCv: document.createElement("canvas"),
   worldW: 800, worldH: 600, cam: { x: 400, y: 300, zoom: 3 }, userZoomed: false, ready: false,
 };
-const PLOT_W = 210, PLOT_H = 210, ROAD_W = 24, MARGIN = 54;
+// PLOT_H grew from 210 (2026-09-04) to make room for a backyard band behind
+// the house — BACK_H tall, opposite the road — since Backyard items (a Pool,
+// say) used to be invisible from the map: only the front yard ever rendered
+// outside. See h.backArea/h.backyardItems below and drawMapScene's use of them.
+const PLOT_W = 210, PLOT_H = 300, ROAD_W = 24, MARGIN = 54, BACK_H = 110;
 
 function layoutMap() {
   const houses = (mapData && mapData.houses) || [];
@@ -1395,20 +1399,35 @@ function layoutMap() {
     const plot = plotForHouse(i);
     const col = plot % cols, row = (plot / cols) | 0;
     const plotX = MARGIN + col * PLOT_W, plotY = MARGIN + row * PLOT_H;
-    const gx0 = plotX + ROAD_W, gy0 = plotY + ROAD_W;         // green (yard) origin
+    const gx0 = plotX + ROAD_W, gy0 = plotY + ROAD_W;         // whole plot's green origin
     const gw = PLOT_W - ROAD_W, gh = PLOT_H - ROAD_W;
-    const bx = gx0 + gw * 0.5, by = gy0 + gh * 0.62;          // house feet
+    // The plot splits into a back band (away from the road — Backyard) and
+    // the rest (toward the road — Front Yard, where the house + door sit).
+    const frontY0 = gy0 + BACK_H, frontH = gh - BACK_H;
+    const bx = gx0 + gw * 0.5, by = frontY0 + frontH * 0.62;  // house feet
     const h = { ...entry, bx, by, smoke: [], plotX, plotY, gx0, gy0, gw, gh };
 
-    // Their front yard: the whole plot's green, so placed items depth-sort
-    // with the house the same way they do inside the editor.
-    const yard = { x: gx0 + 6, y: gy0 + 6, w: gw - 12, h: gh - 12 };
+    // Front yard: house sits inside it, so placed items depth-sort with the
+    // house the same way they do inside the editor.
+    const yard = { x: gx0 + 6, y: frontY0 + 6, w: gw - 12, h: frontH - 12 };
     h.yardArea = yard;
     const yc = h.yard_cols || 8, yr = h.yard_rows || 5;
     const mtp = Math.max(3, Math.min(yard.w / yc, yard.h / yr));
     h.yardItems = (h.yard_placed || []).map(it => {
       const [iw, ih] = dims(it);
       return { it, px: yard.x + it.x * mtp, py: yard.y + it.y * mtp, mtp, sortY: yard.y + (it.y + ih) * mtp };
+    });
+
+    // Backyard: the band behind the house, away from the road — its own
+    // grid/scale from backyard_cols/backyard_rows (empty until they buy the
+    // room, but still reserved so the map's silhouette is uniform).
+    const backArea = { x: gx0 + 6, y: gy0 + 6, w: gw - 12, h: BACK_H - 12 };
+    h.backArea = backArea;
+    const byc = h.backyard_cols || 8, byr = h.backyard_rows || 5;
+    const bmtp = Math.max(3, Math.min(backArea.w / byc, backArea.h / byr));
+    h.backyardItems = (h.backyard_placed || []).map(it => {
+      const [iw, ih] = dims(it);
+      return { it, px: backArea.x + it.x * bmtp, py: backArea.y + it.y * bmtp, mtp: bmtp, sortY: backArea.y + (it.y + ih) * bmtp };
     });
 
     // A stroll along the street out front, with the odd trip up to the door.
@@ -1423,6 +1442,13 @@ function layoutMap() {
 
     (h.pets || []).filter(p => !p.room_key || p.room_key === "yard").forEach((p, k) => {
       const a = mkPet(p.pet_type, yard, i * 10 + k + 3);
+      a.name = p.name;
+      MAP.mapPets.push(a);
+    });
+    // Same bug the items had: a pet assigned to Backyard used to have
+    // nowhere on the map to wander (only "yard" ever got a spawn region).
+    (h.pets || []).filter(p => p.room_key === "backyard").forEach((p, k) => {
+      const a = mkPet(p.pet_type, backArea, i * 10 + k + 30);
       a.name = p.name;
       MAP.mapPets.push(a);
     });
@@ -1500,6 +1526,7 @@ function drawMapScene(now, dt) {
   MAP.houses.forEach(h => {
     ents.push({ y: h.by, d: () => drawHouse(g, h.house, h.bx, h.by, night, h.smoke) });
     h.yardItems.forEach(yi => ents.push({ y: yi.sortY, d: () => drawItemRot(g, yi.it, yi.px, yi.py, yi.mtp, now / 1000, yi.it.rot) }));
+    h.backyardItems.forEach(bi => ents.push({ y: bi.sortY, d: () => drawItemRot(g, bi.it, bi.px, bi.py, bi.mtp, now / 1000, bi.it.rot) }));
   });
   MAP.walkers.forEach(a => ents.push({ y: a.y, d: () => drawWalker(g, a) }));
   MAP.mapPets.forEach(p => ents.push({ y: p.y, d: () => drawPetActor(g, p, now / 1000, 1.35) }));
