@@ -17,7 +17,7 @@
      drawn in code (tiny pixel grids blitted with fillRect + vector-rect
      furniture) so there's still no art pipeline / no asset files. Three
      scenes share the engine: the MAP (drag to pan, wheel/pinch to zoom,
-     click a house to knock — first visit costs 50 KellsCoins to the owner),
+     click a house to knock — visiting houses is free),
      the VISIT modal (browse a member's rooms read-only, room switcher,
      backyard first), and MY HOUSE (the editable room — click to place / pick up).
 
@@ -1410,7 +1410,7 @@ function drawMapScene(now, dt) {
     for (const h of MAP.houses) {
       const x = sx(h.bx), y = sy(h.by - 66);
       if (x > -90 && x < W + 90 && y > -20 && y < H + 20)
-        tag(`${h.avatar_emoji || "🙂"} ${h.name || "Member"}${h.visited ? "" : ` · 🪙${h.visit_cost || 50}`}`, x, y, true);
+        tag(`${h.avatar_emoji || "🙂"} ${h.name || "Member"}${(!h.visited && h.visit_cost > 0) ? ` · 🪙${h.visit_cost}` : ""}`, x, y, true);
     }
     for (const a of MAP.walkers) if (a.name) {
       const x = sx(a.x), y = sy(a.y - 20);
@@ -1645,7 +1645,9 @@ function wireRoomCanvas(rs) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   Visiting a house — knock (one-time 50🪙 to the owner) → step inside
+   Visiting a house — knock (free) → step inside. The confirmVisit()/
+   visit_cost paths below are dead while VISIT_COST is 0 server-side, kept
+   so a fee can be switched back on with a one-line catalog change.
    ═══════════════════════════════════════════════════════════════════════ */
 let INSIDE = null;   // { data, roomKey } for the open house-visit modal
 

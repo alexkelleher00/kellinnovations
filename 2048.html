@@ -691,7 +691,7 @@ function renderLeaderboard(highlightRank) {
   lbListEl.innerHTML = leaderboardCache.map((e, i) => `
     <li class="lb-item${highlightRank === i + 1 ? ' highlight' : ''}">
       <span class="lb-rank">${i + 1}</span>
-      <span class="lb-initials">${escHtml(e.initials)}</span>
+      <span class="lb-initials">${escHtml(e.name || e.initials)}</span>
       <span class="lb-score">${e.score}</span>
       <span class="lb-date">${escHtml(e.date || '')}</span>
     </li>`).join('');
