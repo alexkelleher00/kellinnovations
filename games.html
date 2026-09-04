@@ -403,7 +403,8 @@
     letterfall: "Letterfall", slide: "Slide Puzzle", "3man": "3 Man!", sudoku: "Sudoku",
     casino_roulette: "Roulette", casino_blackjack: "Blackjack", casino_craps: "Craps",
     casino_plinko: "Plinko", casino_slots: "Slots", flappybird: "Flappy Bird",
-    flappygolf: "Flappy Golf · Course 1", flappygolf2: "Flappy Golf · Course 2", tetris: "Tetris",
+    flappygolf: "Flappy Golf · Course 1", flappygolf2: "Flappy Golf · Course 2",
+    flappygolf3: "Flappy Golf · Course 3", tetris: "Tetris",
   };
 
   // best_score is a single integer column but it means something different
@@ -415,6 +416,7 @@
     flappybird: v => `${v.toLocaleString()} pts`,
     flappygolf: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
     flappygolf2: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
+    flappygolf3: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
   };
   const fmtBest = (game, v) => (BEST_FMT[game] ? BEST_FMT[game](v) : v.toLocaleString());
 
@@ -498,7 +500,7 @@
     try {
       const { games } = await api("/leaderboard");
       const box = document.getElementById("leaderboardGrid");
-      const order = ["flappygolf", "flappygolf2", "flappybird", "2048", "letterfall"];
+      const order = ["flappygolf", "flappygolf2", "flappygolf3", "flappybird", "2048", "letterfall"];
       box.innerHTML = order.filter(g => games[g]).map(g => {
         const rows = games[g];
         const body = rows.length

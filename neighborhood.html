@@ -867,6 +867,90 @@ function drawHouse(g, colors, bx, by, night, smoke) {
     }
   }
 }
+/* ═══════════════════════════════════════════════════════════════════════
+   Town Hall — the neighbourhood's centrepiece landmark (pixel, same style
+   as the houses). Feet at (bx, by); grander than a house — portico with
+   columns, a pediment, a clock tower with a flag. Click it on the map for
+   the resident directory.
+   ═══════════════════════════════════════════════════════════════════════ */
+function drawTownHall(g, bx, by, night, t) {
+  const STONE = "#e9e2d1", STONE_D = "#cfc6ad", STONE_L = "#f4efe1", TRIM = "#b9ad8c";
+  const ROOF = "#7d5b46", GOLD = "#f4c65a";
+  const bw = 78, bh = 40, x0 = bx - bw / 2, y0 = by - bh;
+
+  // ground shadow
+  g.fillStyle = "rgba(0,0,0,0.28)";
+  g.beginPath(); g.ellipse(bx, by, bw / 2 + 8, 10, 0, 0, 7); g.fill();
+
+  // front steps
+  for (let s = 0; s < 3; s++) {
+    g.fillStyle = s % 2 ? STONE_D : STONE;
+    g.fillRect(bx - 30 + s * 3, by - 2 - s * 3, 60 - s * 6, 3);
+  }
+
+  // main block
+  g.fillStyle = STONE; g.fillRect(x0, y0, bw, bh);
+  g.fillStyle = STONE_L; g.fillRect(x0, y0, 2, bh);
+  g.fillStyle = STONE_D; g.fillRect(x0 + bw - 3, y0, 3, bh);
+  g.fillStyle = STONE_D; g.fillRect(x0, by - 5, bw, 5);
+  // string course
+  g.fillStyle = TRIM; g.fillRect(x0, y0 + 12, bw, 2);
+
+  // portico columns
+  g.fillStyle = STONE_L;
+  for (let i = 0; i < 5; i++) {
+    const cx = x0 + 8 + i * ((bw - 16) / 4) - 2;
+    g.fillRect(cx, y0 + 14, 5, bh - 19);
+    g.fillStyle = STONE_D; g.fillRect(cx, y0 + 14, 5, 2); g.fillRect(cx, by - 7, 5, 2);
+    g.fillStyle = STONE_L;
+  }
+
+  // pediment (triangle) over the columns
+  g.fillStyle = STONE_L;
+  g.beginPath();
+  g.moveTo(x0 - 4, y0 + 14); g.lineTo(x0 + bw + 4, y0 + 14); g.lineTo(bx, y0 - 2);
+  g.closePath(); g.fill();
+  g.fillStyle = TRIM;
+  g.beginPath(); g.moveTo(x0 - 4, y0 + 14); g.lineTo(x0 + bw + 4, y0 + 14);
+  g.lineTo(x0 + bw + 4, y0 + 16); g.lineTo(x0 - 4, y0 + 16); g.closePath(); g.fill();
+
+  // doorway
+  g.fillStyle = night > 0.05 ? "#ffce6b" : "#5b4a63";
+  g.fillRect(bx - 6, by - 18, 12, 13);
+  if (night > 0.05) GLOWS.push({ x: bx, y: by - 11, r: 30, col: "#ffcf7a", i: night });
+
+  // side windows
+  for (const wx of [x0 + 6, x0 + bw - 12]) {
+    g.fillStyle = night > 0.05 ? "#ffce6b" : "#bfe3f2";
+    g.fillRect(wx, y0 + 3, 6, 7);
+    if (night > 0.05) GLOWS.push({ x: wx + 3, y: y0 + 6, r: 20, col: "#ffcf7a", i: night * 0.8 });
+  }
+
+  // clock tower
+  const tw = 22, tx = bx - tw / 2, topY = y0 - 34;
+  g.fillStyle = STONE; g.fillRect(tx, topY, tw, 34);
+  g.fillStyle = STONE_L; g.fillRect(tx, topY, 2, 34);
+  g.fillStyle = STONE_D; g.fillRect(tx + tw - 2, topY, 2, 34);
+  g.fillStyle = ROOF;
+  g.beginPath(); g.moveTo(tx - 3, topY); g.lineTo(tx + tw + 3, topY); g.lineTo(bx, topY - 12); g.closePath(); g.fill();
+  // clock face
+  g.fillStyle = "#faf6ec"; g.beginPath(); g.arc(bx, topY + 15, 6, 0, 7); g.fill();
+  g.strokeStyle = "#3b3320"; g.lineWidth = 1;
+  g.beginPath(); g.arc(bx, topY + 15, 6, 0, 7); g.stroke();
+  const a = (t || 0) * 0.5;
+  g.beginPath(); g.moveTo(bx, topY + 15); g.lineTo(bx + Math.cos(a) * 3, topY + 15 + Math.sin(a) * 3);
+  g.moveTo(bx, topY + 15); g.lineTo(bx + Math.cos(a * 12) * 4.5, topY + 15 + Math.sin(a * 12) * 4.5); g.stroke();
+  if (night > 0.05) GLOWS.push({ x: bx, y: topY + 15, r: 22, col: "#fff2cf", i: night });
+
+  // flag
+  g.strokeStyle = "#d8d8e0"; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(bx, topY - 12); g.lineTo(bx, topY - 24); g.stroke();
+  g.fillStyle = "#00c8c8";
+  const fw = 10 + Math.sin((t || 0) * 3) * 2;
+  g.beginPath(); g.moveTo(bx, topY - 24); g.lineTo(bx + fw, topY - 21); g.lineTo(bx, topY - 18); g.closePath(); g.fill();
+  g.fillStyle = GOLD; g.fillRect(bx - 1, topY - 25, 2, 2);
+}
+
 function stepSmoke(arr, dt, ox, oy) {
   if (REDUCED) return;
   arr._acc = (arr._acc || 0) + dt;
@@ -1276,7 +1360,7 @@ const mapStage = document.getElementById("mapStage");
 const mapCv = document.getElementById("mapCanvas");
 const mapG = mapCv.getContext("2d");
 const MAP = {
-  houses: [], walkers: [], mapPets: [], groundCv: document.createElement("canvas"),
+  houses: [], walkers: [], mapPets: [], townHall: null, groundCv: document.createElement("canvas"),
   worldW: 800, worldH: 600, cam: { x: 400, y: 300, zoom: 3 }, userZoomed: false, ready: false,
 };
 const PLOT_W = 210, PLOT_H = 210, ROAD_W = 24, MARGIN = 54;
@@ -1284,14 +1368,32 @@ const PLOT_W = 210, PLOT_H = 210, ROAD_W = 24, MARGIN = 54;
 function layoutMap() {
   const houses = (mapData && mapData.houses) || [];
   const n = Math.max(1, houses.length);
-  const cols = Math.max(2, Math.ceil(Math.sqrt(n)));
-  const rows = Math.ceil(n / cols);
+  // Odd grid so there's a true centre plot — the Town Hall sits there and
+  // the houses lay out around it (that one plot is skipped when placing).
+  let cols = Math.max(3, Math.ceil(Math.sqrt(n)));
+  if (cols % 2 === 0) cols++;
+  let rows = Math.max(3, Math.ceil((n + 1) / cols));
+  if (rows % 2 === 0) rows++;
   MAP.worldW = MARGIN * 2 + cols * PLOT_W;
   MAP.worldH = MARGIN * 2 + rows * PLOT_H;
 
+  const centerPlot = ((rows - 1) / 2) * cols + (cols - 1) / 2;
+  const plotForHouse = i => (i < centerPlot ? i : i + 1);   // shift past the reserved centre
+
+  {
+    const cCol = (cols - 1) / 2, cRow = (rows - 1) / 2;
+    const px = MARGIN + cCol * PLOT_W, py = MARGIN + cRow * PLOT_H;
+    const gx0 = px + ROAD_W, gy0 = py + ROAD_W, gw = PLOT_W - ROAD_W, gh = PLOT_H - ROAD_W;
+    MAP.townHall = {
+      bx: gx0 + gw * 0.5, by: gy0 + gh * 0.60, smoke: [],
+      plotX: px, plotY: py, gx0, gy0, gw, gh,
+    };
+  }
+
   MAP.walkers = []; MAP.mapPets = [];
   MAP.houses = houses.map((entry, i) => {
-    const col = i % cols, row = (i / cols) | 0;
+    const plot = plotForHouse(i);
+    const col = plot % cols, row = (plot / cols) | 0;
     const plotX = MARGIN + col * PLOT_W, plotY = MARGIN + row * PLOT_H;
     const gx0 = plotX + ROAD_W, gy0 = plotY + ROAD_W;         // green (yard) origin
     const gw = PLOT_W - ROAD_W, gh = PLOT_H - ROAD_W;
@@ -1335,6 +1437,11 @@ function onMapRoad(x, y) {
   if (x < MARGIN || y < MARGIN || x > MAP.worldW - MARGIN || y > MAP.worldH - MARGIN) return true;
   return (rx >= 0 && rx < ROAD_W) || (ry >= 0 && ry < ROAD_W);
 }
+function onPlaza(x, y) {
+  const th = MAP.townHall;
+  if (!th) return false;
+  return x >= th.gx0 + 2 && x <= th.gx0 + th.gw - 2 && y >= th.gy0 + 2 && y <= th.gy0 + th.gh - 2;
+}
 function buildMapGround() {
   const c = MAP.groundCv; c.width = MAP.worldW; c.height = MAP.worldH;
   const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
@@ -1342,10 +1449,15 @@ function buildMapGround() {
     for (let xx = 0; xx < MAP.worldW; xx += 4) {
       const nz = hash2(xx, yy);
       let col;
-      if (onMapRoad(xx, yy)) col = nz < 0.14 ? "#b6935f" : nz > 0.9 ? "#d0b083" : "#c6a878";
+      if (onPlaza(xx, yy)) {
+        // paved civic square under the Town Hall, with a border ring
+        const th = MAP.townHall;
+        const edge = xx < th.gx0 + 8 || xx > th.gx0 + th.gw - 8 || yy < th.gy0 + 8 || yy > th.gy0 + th.gh - 8;
+        col = edge ? "#a9a29a" : nz < 0.15 ? "#c9c3ba" : nz > 0.86 ? "#ded9d0" : "#d4cfc6";
+      } else if (onMapRoad(xx, yy)) col = nz < 0.14 ? "#b6935f" : nz > 0.9 ? "#d0b083" : "#c6a878";
       else col = nz < 0.12 ? "#4d8a38" : nz > 0.88 ? "#72b657" : "#5fa246";
       x.fillStyle = col; x.fillRect(xx, yy, 4, 4);
-      if (!onMapRoad(xx, yy) && nz > 0.985) { x.fillStyle = ["#f2e34d", "#e8ecef", "#e46b8a", "#d7d7ff"][((xx + yy) >> 2) & 3]; x.fillRect(xx + 1, yy + 1, 2, 2); }
+      if (!onMapRoad(xx, yy) && !onPlaza(xx, yy) && nz > 0.985) { x.fillStyle = ["#f2e34d", "#e8ecef", "#e46b8a", "#d7d7ff"][((xx + yy) >> 2) & 3]; x.fillRect(xx + 1, yy + 1, 2, 2); }
     }
   }
   MAP.ready = true;
@@ -1384,6 +1496,7 @@ function drawMapScene(now, dt) {
   GLOWS = [];
 
   const ents = [];
+  if (MAP.townHall) ents.push({ y: MAP.townHall.by, d: () => drawTownHall(g, MAP.townHall.bx, MAP.townHall.by, night, now / 1000) });
   MAP.houses.forEach(h => {
     ents.push({ y: h.by, d: () => drawHouse(g, h.house, h.bx, h.by, night, h.smoke) });
     h.yardItems.forEach(yi => ents.push({ y: yi.sortY, d: () => drawItemRot(g, yi.it, yi.px, yi.py, yi.mtp, now / 1000, yi.it.rot) }));
@@ -1407,6 +1520,10 @@ function drawMapScene(now, dt) {
       if (big) { g.fillStyle = "#00c8c8"; g.fillRect(x - w / 2, y + 5, w, 1); }
       g.fillStyle = "#e9e9f4"; g.fillText(text, x, y);
     };
+    if (MAP.townHall) {
+      const x = sx(MAP.townHall.bx), y = sy(MAP.townHall.by - 92);
+      if (x > -110 && x < W + 110 && y > -20 && y < H + 20) tag("🏛 Town Hall", x, y, true);
+    }
     for (const h of MAP.houses) {
       const x = sx(h.bx), y = sy(h.by - 66);
       if (x > -90 && x < W + 90 && y > -20 && y < H + 20)
@@ -1441,6 +1558,8 @@ function mapScreenToWorld(sx, sy) {
     if (moved) return;
     const r = mapCv.getBoundingClientRect();
     const w = mapScreenToWorld(e.clientX - r.left, e.clientY - r.top);
+    const th = MAP.townHall;
+    if (th && w.x > th.bx - 44 && w.x < th.bx + 44 && w.y > th.by - 80 && w.y < th.by + 10) { openTownHall(); return; }
     for (const h of MAP.houses) {
       if (w.x > h.bx - 28 && w.x < h.bx + 28 && w.y > h.by - 58 && w.y < h.by + 8) { enterHouse(h.user_id); return; }
     }
@@ -1678,6 +1797,34 @@ async function enterHouse(userId) {
   if (currentUser && data.balance != null) { currentUser.kellscoins = data.balance; updateCoinChip(); }
   if (data.visit_cost) { toast(`Knocked — paid 🪙${data.visit_cost} to ${(h.name || "").split(" ")[0]}`); h.visited = true; }
   openInside(data);
+}
+
+function openTownHall() {
+  const modal = document.getElementById("pickModal");
+  const residents = ((mapData && mapData.houses) || [])
+    .slice()
+    .sort((a, b) => (b.kellscoins || 0) - (a.kellscoins || 0) || String(a.name).localeCompare(b.name));
+  const hasCoins = residents.some(r => r.kellscoins != null);
+  const mayor = residents[0];
+  const rows = residents.map((r, i) => `
+    <div style="display:flex; align-items:center; gap:8px; padding:6px 4px; border-bottom:1px solid var(--border);">
+      <span style="width:16px; text-align:right; color:var(--muted); font-size:0.8rem;">${i + 1}</span>
+      <span style="font-size:1.05rem;">${escHtml(r.avatar_emoji || "🙂")}</span>
+      <span style="flex:1; font-weight:600;">${escHtml(r.name || "Member")}${mayor && r === mayor ? ' <span title="Wealthiest resident">👑</span>' : ""}</span>
+      ${hasCoins ? `<span style="color:#ffd166; font-size:0.85rem;">🪙 ${(r.kellscoins || 0).toLocaleString()}</span>` : ""}
+    </div>`).join("");
+  document.getElementById("pickContent").innerHTML = `
+    <h3 style="margin-top:0;">🏛 Town Hall</h3>
+    <p style="color:var(--muted); font-size:0.86rem; line-height:1.5; margin:4px 0 12px;">
+      ${residents.length} resident${residents.length === 1 ? "" : "s"} in the neighborhood.${mayor ? ` Mayor: <b style="color:var(--text);">${escHtml((mayor.name || "").split(" ")[0])}</b>.` : ""}
+    </p>
+    <div style="max-height:46vh; overflow:auto; margin:-4px -4px 0;">${rows || '<p style="color:var(--muted);">No residents yet.</p>'}</div>
+    <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+      <button class="hn-mini-btn ghost" id="thClose">Close</button>
+    </div>`;
+  modal.classList.add("open");
+  modal.__cancel = null;
+  document.getElementById("thClose").onclick = () => modal.classList.remove("open");
 }
 
 function confirmVisit(h) {

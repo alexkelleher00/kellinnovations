@@ -86,6 +86,7 @@
     <div class="fg-courses" id="courseTabs">
       <button type="button" class="fg-course-tab active" data-course="0">Course 1 · The Meadow</button>
       <button type="button" class="fg-course-tab" data-course="1">Course 2 · The Bluffs</button>
+      <button type="button" class="fg-course-tab" data-course="2">Course 3 · The Gauntlet</button>
     </div>
     <div class="fg-hud">
       <span class="fg-chip" id="courseNameEl">Course 1 · The Meadow</span>
@@ -309,14 +310,83 @@
     },
   ];
 
+  // ── Course 3 · The Gauntlet — the hardest set: back-to-back needles,
+  // a staircase over pits, a split-route pillar, a double chimney, and a
+  // canyon carry with a ceiling you can't loft over ──────────────────────
+  const COURSE_3_HOLES = [
+    {
+      name: "Threadbare", par: 4,
+      tee: { x: 60, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 250, y: 0,   w: 22, h: 244 },                // stalactite 1
+        { x: 250, y: 300, w: 22, h: GROUND_Y - 300 },     // spike 1 — 56px slot
+        { x: 440, y: 0,   w: 22, h: 232 },                // stalactite 2
+        { x: 440, y: 288, w: 22, h: GROUND_Y - 288 },     // spike 2 — 56px slot
+        { x: 660, y: 396, w: 18, h: GROUND_Y - 396 },     // curb
+      ],
+      cup: { x: 580, y: GROUND_Y, r: 13 },
+    },
+    {
+      name: "The Staircase", par: 5,
+      tee: { x: 70, y: GROUND_Y - BALL_R },
+      walls: [
+        { x: -80, y: GROUND_Y, w: 230, h: 160 },          // left ground ends x=150 — pits between every step
+        { x: 250, y: 372, w: 90, h: 14 },
+        { x: 380, y: 312, w: 90, h: 14 },
+        { x: 510, y: 252, w: 90, h: 14 },
+        { x: 620, y: 188, w: 140, h: 14 },               // top shelf with the cup
+        { x: 748, y: 120, w: 12, h: 82 },                // shelf backstop
+      ],
+      cup: { x: 690, y: 188, r: 13 },
+    },
+    {
+      name: "Split Decision", par: 4,
+      tee: { x: 64, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 360, y: 130, w: 24, h: 120 },               // pillar top segment — fly over (y<130) …
+        { x: 360, y: 300, w: 24, h: GROUND_Y - 300 },    // … or thread the 50px slot (250–300)
+        { x: 560, y: 300, w: 22, h: GROUND_Y - 300 },    // hump after
+        { x: 690, y: 392, w: 18, h: GROUND_Y - 392 },    // curb
+      ],
+      cup: { x: 630, y: GROUND_Y, r: 13 },
+    },
+    {
+      name: "The Corkscrew", par: 6,
+      tee: { x: 120, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 230, y: 120, w: 24, h: GROUND_Y - 120 },    // left wall, solid — carry over the top
+        { x: 360, y: 60,  w: 24, h: 250 },               // divider: 126px gap below to slip to shaft 2
+        { x: 490, y: 120, w: 24, h: GROUND_Y - 120 },    // right wall, solid — climb shaft 2 and clear it
+        { x: 700, y: 392, w: 18, h: GROUND_Y - 392 },    // curb
+      ],
+      cup: { x: 620, y: GROUND_Y, r: 13 },
+    },
+    {
+      name: "Hail Mary", par: 6,
+      tee: { x: 70, y: GROUND_Y - BALL_R },
+      walls: [
+        { x: -80, y: GROUND_Y, w: 220, h: 160 },          // left ground ends x=140
+        { x: 380, y: 250, w: 70, h: 14 },                // lone island — the only rest over the canyon
+        { x: 610, y: GROUND_Y, w: 230, h: 160 },          // far green
+        { x: 470, y: 90,  w: 210, h: 18 },              // ceiling overhang — the final approach can't be lofted
+        { x: 748, y: 250, w: 12, h: GROUND_Y - 250 },    // tall backstop
+      ],
+      cup: { x: 690, y: GROUND_Y, r: 13 },
+    },
+  ];
+
   const COURSES = [
-    { key: "flappygolf",  name: "Course 1 · The Meadow", holes: COURSE_1_HOLES, bestKey: "flappygolf_best_vs_par" },
-    { key: "flappygolf2", name: "Course 2 · The Bluffs", holes: COURSE_2_HOLES, bestKey: "flappygolf2_best_vs_par" },
+    { key: "flappygolf",  name: "Course 1 · The Meadow",  holes: COURSE_1_HOLES, bestKey: "flappygolf_best_vs_par" },
+    { key: "flappygolf2", name: "Course 2 · The Bluffs",  holes: COURSE_2_HOLES, bestKey: "flappygolf2_best_vs_par" },
+    { key: "flappygolf3", name: "Course 3 · The Gauntlet", holes: COURSE_3_HOLES, bestKey: "flappygolf3_best_vs_par" },
   ];
   let courseIdx = 0;
   try {
     const c = parseInt(localStorage.getItem("flappygolf_course") || "0", 10);
-    if (c === 1) courseIdx = 1;
+    if (c >= 1 && c < COURSES.length) courseIdx = c;
   } catch (e) {}
   function course() { return COURSES[courseIdx]; }
   let HOLES = course().holes;   // live binding — repointed by setCourse()
