@@ -172,10 +172,16 @@
   const UP = { dx: 0, dy: -1 }, DOWN = { dx: 0, dy: 1 }, LEFT = { dx: -1, dy: 0 }, RIGHT = { dx: 1, dy: 0 }, NONE = { dx: 0, dy: 0 };
   const DIRS = [UP, LEFT, DOWN, RIGHT];
 
-  const PAC_SPEED = 0.115;
-  const GHOST_SPEED = 0.1;
-  const FRIGHT_SPEED = 0.065;
-  const EYES_SPEED = 0.2;
+  // Slowed down + turn window widened (Alex, 2026-09-05: "everything move a
+  // tiny bit slower so you can properly switch lanes and turn") — same
+  // relative speed ratios as before (Pac-Man still a bit faster than a
+  // normal ghost, frightened ghosts slower, eyes fastest), just a gentler
+  // overall tempo, plus more forgiving alignment tolerance so a turn
+  // buffered just before an intersection actually catches it.
+  const PAC_SPEED = 0.088;
+  const GHOST_SPEED = 0.076;
+  const FRIGHT_SPEED = 0.05;
+  const EYES_SPEED = 0.15;
   const FRIGHT_STEPS = 7 * 60;
   const MODE_SEQUENCE = [7, 20, 7, 20, 5, 20, 5, Infinity]; // seconds, alternating scatter/chase
 
@@ -252,10 +258,12 @@
     invuln = 90;
   }
 
+  const TURN_TOLERANCE = 0.85; // wider than a bare "at tile center" check, so a queued turn actually catches
+
   function stepEntity(e, speed, getNextDir, onAlign) {
     const col = Math.round(e.x), row = Math.round(e.y);
-    const alignedX = Math.abs(e.x - col) < speed * 0.6 + 1e-6;
-    const alignedY = Math.abs(e.y - row) < speed * 0.6 + 1e-6;
+    const alignedX = Math.abs(e.x - col) < speed * TURN_TOLERANCE + 1e-6;
+    const alignedY = Math.abs(e.y - row) < speed * TURN_TOLERANCE + 1e-6;
     if (alignedX && alignedY) {
       e.x = col; e.y = row;
       if (onAlign) onAlign(col, row);
