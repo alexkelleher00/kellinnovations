@@ -1934,8 +1934,42 @@ async function enterHouse(userId) {
   openInside(data);
 }
 
-function openTownHall() {
+let townHallTab = "directory";
+
+async function openTownHall(tab) {
+  townHallTab = tab || townHallTab || "directory";
   const modal = document.getElementById("pickModal");
+  modal.classList.add("open");
+  modal.__cancel = null;
+  renderTownHall();
+  // The Shop pane needs My House's inventory/rooms to offer "Place" — load
+  // it lazily (same guard switchTab uses) so opening the Town Hall before
+  // ever visiting My House this session still works.
+  if (townHallTab === "shop" && currentUser && !mine) {
+    try { await loadMine(); } catch (e) { /* shop still shows, just no "your items" list yet */ }
+    if (townHallTab === "shop") renderTownHall();
+  }
+}
+
+function renderTownHall() {
+  const shell = `
+    <h3 style="margin-top:0;">🏛 Town Hall</h3>
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <button class="hn-mini-btn ${townHallTab === "directory" ? "" : "ghost"}" id="thTabDirectory">🧑‍🤝‍🧑 Directory</button>
+      <button class="hn-mini-btn ${townHallTab === "shop" ? "" : "ghost"}" id="thTabShop">🛒 Shop</button>
+    </div>
+    <div id="thPane"></div>
+    <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+      <button class="hn-mini-btn ghost" id="thClose">Close</button>
+    </div>`;
+  document.getElementById("pickContent").innerHTML = shell;
+  document.getElementById("thClose").onclick = () => document.getElementById("pickModal").classList.remove("open");
+  document.getElementById("thTabDirectory").onclick = () => openTownHall("directory");
+  document.getElementById("thTabShop").onclick = () => openTownHall("shop");
+  if (townHallTab === "shop") renderTownHallShop(); else renderTownHallDirectory();
+}
+
+function renderTownHallDirectory() {
   const residents = ((mapData && mapData.houses) || [])
     .slice()
     .sort((a, b) => (b.kellscoins || 0) - (a.kellscoins || 0) || String(a.name).localeCompare(b.name));
@@ -1948,18 +1982,59 @@ function openTownHall() {
       <span style="flex:1; font-weight:600;">${escHtml(r.name || "Member")}${mayor && r === mayor ? ' <span title="Wealthiest resident">👑</span>' : ""}</span>
       ${hasCoins ? `<span style="color:#ffd166; font-size:0.85rem;">🪙 ${(r.kellscoins || 0).toLocaleString()}</span>` : ""}
     </div>`).join("");
-  document.getElementById("pickContent").innerHTML = `
-    <h3 style="margin-top:0;">🏛 Town Hall</h3>
+  document.getElementById("thPane").innerHTML = `
     <p style="color:var(--muted); font-size:0.86rem; line-height:1.5; margin:4px 0 12px;">
       ${residents.length} resident${residents.length === 1 ? "" : "s"} in the neighborhood.${mayor ? ` Mayor: <b style="color:var(--text);">${escHtml((mayor.name || "").split(" ")[0])}</b>.` : ""}
     </p>
-    <div style="max-height:46vh; overflow:auto; margin:-4px -4px 0;">${rows || '<p style="color:var(--muted);">No residents yet.</p>'}</div>
-    <div style="display:flex; justify-content:flex-end; margin-top:14px;">
-      <button class="hn-mini-btn ghost" id="thClose">Close</button>
+    <div style="max-height:46vh; overflow:auto; margin:-4px -4px 0;">${rows || '<p style="color:var(--muted);">No residents yet.</p>'}</div>`;
+}
+
+function renderTownHallShop() {
+  const pane = document.getElementById("thPane");
+  if (!currentUser) {
+    pane.innerHTML = `<p style="color:var(--muted);">Log in on the Games hub to shop.</p>`;
+    return;
+  }
+  const unplaced = mine ? mine.inventory.filter(i => i.room_key == null) : [];
+  pane.innerHTML = `
+    <div style="max-height:50vh; overflow:auto; margin:-4px -4px 0;">
+      ${unplaced.length ? `
+        <div style="margin-bottom:10px;">
+          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--accent); margin-bottom:6px;">Your items — not placed yet</div>
+          <div id="thInventory" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        </div>` : ""}
+      <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--accent); margin-bottom:6px;">Shop</div>
+      <div class="hn-shop-grid" id="thShopGrid"></div>
     </div>`;
-  modal.classList.add("open");
-  modal.__cancel = null;
-  document.getElementById("thClose").onclick = () => modal.classList.remove("open");
+  if (unplaced.length) {
+    const invHost = document.getElementById("thInventory");
+    unplaced.forEach(i => {
+      const info = catItem(i.key) || {};
+      const card = document.createElement("div");
+      card.style.cssText = "display:flex; flex-direction:column; align-items:center; gap:4px; background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:8px; width:76px;";
+      const nameDiv = document.createElement("div");
+      nameDiv.style.cssText = "font-size:0.72rem; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%;";
+      nameDiv.textContent = info.name || i.key;
+      const btn = document.createElement("button");
+      btn.className = "hn-mini-btn"; btn.style.cssText = "font-size:0.7rem; padding:4px 8px;"; btn.textContent = "Place";
+      btn.addEventListener("click", () => placeFromTownHall(i.id));
+      card.append(nameDiv, thumbCanvas(i, 40), btn);
+      invHost.appendChild(card);
+    });
+  }
+  renderShop("thShopGrid", () => renderTownHallShop());
+}
+
+// The Town Hall's "Place" button: hands off to My House's own placement grid
+// (armedItemId + the existing click-a-tile flow) instead of re-implementing
+// it — closes the Town Hall, switches to My House, arms the item.
+async function placeFromTownHall(itemId) {
+  document.getElementById("pickModal").classList.remove("open");
+  await switchTab("mine");
+  if (!mine) return;  // not logged in / load failed — switchTab already surfaced the error
+  if (!mine.rooms.some(r => r.key === selectedRoomKey)) selectedRoomKey = mine.rooms[0] ? mine.rooms[0].key : "yard";
+  armedItemId = itemId; armedRot = 0;
+  renderEditor();
 }
 
 function confirmVisit(h) {
@@ -2200,8 +2275,15 @@ function renderInventory() {
     host.appendChild(cell);
   });
 }
-function renderShop() {
-  const host = document.getElementById("shopGrid");
+// hostId/onBought let the exact same item grid + /buy call render inside My
+// House's own shop panel (unchanged behavior) OR the Town Hall's Shop tab
+// (placeFromTownHall's door) — one shop, two doors, per Alex's call
+// (2026-09-04) to add the Town Hall as a second entry point rather than
+// moving buying out of My House.
+function renderShop(hostId, onBought) {
+  hostId = hostId || "shopGrid";
+  const host = document.getElementById(hostId);
+  if (!host) return;
   const items = catalogData.items.filter(i =>
     shopLocFilter === "all" ? true :
     shopLocFilter === "indoor" ? (i.location === "indoor" || i.location === "any") :
@@ -2223,7 +2305,11 @@ function renderShop() {
       try {
         const res = await api("/buy", { method: "POST", body: { item_key: i.key } });
         currentUser.kellscoins = res.balance; updateCoinChip();
-        mine.inventory.push(res.item); renderEditor();
+        // mine may not be loaded yet if buying from the Town Hall before ever
+        // opening My House this session — the server already has the item
+        // either way, this is just the optimistic local mirror of it.
+        if (mine) mine.inventory.push(res.item);
+        if (onBought) onBought(res.item); else renderEditor();
       } catch (e) { showError(e.message); }
     });
     host.appendChild(card);
@@ -2354,15 +2440,18 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 
-document.querySelectorAll(".hn-tab").forEach(tab => tab.addEventListener("click", async () => {
-  document.querySelectorAll(".hn-tab").forEach(t => t.classList.remove("active"));
-  tab.classList.add("active");
-  activeTab = tab.dataset.tab;
+// Shared by the tab buttons and the Town Hall shop's "Place" hand-off
+// (placeFromTownHall) — one place that knows how to switch tabs and lazily
+// load My House data, so both entry points behave identically.
+async function switchTab(key) {
+  document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === key));
+  activeTab = key;
   document.getElementById("mapView").style.display = activeTab === "map" ? "block" : "none";
   document.getElementById("mineView").style.display = activeTab === "mine" ? "block" : "none";
   if (activeTab === "mine" && currentUser && !mine) { try { await loadMine(); } catch (e) { showError(e.message); } }
   if (activeTab === "map") { fitMapView(); }
-}));
+}
+document.querySelectorAll(".hn-tab").forEach(tab => tab.addEventListener("click", () => switchTab(tab.dataset.tab)));
 
 document.getElementById("labelsToggle").addEventListener("click", e => {
   showLabels = !showLabels; e.currentTarget.classList.toggle("on", showLabels);
@@ -2423,6 +2512,9 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
     get activeTab() { return activeTab; },
     get currentUser() { return currentUser; },
     set currentUser(v) { currentUser = v; },
+    get mine() { return mine; },
+    get armedItemId() { return armedItemId; },
+    get selectedRoomKey() { return selectedRoomKey; },
   };
 }
 </script>
