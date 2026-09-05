@@ -1840,8 +1840,8 @@ function stepPlayer(dt) {
   dx /= len; dy /= len;
   const rects = solidRects();
   const blocked = (x, y) => rects.some(r => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1);
-  const nx = clamp(PLAYER.x + dx * PLAYER.speed * dt, MARGIN + 6, MAP.worldW - MARGIN - 6);
-  const ny = clamp(PLAYER.y + dy * PLAYER.speed * dt, MARGIN + 6, MAP.worldH - MARGIN - 6);
+  const nx = clamp(PLAYER.x + dx * PLAYER.speed * dt, WORLD_PAD_X + 6, MAP.worldW - WORLD_PAD_X - 6);
+  const ny = clamp(PLAYER.y + dy * PLAYER.speed * dt, WORLD_PAD_Y + 6, MAP.worldH - WORLD_PAD_Y - 6);
   const bx = blocked(nx, PLAYER.y), by = blocked(PLAYER.x, ny);
   // Axis-separated so bumping into a wall diagonally still slides along it.
   if (!bx) PLAYER.x = nx;
@@ -1915,6 +1915,24 @@ function drawMapDecor(g, d, t) {
     g.fillStyle = "rgba(158,220,130,0.5)";
     g.beginPath(); g.arc(cx - 2 * s, y - 10 * s, 1.5 * s, 0, 7); g.fill();
     g.beginPath(); g.arc(cx + 4 * s, y - 6 * s, 1.3 * s, 0, 7); g.fill();
+  } else if (d.kind === "pine") {
+    const sway = Math.sin(t * 1.0 + hash2(x, y) * 6.28) * 1.6 * s * (REDUCED ? 0 : 1);
+    // trunk
+    g.fillStyle = "#3a2718"; g.fillRect(x - 2.5 * s, y - 8 * s, 5 * s, 8 * s);
+    g.fillStyle = lgrad(g, x - 2.5 * s, y, x + 2.5 * s, y, "#6b4a2e", "#4a3320");
+    g.fillRect(x - 2 * s, y - 8 * s, 4 * s, 8 * s);
+    // three stacked conifer tiers, dark base -> bright tip, top two swaying
+    const tier = (cy, half, hgt, col, sw) => {
+      g.fillStyle = col;
+      g.beginPath();
+      g.moveTo(x + sw, cy - hgt); g.lineTo(x + half + sw * 0.4, cy); g.lineTo(x - half + sw * 0.4, cy);
+      g.closePath(); g.fill();
+    };
+    tier(y - 6 * s, 15 * s, 17 * s, "#1f3a1e", 0);
+    tier(y - 15 * s, 12 * s, 16 * s, "#2f5a2c", sway * 0.5);
+    tier(y - 24 * s, 8.5 * s, 14 * s, "#3f7a3a", sway);
+    g.fillStyle = "rgba(158,220,130,0.5)";
+    g.beginPath(); g.arc(x - 2 * s + sway, y - 30 * s, 1.6 * s, 0, 7); g.fill();
   } else {
     g.fillStyle = "#5c616c"; g.beginPath(); g.ellipse(x, y - 3.5 * s, 10 * s, 6.5 * s, 0, 0, 7); g.fill();
     g.fillStyle = lgrad(g, x, y - 10 * s, x, y, "#aeb3bf", "#7b808c");
@@ -1950,10 +1968,20 @@ const PLOT_W = 210, PLOT_H = 300, ROAD_W = 24, MARGIN = 60, BACK_H = 110;
 // dead-center in a grid square. The margin (CELL-PLOT) comfortably exceeds
 // 2x the jitter range on each axis, so two neighboring plots can never
 // overlap even at max jitter in opposite directions.
-const CELL_W = 270, CELL_H = 360, JITTER_X = 16, JITTER_Y = 14;
+const CELL_W = 420, CELL_H = 520, JITTER_X = 34, JITTER_Y = 90;
+// Whole rows slide left/right as a unit (same value for every house in a row)
+// so columns stop lining up, without any risk of two plots in a row colliding.
+// Invariant: ROW_STAGGER + JITTER_X <= (CELL_W-PLOT_W)/2 - 8  (84 <= 97)
+//        and JITTER_Y            <= (CELL_H-PLOT_H)/2 - 8  (90 <= 102)
+const ROW_STAGGER = 50;
+function rowStagger(row) { return (hash2(row, 313) - 0.5) * 2 * ROW_STAGGER; }
 function plotJitter(i) {
   return { dx: (hash2(i, 401) - 0.5) * 2 * JITTER_X, dy: (hash2(i, 502) - 0.5) * 2 * JITTER_Y };
 }
+// The world gets padding wide enough that a col-0 / row-0 plot at max negative
+// jitter+stagger still sits inside it (so the player clamp never traps you
+// outside a plot). Set in layoutMap once cols/rows are known.
+let WORLD_PAD_X = MARGIN, WORLD_PAD_Y = MARGIN;
 
 function layoutMap() {
   const houses = (mapData && mapData.houses) || [];
@@ -1964,8 +1992,10 @@ function layoutMap() {
   if (cols % 2 === 0) cols++;
   let rows = Math.max(3, Math.ceil((n + 1) / cols));
   if (rows % 2 === 0) rows++;
-  MAP.worldW = MARGIN * 2 + cols * CELL_W;
-  MAP.worldH = MARGIN * 2 + rows * CELL_H;
+  WORLD_PAD_X = MARGIN + ROW_STAGGER + JITTER_X + 10;
+  WORLD_PAD_Y = MARGIN + JITTER_Y + 10;
+  MAP.worldW = WORLD_PAD_X * 2 + cols * CELL_W;
+  MAP.worldH = WORLD_PAD_Y * 2 + rows * CELL_H;
   const cellPad = { x: (CELL_W - PLOT_W) / 2, y: (CELL_H - PLOT_H) / 2 };
 
   const centerPlot = ((rows - 1) / 2) * cols + (cols - 1) / 2;
@@ -1973,7 +2003,7 @@ function layoutMap() {
 
   {
     const cCol = (cols - 1) / 2, cRow = (rows - 1) / 2;
-    const px = MARGIN + cCol * CELL_W + cellPad.x, py = MARGIN + cRow * CELL_H + cellPad.y;
+    const px = WORLD_PAD_X + cCol * CELL_W + cellPad.x + rowStagger(cRow), py = WORLD_PAD_Y + cRow * CELL_H + cellPad.y;
     const gx0 = px + ROAD_W, gy0 = py + ROAD_W, gw = PLOT_W - ROAD_W, gh = PLOT_H - ROAD_W;
     MAP.townHall = {
       bx: gx0 + gw * 0.5, by: gy0 + gh * 0.60, smoke: [],
@@ -1996,7 +2026,7 @@ function layoutMap() {
     const plot = plotForHouse(i);
     const col = plot % cols, row = (plot / cols) | 0;
     const j = plotJitter(i);
-    const plotX = MARGIN + col * CELL_W + cellPad.x + j.dx, plotY = MARGIN + row * CELL_H + cellPad.y + j.dy;
+    const plotX = WORLD_PAD_X + col * CELL_W + cellPad.x + rowStagger(row) + j.dx, plotY = WORLD_PAD_Y + row * CELL_H + cellPad.y + j.dy;
     const gx0 = plotX + ROAD_W, gy0 = plotY + ROAD_W;         // whole plot's green origin
     const gw = PLOT_W - ROAD_W, gh = PLOT_H - ROAD_W;
     // The plot splits into a back band (away from the road — Backyard) and
@@ -2081,9 +2111,46 @@ function layoutMap() {
     return h;
   });
 
+  scatterForest();
   spawnPlayer();
   buildMapGround();
   fitMapView();
+}
+// A real forest around the neighborhood (2026-09-05, "add some trees or
+// forest... space between houses so you really need to walk and find them"):
+// rejection-sampled scenery across the WHOLE world, denser toward the edges
+// (a wooded border) and sparse in the middle clearings, avoiding paths, the
+// plaza, the pond and every plot. Deterministic from hash2 like the rest of
+// the map — identical on every reload / for every viewer.
+function scatterForest() {
+  const W = MAP.worldW, H = MAP.worldH;
+  const N = Math.min(520, Math.round(MAP.houses.length * 16));
+  const MIN_SP = 24, PLOT_PAD = 22;
+  const rects = MAP.houses.map(h => ({
+    x0: h.plotX - PLOT_PAD, y0: h.plotY - PLOT_PAD,
+    x1: h.plotX + PLOT_W + PLOT_PAD, y1: h.plotY + PLOT_H + PLOT_PAD,
+  }));
+  if (MAP.townHall) {
+    const t = MAP.townHall;
+    rects.push({ x0: t.plotX - PLOT_PAD, y0: t.plotY - PLOT_PAD, x1: t.plotX + PLOT_W + PLOT_PAD, y1: t.plotY + PLOT_H + PLOT_PAD });
+  }
+  const placed = [];
+  const maxEdge = Math.min(W, H) / 2;
+  for (let k = 0; k < N * 6 && placed.length < N; k++) {
+    const x = hash2(k, 11) * W, y = hash2(k, 23) * H;
+    const edgeDist = Math.min(x, W - x, y, H - y);
+    const openness = clamp(edgeDist / maxEdge, 0, 1);           // 0 at the border, 1 mid-world
+    if (hash2(k, 31) < 0.06 + 0.66 * openness) continue;         // thin out the interior, keep the rim
+    if (onPlaza(x, y) || pondZone(x, y) !== 0 || onPath(x, y)) continue;
+    if (rects.some(p => x > p.x0 && x < p.x1 && y > p.y0 && y < p.y1)) continue;
+    if (placed.some(d => Math.hypot(d.x - x, d.y - y) < MIN_SP)) continue;
+    const r = hash2(k, 43);
+    const kind = openness < 0.28 ? (r < 0.7 ? "pine" : "tree")
+               : r < 0.34 ? "tree" : r < 0.6 ? "pine" : r < 0.82 ? "bush" : "rock";
+    const scale = (0.7 + hash2(k, 53) * 0.7) * (openness < 0.3 ? 1.15 : 1);
+    const d = { kind, x, y, scale };
+    placed.push(d); MAP.decor.push(d);
+  }
 }
 // Winding dirt paths (2026-09-04, replacing the old straight grid-line
 // roads — "not a grid... real space between the houses"): MAP.pathSegs is a
@@ -2239,7 +2306,16 @@ function drawMapScene(now, dt) {
   MAP.walkers.forEach(a => ents.push({ y: a.y, d: () => drawWalker(g, a) }));
   MAP.mapPets.forEach(p => ents.push({ y: p.y, d: () => drawPetActor(g, p, now / 1000, 1.35) }));
   ents.push({ y: PLAYER.y, d: () => drawPlayer(g) });
-  (MAP.decor || []).forEach(d => ents.push({ y: d.y, d: () => drawMapDecor(g, d, now / 1000) }));
+  {
+    // Only depth-sort + draw decor that's actually on screen — MAP.decor is
+    // ~12x the house count now that there's a whole forest.
+    const hw = W / (2 * z) + 48, hh = H / (2 * z) + 48;
+    const vx0 = MAP.cam.x - hw, vx1 = MAP.cam.x + hw, vy0 = MAP.cam.y - hh, vy1 = MAP.cam.y + hh;
+    for (const d of (MAP.decor || [])) {
+      if (d.x < vx0 || d.x > vx1 || d.y < vy0 || d.y > vy1) continue;
+      ents.push({ y: d.y, d: () => drawMapDecor(g, d, now / 1000) });
+    }
+  }
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
 
@@ -2323,7 +2399,7 @@ function mapScreenToWorld(sx, sy) {
     // A tap on open ground walks the character there (mobile mainly, but
     // works everywhere) — stepPlayer heads toward PLAYER.moveTarget.
     if (currentUser && w.x > 0 && w.x < MAP.worldW && w.y > 0 && w.y < MAP.worldH) {
-      PLAYER.moveTarget = { x: clamp(w.x, MARGIN + 6, MAP.worldW - MARGIN - 6), y: clamp(w.y, MARGIN + 6, MAP.worldH - MARGIN - 6) };
+      PLAYER.moveTarget = { x: clamp(w.x, WORLD_PAD_X + 6, MAP.worldW - WORLD_PAD_X - 6), y: clamp(w.y, WORLD_PAD_Y + 6, MAP.worldH - WORLD_PAD_Y - 6) };
       MAP.follow = true;
     }
   });
@@ -3154,12 +3230,18 @@ boot();
 if (location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1") {
   window.NB_DEBUG = {
     PLAYER, MAP, PLAYER_KEYS, stepPlayer, spawnPlayer, drawMapScene,
+    scatterForest, layoutMap, onPath, onPlaza, pondZone, solidRects,
     get activeTab() { return activeTab; },
     get currentUser() { return currentUser; },
     set currentUser(v) { currentUser = v; },
     get mine() { return mine; },
     get armedItemId() { return armedItemId; },
     get selectedRoomKey() { return selectedRoomKey; },
+    get decorCount() { return MAP.decor.length; },
+    get worldSize() { return { w: MAP.worldW, h: MAP.worldH }; },
+    get plotRects() {
+      return MAP.houses.map(h => ({ x0: h.plotX, y0: h.plotY, x1: h.plotX + PLOT_W, y1: h.plotY + PLOT_H, id: h.user_id }));
+    },
   };
 }
 </script>
