@@ -385,7 +385,7 @@ async function api(path, opts) {
 }
 
 let currentUser = null;
-let catalogData = null;     // { items, pets, rooms, wall_colors, roof_colors, yard_colors, floor_colors }
+let catalogData = null;     // { items, pets, rooms, exteriors, wall_colors, roof_colors, yard_colors, floor_colors }
 let mine = null;            // { house, rooms, placed, inventory, pets }
 let mapData = null;         // { houses: [...] }
 let selectedRoomKey = "yard";
@@ -911,14 +911,43 @@ const PET_SPRITES = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════
-   House exterior (pixel, palette-swapped per member)
+   House exterior (pixel, palette-swapped per member). exterior_level buys a
+   grander place: Cottage 0 -> Cabin 1 -> Manor 2 -> Mansion 3. The base
+   sprite is drawn once, uniformly scaled up per tier, with a porch / columns
+   / pediment / side-wings painted on for the higher tiers. houseFootprint()
+   is the single source of the on-map bounding box so collision + the click
+   hit-test grow with it.
    ═══════════════════════════════════════════════════════════════════════ */
+function houseFootprint(level) {
+  level = clamp(level | 0, 0, 3);
+  const S = [1, 1.18, 1.42, 1.74][level];
+  // base cottage: 50 wide + 7 overhang/side, 34 wall + 22 roof up, 8 below the feet
+  return {
+    level, S,
+    halfW: (25 + 7) * S + (level >= 2 ? 10 * S : 0),   // wings widen levels 2-3
+    topH: (34 + 22) * S + (level >= 3 ? 10 * S : 0),    // pediment adds height at 3
+    botH: 8 * S,
+  };
+}
+function houseHitBox(h) {
+  const F = houseFootprint((h.house && h.house.exterior_level) || 0);
+  return { x0: h.bx - F.halfW, x1: h.bx + F.halfW, y0: h.by - F.topH, y1: h.by + F.botH, kind: "house", ref: h };
+}
+
 function drawHouse(g, colors, bx, by, night, smoke) {
   const wall = colors.wall_color, roof = colors.roof_color;
+  const lvl = colors.exterior_level || 0;
+  const S = houseFootprint(lvl).S;
   const bw = 50, bh = 34, rh = 22, over = 7;
   const x0 = bx - bw / 2, y0 = by - bh;
+  const glowBase = GLOWS.length;
 
-  ovShadow(g, bx, by, bw / 2 + 5, 8, 0.26);
+  ovShadow(g, bx, by, (bw / 2 + 5) * S + (lvl >= 2 ? 10 : 0), 8 * S, 0.26);
+
+  g.save();
+  g.translate(bx, by); g.scale(S, S); g.translate(-bx, -by);
+
+  if (lvl >= 2) drawHouseTierExtras(g, colors, bx, by, night, lvl, "back", bw, bh, rh, over);
 
   // ---- wall: dark base reads as an outline, then lit + shaded faces + siding ----
   g.fillStyle = "#20161b";
@@ -997,16 +1026,95 @@ function drawHouse(g, colors, bx, by, night, smoke) {
   g.closePath(); g.fill();
   g.fillStyle = "#f4c65a"; g.fillRect(bx - 1, y0 - rh + 7, 2, 3);
 
-  // ---- chimney + smoke ----
-  if (smoke) {
+  // ---- chimney (always on from Cabin up) + smoke ----
+  if (smoke || lvl >= 1) {
     g.fillStyle = "#20161b"; g.fillRect(bx + 12, y0 - rh, 9, 16);
     g.fillStyle = lgrad(g, bx + 13, y0 - rh, bx + 20, y0 - rh, shade(wall, -0.18), shade(wall, -0.42));
     g.fillRect(bx + 13, y0 - rh + 1, 7, 15);
     g.fillStyle = shade(wall, -0.02); g.fillRect(bx + 12, y0 - rh + 1, 9, 2);
-    for (const s of smoke) {
+    for (const s of (smoke || [])) {
       g.fillStyle = rgba("#e8e8ef", s.a * (0.32 + night * 0.4));
       g.beginPath(); g.arc(s.x, s.y, Math.max(1, s.sz * 0.7), 0, 7); g.fill();
     }
+  }
+
+  // ---- roof dormer (Cabin up) ----
+  if (lvl >= 1) {
+    g.fillStyle = "#1c1420"; g.fillRect(bx - 6, y0 - rh * 0.5 - 7, 12, 9);
+    g.fillStyle = lgrad(g, bx, y0 - rh * 0.5 - 7, bx, y0 - rh * 0.5 + 2, shade(roof, 0.18), shade(roof, -0.12));
+    g.fillRect(bx - 5, y0 - rh * 0.5 - 6, 10, 8);
+    g.fillStyle = night > 0.05 ? "#ffce6b" : lgrad(g, bx - 3, y0 - rh * 0.5 - 4, bx + 3, y0 - rh * 0.5 + 1, "#e2f4fb", "#a6d1e6");
+    g.fillRect(bx - 3, y0 - rh * 0.5 - 4, 6, 5);
+    if (night > 0.05) GLOWS.push({ x: bx, y: y0 - rh * 0.5 - 1, r: 16, col: "#ffcf7a", i: night * 0.7 });
+  }
+
+  // ---- front-facing grand extras (porch / columns / pediment) ----
+  if (lvl >= 2) drawHouseTierExtras(g, colors, bx, by, night, lvl, "front", bw, bh, rh, over);
+
+  g.restore();
+
+  // The whole sprite drew inside a scale(S) transform — pull any GLOWS it
+  // queued back into world space so the light bloom lands in the right spot.
+  if (S !== 1) {
+    for (let i = glowBase; i < GLOWS.length; i++) {
+      GLOWS[i].x = bx + (GLOWS[i].x - bx) * S;
+      GLOWS[i].y = by + (GLOWS[i].y - by) * S;
+      GLOWS[i].r *= S;
+    }
+  }
+}
+
+// Painted-on grandeur for Manor (2) and Mansion (3), drawn in drawHouse's
+// scaled local space. `phase` "back" = side wings behind the house; "front" =
+// the portico columns + pediment over the door. All palette-swapped.
+function drawHouseTierExtras(g, colors, bx, by, night, lvl, phase, bw, bh, rh, over) {
+  const wall = colors.wall_color, roof = colors.roof_color;
+  const x0 = bx - bw / 2, y0 = by - bh;
+  if (phase === "back") {
+    // low side-wing blocks flanking the main house
+    const ww = lvl >= 3 ? 20 : 15, wh = bh * 0.72;
+    for (const sgn of [-1, 1]) {
+      const wx0 = sgn < 0 ? x0 - ww + 3 : x0 + bw - 3;
+      g.fillStyle = "#20161b"; g.fillRect(wx0 - 1, by - wh - 1, ww + 2, wh + 2);
+      g.fillStyle = lgrad(g, wx0, by - wh, wx0, by, shade(wall, 0.1), shade(wall, -0.18));
+      g.fillRect(wx0, by - wh, ww, wh);
+      // little flat roof
+      g.fillStyle = shade(roof, -0.1); g.fillRect(wx0 - 2, by - wh - 4, ww + 4, 5);
+      // a window
+      g.fillStyle = night > 0.05 ? "#ffce6b" : "#bfe3f2";
+      g.fillRect(wx0 + ww / 2 - 3, by - wh * 0.6, 6, 6);
+      if (night > 0.05) GLOWS.push({ x: wx0 + ww / 2, y: by - wh * 0.6 + 3, r: 18, col: "#ffcf7a", i: night * 0.7 });
+    }
+    return;
+  }
+  // phase === "front": portico
+  const cols = lvl >= 3 ? 4 : 2;
+  const span = lvl >= 3 ? bw + over * 1.2 : bw * 0.62;
+  const cx0 = bx - span / 2, ph = bh * 0.9, pTop = by - ph;
+  // porch floor + steps
+  g.fillStyle = shade(wall, 0.06); g.fillRect(cx0 - 3, by - 1, span + 6, 4);
+  g.fillStyle = shade(wall, -0.16); g.fillRect(cx0 - 5, by + 3, span + 10, 2);
+  // columns
+  for (let i = 0; i < cols; i++) {
+    const cx = cx0 + (span - 5) * (cols === 1 ? 0.5 : i / (cols - 1));
+    g.fillStyle = "#1c1420"; g.fillRect(cx - 1, pTop - 1, 7, ph + 2);
+    g.fillStyle = lgrad(g, cx, pTop, cx + 5, pTop, shade(wall, 0.22), shade(wall, -0.12));
+    g.fillRect(cx, pTop, 5, ph);
+    g.fillStyle = shade(wall, -0.1); g.fillRect(cx - 1, pTop, 7, 2); g.fillRect(cx - 1, by - 2, 7, 2);
+  }
+  // entablature / pediment
+  g.fillStyle = "#1c1420"; g.fillRect(cx0 - 4, pTop - 4, span + 8, 5);
+  g.fillStyle = lgrad(g, bx, pTop - 4, bx, pTop + 1, shade(wall, 0.2), shade(wall, -0.05));
+  g.fillRect(cx0 - 3, pTop - 3, span + 6, 4);
+  if (lvl >= 3) {
+    g.fillStyle = "#1c1420";
+    g.beginPath();
+    g.moveTo(cx0 - 6, pTop - 3); g.lineTo(cx0 + span + 6, pTop - 3); g.lineTo(bx, pTop - 3 - span * 0.28);
+    g.closePath(); g.fill();
+    g.fillStyle = lgrad(g, bx, pTop - 3 - span * 0.28, bx, pTop - 3, shade(roof, 0.2), shade(roof, -0.14));
+    g.beginPath();
+    g.moveTo(cx0 - 4, pTop - 4); g.lineTo(cx0 + span + 4, pTop - 4); g.lineTo(bx, pTop - 4 - span * 0.26);
+    g.closePath(); g.fill();
   }
 }
 /* ═══════════════════════════════════════════════════════════════════════
@@ -1863,7 +1971,7 @@ function spawnPlayer() {
 // Same footprints the click-to-enter hit-tests use (see wireMap's pointerup)
 // so "solid to walk into" always matches "clickable to enter".
 function solidRects() {
-  const rects = MAP.houses.map(h => ({ x0: h.bx - 28, x1: h.bx + 28, y0: h.by - 58, y1: h.by + 8, kind: "house", ref: h }));
+  const rects = MAP.houses.map(houseHitBox);
   if (MAP.townHall) {
     const th = MAP.townHall;
     rects.push({ x0: th.bx - 44, x1: th.bx + 44, y0: th.by - 80, y1: th.by + 10, kind: "townhall" });
@@ -2454,7 +2562,8 @@ function mapScreenToWorld(sx, sy) {
     const th = MAP.townHall;
     if (th && w.x > th.bx - 44 && w.x < th.bx + 44 && w.y > th.by - 80 && w.y < th.by + 10) { openTownHall(); return; }
     for (const h of MAP.houses) {
-      if (w.x > h.bx - 28 && w.x < h.bx + 28 && w.y > h.by - 58 && w.y < h.by + 8) { enterHouse(h.user_id); return; }
+      const b = houseHitBox(h);
+      if (w.x > b.x0 && w.x < b.x1 && w.y > b.y0 && w.y < b.y1) { enterHouse(h.user_id); return; }
     }
     // A tap on open ground walks the character there (mobile mainly, but
     // works everywhere) — stepPlayer heads toward PLAYER.moveTarget.
@@ -2572,8 +2681,10 @@ function drawRoomInto(rs, now, dt) {
   const night = rs.outdoor ? nightAmount(timeOfDay) : 0;
   rs.pets.forEach(p => stepPet(p, dt));
   const isYard = rs.room.key === "yard";
-  const hs = isYard ? clamp(TP / 18, 1, 1.9) : 1;                 // house scale in the yard
-  const houseFeetY = isYard ? clamp(padTop + TP * 1.35, padTop + 34, padTop + rs.rows * TP * 0.42) : 0;
+  const exLvl = (rs.house && rs.house.exterior_level) || 0;         // a Mansion is already big — cap the yard-preview scale lower
+  const hsCap = exLvl >= 3 ? 1.2 : exLvl >= 2 ? 1.4 : exLvl >= 1 ? 1.6 : 1.9;
+  const hs = isYard ? clamp(TP / 18, 1, hsCap) : 1;                // house scale in the yard
+  const houseFeetY = isYard ? clamp(padTop + TP * 1.35 + (exLvl >= 3 ? TP * 0.35 : 0), padTop + 34, padTop + rs.rows * TP * 0.46) : 0;
   if (isYard) stepSmoke(rs.smoke, dt, 0, -52);                    // smoke in house-local coords
 
   g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
@@ -3204,6 +3315,10 @@ function renderEditor() {
           <p class="hn-hint" id="roomHint"></p>
         </div>
         <div class="hn-panel">
+          <div class="hn-panel-title">Exterior</div>
+          <div id="exteriorActions"></div>
+        </div>
+        <div class="hn-panel">
           <div class="hn-panel-title">Colors</div>
           <div class="hn-sub">Walls</div><div class="hn-swatch-row" data-kind="wall_color">${swatches(catalogData.wall_colors, house.wall_color)}</div>
           <div class="hn-sub">Roof</div><div class="hn-swatch-row" data-kind="roof_color">${swatches(catalogData.roof_colors, house.roof_color)}</div>
@@ -3242,6 +3357,7 @@ function renderEditor() {
     wireRoomCanvas(ROOM);
   });
   renderRoomActions();
+  renderExteriorActions();
   renderInventory();
   renderPets();
   renderShop();
@@ -3297,6 +3413,37 @@ function renderRoomActions() {
       currentUser.kellscoins = res.balance; updateCoinChip();
       const idx = mine.rooms.findIndex(r => r.key === room.key);
       mine.rooms[idx] = res.room; renderEditor();
+    } catch (e) { showError(e.message); }
+  });
+}
+function renderExteriorActions() {
+  const host = document.getElementById("exteriorActions");
+  if (!host) return;
+  const ex = (catalogData && catalogData.exteriors) || { tiers: [], max_level: 0 };
+  const lvl = (mine.house && mine.house.exterior_level) || 0;
+  const cur = ex.tiers.find(t => t.level === lvl) || { name: "Cottage" };
+  if (!ex.tiers.length) { host.innerHTML = `<span class="hn-empty-note">Exterior tiers unavailable.</span>`; return; }
+  if (lvl >= ex.max_level) {
+    host.innerHTML = `<p class="hn-hint" style="margin:0;">Your house is a <b>${escHtml(cur.name)}</b> — the top tier. 🏰</p>`;
+    return;
+  }
+  const nxt = ex.tiers.find(t => t.level === lvl + 1);
+  const afford = currentUser && currentUser.kellscoins >= nxt.price;
+  host.innerHTML = `
+    <p class="hn-hint" style="margin:0 0 8px;">Current: <b>${escHtml(cur.name)}</b></p>
+    <button class="hn-mini-btn" id="exUpBtn" ${afford ? "" : "disabled"}>⬆ Upgrade to ${escHtml(nxt.name)} — 🪙 ${nxt.price.toLocaleString()}</button>
+    ${afford ? "" : `<p class="hn-hint" style="margin:6px 0 0; color:var(--muted);">Need 🪙 ${(nxt.price - (currentUser ? currentUser.kellscoins : 0)).toLocaleString()} more.</p>`}`;
+  const btn = document.getElementById("exUpBtn");
+  if (btn) btn.addEventListener("click", async () => {
+    if (!window.confirm(`Upgrade your house to ${nxt.name} for ${nxt.price.toLocaleString()} KellsCoins?`)) return;
+    try {
+      const res = await api("/exterior/upgrade", { method: "POST", body: {} });
+      currentUser.kellscoins = res.balance; updateCoinChip();
+      mine.house = res.house;
+      const mh = ((mapData && mapData.houses) || []).find(x => currentUser && x.user_id === currentUser.id);
+      if (mh) mh.house = { ...mh.house, ...res.house };   // keep solidRects / hit-test / drawHouse live
+      renderEditor();
+      toast(`🏠 Your house is now a ${nxt.name}!`);
     } catch (e) { showError(e.message); }
   });
 }
@@ -3644,6 +3791,12 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
     beginFade, fadeSkip, fadeAlpha, moveEntity,
     buildInterior, interiorEnterRoom, stepInterior, leaveInterior, drawInteriorScene,
     solidRectsInterior, interiorBounds, enterHouse,
+    houseFootprint, houseHitBox, drawHouse, renderEditor,
+    setExterior(userId, level) {
+      const mh = ((mapData && mapData.houses) || []).find(x => x.user_id === userId);
+      if (mh) mh.house = { ...mh.house, exterior_level: level };
+      if (mine && currentUser && userId === currentUser.id) mine.house = { ...mine.house, exterior_level: level };
+    },
     get activeTab() { return activeTab; },
     get SCENE() { return SCENE; },
     get sceneFade() { return sceneFade; },
