@@ -1354,6 +1354,92 @@ function mkPet(type, rgn, i) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   Walkable player avatar (Alex, 2026-09-04: "give the person their
+   character to walk around with and look at the houses"). Same movement
+   shape as the ambient NPC walkers above (x,y,dir,phase,moving) but driven
+   by WASD/arrow keys instead of a scripted path, and rendered with the
+   player's own account avatar_emoji so it's unmistakably "you" among the
+   ambient strollers (who show their name instead).
+   ═══════════════════════════════════════════════════════════════════════ */
+const PLAYER = { x: 0, y: 0, dir: "S", phase: 0, moving: false, speed: 70, lastEnter: 0 };
+const PLAYER_PAL = { h: HAIR[0], s: "#f0c8a4", 1: "#241a1e", t: "#00c8c8", p: PANTS[0], 6: "#3b2b2b" };
+const PLAYER_KEYS = new Set();
+const MOVE_KEYS = {
+  KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1],
+  KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0],
+};
+function anyModalOpen() {
+  return document.getElementById("pickModal").classList.contains("open")
+      || document.getElementById("detailModal").classList.contains("open");
+}
+window.addEventListener("keydown", e => {
+  if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (!MOVE_KEYS[e.code]) return;
+  PLAYER_KEYS.add(e.code);
+  if (activeTab === "map") { e.preventDefault(); MAP.follow = true; }
+});
+window.addEventListener("keyup", e => PLAYER_KEYS.delete(e.code));
+window.addEventListener("blur", () => PLAYER_KEYS.clear());
+
+function spawnPlayer() {
+  const th = MAP.townHall;
+  PLAYER.x = th ? th.bx : MAP.worldW / 2;
+  PLAYER.y = th ? th.by + 50 : MAP.worldH / 2;
+}
+// Same footprints the click-to-enter hit-tests use (see wireMap's pointerup)
+// so "solid to walk into" always matches "clickable to enter".
+function solidRects() {
+  const rects = MAP.houses.map(h => ({ x0: h.bx - 28, x1: h.bx + 28, y0: h.by - 58, y1: h.by + 8, kind: "house", ref: h }));
+  if (MAP.townHall) {
+    const th = MAP.townHall;
+    rects.push({ x0: th.bx - 44, x1: th.bx + 44, y0: th.by - 80, y1: th.by + 10, kind: "townhall" });
+  }
+  return rects;
+}
+function stepPlayer(dt) {
+  if (anyModalOpen() || activeTab !== "map") { PLAYER.moving = false; return; }
+  let dx = 0, dy = 0;
+  for (const k of PLAYER_KEYS) { const d = MOVE_KEYS[k]; if (d) { dx += d[0]; dy += d[1]; } }
+  if (!dx && !dy) { PLAYER.moving = false; return; }
+  const len = Math.hypot(dx, dy) || 1;
+  dx /= len; dy /= len;
+  const rects = solidRects();
+  const blocked = (x, y) => rects.some(r => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1);
+  const nx = clamp(PLAYER.x + dx * PLAYER.speed * dt, MARGIN + 6, MAP.worldW - MARGIN - 6);
+  const ny = clamp(PLAYER.y + dy * PLAYER.speed * dt, MARGIN + 6, MAP.worldH - MARGIN - 6);
+  // Axis-separated so bumping into a wall diagonally still slides along it.
+  if (!blocked(nx, PLAYER.y)) PLAYER.x = nx;
+  if (!blocked(PLAYER.x, ny)) PLAYER.y = ny;
+  PLAYER.phase += PLAYER.speed * dt;
+  PLAYER.moving = true;
+  PLAYER.dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "E" : "W") : (dy > 0 ? "S" : "N");
+
+  // Walking up to a house's door or the Town Hall auto-enters it, same as a
+  // click — a slightly looser box than the solid one (so getting close is
+  // enough, since collision stops exact overlap) and a cooldown so walking
+  // away and immediately back doesn't instantly reopen it.
+  const now = performance.now();
+  if (now - PLAYER.lastEnter > 1200) {
+    const pad = 12;
+    for (const r of rects) {
+      if (PLAYER.x > r.x0 - pad && PLAYER.x < r.x1 + pad && PLAYER.y > r.y0 - pad && PLAYER.y < r.y1 + pad) {
+        PLAYER.lastEnter = now;
+        if (r.kind === "house") enterHouse(r.ref.user_id); else openTownHall();
+        break;
+      }
+    }
+  }
+}
+function drawPlayer(g) {
+  const dir = PLAYER.dir === "W" ? "E" : PLAYER.dir, flip = PLAYER.dir === "W";
+  const frame = !PLAYER.moving ? PEOPLE_SPR[dir][0] : PEOPLE_SPR[dir][Math.floor(PLAYER.phase / 5) % 2 ? 1 : 2];
+  g.fillStyle = "rgba(0,0,0,0.28)"; g.beginPath(); g.ellipse(PLAYER.x, PLAYER.y, 7, 2.8, 0, 0, 7); g.fill();
+  blit(g, frame, PLAYER_PAL, Math.round(PLAYER.x - 6), Math.round(PLAYER.y - 16), flip);
+  g.strokeStyle = "#00c8c8"; g.lineWidth = 1.4;
+  g.beginPath(); g.ellipse(PLAYER.x, PLAYER.y + 1, 8, 3, 0, 0, 7); g.stroke();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    MAP scene
    ═══════════════════════════════════════════════════════════════════════ */
 const mapStage = document.getElementById("mapStage");
@@ -1362,6 +1448,7 @@ const mapG = mapCv.getContext("2d");
 const MAP = {
   houses: [], walkers: [], mapPets: [], townHall: null, groundCv: document.createElement("canvas"),
   worldW: 800, worldH: 600, cam: { x: 400, y: 300, zoom: 3 }, userZoomed: false, ready: false,
+  follow: true,  // camera tracks PLAYER while true; a manual drag turns it off until the next keypress
 };
 // PLOT_H grew from 210 (2026-09-04) to make room for a backyard band behind
 // the house — BACK_H tall, opposite the road — since Backyard items (a Pool,
@@ -1455,6 +1542,7 @@ function layoutMap() {
     return h;
   });
 
+  spawnPlayer();
   buildMapGround();
   fitMapView();
 }
@@ -1490,8 +1578,12 @@ function buildMapGround() {
 }
 function fitMapView() {
   const W = mapStage.clientWidth || 800, H = mapStage.clientHeight || 460;
-  if (!MAP.userZoomed) MAP.cam.zoom = clamp(Math.min(W / MAP.worldW, H / MAP.worldH) * 0.94, 0.5, 3.4);
-  MAP.cam.x = MAP.worldW / 2; MAP.cam.y = MAP.worldH / 2;
+  // A closer "walk around" default now that there's a walkable character,
+  // instead of always fitting the whole neighborhood in frame — still
+  // capped so a small stage doesn't over-zoom. Scroll/pinch still overrides
+  // this (MAP.userZoomed), same as before.
+  if (!MAP.userZoomed) MAP.cam.zoom = clamp(Math.min(W, H) / 340, 1.6, 3.4);
+  if (MAP.follow) { MAP.cam.x = PLAYER.x || MAP.worldW / 2; MAP.cam.y = PLAYER.y || MAP.worldH / 2; }
   clampMapCam();
 }
 function clampMapCam() {
@@ -1509,6 +1601,13 @@ function drawMapScene(now, dt) {
   MAP.walkers.forEach(a => stepWalker(a, dt));
   MAP.mapPets.forEach(p => stepPet(p, dt));
   MAP.houses.forEach(h => stepSmoke(h.smoke, dt, h.bx + 15.5, h.by - 55));
+  stepPlayer(dt);
+  if (MAP.follow) {
+    const t = Math.min(1, dt * 5);
+    MAP.cam.x += (PLAYER.x - MAP.cam.x) * t;
+    MAP.cam.y += (PLAYER.y - MAP.cam.y) * t;
+    clampMapCam();
+  }
 
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
   g.imageSmoothingEnabled = false;
@@ -1530,12 +1629,21 @@ function drawMapScene(now, dt) {
   });
   MAP.walkers.forEach(a => ents.push({ y: a.y, d: () => drawWalker(g, a) }));
   MAP.mapPets.forEach(p => ents.push({ y: p.y, d: () => drawPetActor(g, p, now / 1000, 1.35) }));
+  ents.push({ y: PLAYER.y, d: () => drawPlayer(g) });
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
 
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
   paintAmbient(g, W, H, timeOfDay, false);
   paintGlows(g, W, H, MAP.cam, z, W / 2, H / 2);
+
+  // Your own avatar emoji floats over your character always — regardless of
+  // the Labels toggle — so you can never lose track of "which one is me".
+  if (currentUser && currentUser.avatar_emoji) {
+    const px = W / 2 + (PLAYER.x - MAP.cam.x) * z, py = H / 2 + (PLAYER.y - MAP.cam.y) * z - 24;
+    g.font = "16px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "alphabetic";
+    g.fillText(currentUser.avatar_emoji, px, py);
+  }
 
   if (showLabels) {
     const sx = wx => W / 2 + (wx - MAP.cam.x) * z, sy = wy => H / 2 + (wy - MAP.cam.y) * z;
@@ -1576,7 +1684,7 @@ function mapScreenToWorld(sx, sy) {
   mapCv.addEventListener("pointermove", e => {
     if (!down) return;
     const dx = e.clientX - lx, dy = e.clientY - ly;
-    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+    if (Math.abs(dx) + Math.abs(dy) > 3) { moved = true; MAP.follow = false; }
     MAP.cam.x -= dx / MAP.cam.zoom; MAP.cam.y -= dy / MAP.cam.zoom;
     lx = e.clientX; ly = e.clientY; MAP.userZoomed = true; clampMapCam();
   });
@@ -2305,6 +2413,18 @@ async function boot() {
   requestAnimationFrame(tick);
 }
 boot();
+
+// Local-only debug hook (same pattern as flappygolf.html's FG_DEBUG) — lets
+// a test harness drive the walkable player deterministically instead of
+// depending on real wall-clock rAF timing. No effect on the live site.
+if (location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+  window.NB_DEBUG = {
+    PLAYER, MAP, PLAYER_KEYS, stepPlayer, spawnPlayer, drawMapScene,
+    get activeTab() { return activeTab; },
+    get currentUser() { return currentUser; },
+    set currentUser(v) { currentUser = v; },
+  };
+}
 </script>
 
 </body>
