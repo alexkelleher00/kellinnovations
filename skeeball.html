@@ -65,7 +65,7 @@
       <span class="sk-chip balance" id="coinChip" style="display:none;">🪙 <span id="coinBalance">0</span></span>
     </div>
     <canvas id="skCanvas" width="360" height="520"></canvas>
-    <p class="sk-hint">Tap or press Space to release the ball while the power meter is in your target ring. 9 balls a game, 1 KellsCoin per point if you're logged in — <span id="loginHint"><a href="games.html">log in</a> to earn coins.</span></p>
+    <p class="sk-hint">Press on the ball and flick straight up the lane — speed and aim both matter, real physics carries it into the rings. 9 balls a game, 1 KellsCoin per point if you're logged in — <span id="loginHint"><a href="games.html">log in</a> to earn coins.</span></p>
     <div class="sk-error" id="skError"></div>
     <button class="sk-btn" id="restartBtn" style="display:none;">Play Again</button>
   </div>
@@ -109,28 +109,33 @@
   }
 
   // ── Game ────────────────────────────────────────────────────────────
-  // Same meter-timing skeleton as Buzzer Beater, but a fixed 9-ball session
-  // with additive scoring across bands instead of a sudden-death streak —
-  // real skee-ball's roll distance maps naturally onto a single power axis.
-  // Bands, widest (easy/low value) to narrowest (hard/high value):
-  //   0–38   gutter   0 pts
-  //   38–58  outer    10 pts
-  //   58–74  mid      20 pts
-  //   74–86  inner    30 pts
-  //   86–94  small    40 pts
-  //   94–99  tiny     50 pts
-  //   99–100 bullseye 100 pts
-  const BANDS = [
-    { lo: 0, hi: 38, pts: 0, label: "Gutter" },
-    { lo: 38, hi: 58, pts: 10, label: "10" },
-    { lo: 58, hi: 74, pts: 20, label: "20" },
-    { lo: 74, hi: 86, pts: 30, label: "30" },
-    { lo: 86, hi: 94, pts: 40, label: "40" },
-    { lo: 94, hi: 99, pts: 50, label: "50" },
-    { lo: 99, hi: 100.01, pts: 100, label: "BULLSEYE!" },
+  // Real 2D physics instead of a fake meter: the ball is launched by an
+  // actual flick gesture (velocity sampled from recent pointer movement,
+  // not just drag distance) and rolls up the lane under friction. Both
+  // power (does it reach the rings at all, and how deep) and aim (does it
+  // drift sideways) genuinely matter — the ball's natural resting point,
+  // once friction brings it to a stop, is scored purely by its distance
+  // from the bullseye. No band is "faked in" after the fact.
+  const BULLSEYE = { x: 180, y: 100 };      // deepest point in the rings bowl
+  const RING_PLANE_Y = 150;                  // where the approach lane ends and the rings bowl begins
+  const BALL_START = { x: 180, y: 460 };
+  const LANE_HALF_BOTTOM = 60, LANE_HALF_TOP = 95;
+  const FRICTION = 0.985;
+  const STOP_EPS = 0.15;
+  const SENSITIVITY = 0.35;
+  const MAX_SPEED = 9;
+  const MIN_TRIGGER = 0.15;
+  // Point bands by distance (px) from the bullseye once the ball settles.
+  const RING_BANDS = [
+    { r: 14, pts: 100, label: "BULLSEYE!" },
+    { r: 27, pts: 50, label: "50" },
+    { r: 43, pts: 40, label: "40" },
+    { r: 60, pts: 30, label: "30" },
+    { r: 78, pts: 20, label: "20" },
+    { r: 98, pts: 10, label: "10" },
   ];
   const TOTAL_BALLS = 9;
-  const RESULT_HOLD_STEPS = 55;
+  const RESULT_HOLD_STEPS = 60;
 
   const canvas = document.getElementById("skCanvas");
   const ctx = canvas.getContext("2d");
@@ -139,26 +144,36 @@
   const STEP_MS = 1000 / 60;
   const MAX_FRAME_MS = 250;
 
-  let phase; // "aim" | "result" | "gameover"
-  let meter, meterSpeed, frame, ballNum, score, best;
+  let phase; // "aim" | "rolling" | "result" | "gameover"
+  let ball, frame, ballNum, score, best;
   let lastResult, resultStep;
+  let dragging = false, dragSamples = [];
   let acc = 0, lastTs = 0;
 
   function loadBest() { return parseInt(localStorage.getItem("skeeball_best") || "0", 10); }
   function saveBest(v) { localStorage.setItem("skeeball_best", String(v)); }
 
-  function bandFor(v) { return BANDS.find(b => v >= b.lo && v < b.hi) || BANDS[0]; }
+  function bandForDistance(d) {
+    for (const b of RING_BANDS) if (d <= b.r) return b;
+    return { pts: 0, label: "Miss" };
+  }
+
+  function laneHalfWidthAt(y) {
+    const t = Math.max(0, Math.min(1, (BALL_START.y - y) / (BALL_START.y - RING_PLANE_Y)));
+    return LANE_HALF_BOTTOM + (LANE_HALF_TOP - LANE_HALF_BOTTOM) * t;
+  }
 
   function reset() {
     phase = "aim";
-    meter = 0;
+    ball = { x: BALL_START.x, y: BALL_START.y, vx: 0, vy: 0 };
     frame = 0;
     ballNum = 1;
     score = 0;
-    meterSpeed = 0.05;
     best = loadBest();
     acc = 0;
     lastTs = 0;
+    dragging = false;
+    dragSamples = [];
     document.getElementById("ballEl").textContent = "1";
     document.getElementById("scoreEl").textContent = "0";
     document.getElementById("bestEl").textContent = best;
@@ -166,9 +181,36 @@
     document.getElementById("skError").textContent = "";
   }
 
-  function release() {
-    if (phase !== "aim") return;
-    lastResult = bandFor(meter);
+  function releaseFlick() {
+    if (phase !== "aim" || dragSamples.length < 2) return;
+    const last = dragSamples[dragSamples.length - 1];
+    let ref = dragSamples[0];
+    for (let i = dragSamples.length - 1; i >= 0; i--) {
+      if (last.t - dragSamples[i].t >= 90) { ref = dragSamples[i]; break; }
+    }
+    const dt = last.t - ref.t;
+    if (dt < 8) return; // too little motion to measure a real flick
+    // A tiny dt can make even a near-stationary tap read as "fast" by rate
+    // alone — also require real distance covered, so a jiggle/tap doesn't
+    // burn a ball.
+    if (Math.hypot(last.x - ref.x, last.y - ref.y) < 6) return;
+    let vx = ((last.x - ref.x) / dt * 1000 / 60) * SENSITIVITY;
+    let vy = ((last.y - ref.y) / dt * 1000 / 60) * SENSITIVITY;
+    if (vy > -MIN_TRIGGER) return; // must be a genuine upward flick, not a tap/jiggle
+    vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, vx));
+    vy = Math.max(-MAX_SPEED, vy);
+    ball.vx = vx;
+    ball.vy = vy;
+    phase = "rolling";
+  }
+
+  function settleBall(reachedRings) {
+    if (reachedRings) {
+      const d = Math.hypot(ball.x - BULLSEYE.x, ball.y - BULLSEYE.y);
+      lastResult = bandForDistance(d);
+    } else {
+      lastResult = { pts: 0, label: "Gutter" };
+    }
     score += lastResult.pts;
     document.getElementById("scoreEl").textContent = score;
     phase = "result";
@@ -177,8 +219,26 @@
 
   function step() {
     frame++;
-    if (phase === "aim") {
-      meter = 50 + 50 * Math.sin(frame * meterSpeed);
+    if (phase === "rolling") {
+      ball.vx *= FRICTION;
+      ball.vy *= FRICTION;
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+
+      if (ball.y > RING_PLANE_Y) {
+        // Still on the approach lane — sideways rails can end the roll early.
+        const halfW = laneHalfWidthAt(ball.y);
+        if (ball.x < BULLSEYE.x - halfW || ball.x > BULLSEYE.x + halfW) {
+          settleBall(false);
+          return;
+        }
+      }
+      if (ball.y <= BULLSEYE.y) { ball.y = BULLSEYE.y; settleBall(true); return; }
+
+      const speed = Math.hypot(ball.vx, ball.vy);
+      if (speed < STOP_EPS) {
+        settleBall(ball.y <= RING_PLANE_Y);
+      }
     } else if (phase === "result") {
       resultStep++;
       if (resultStep >= RESULT_HOLD_STEPS) {
@@ -187,7 +247,7 @@
         } else {
           ballNum++;
           document.getElementById("ballEl").textContent = ballNum;
-          meterSpeed = Math.min(0.09, 0.05 + ballNum * 0.004);
+          ball = { x: BALL_START.x, y: BALL_START.y, vx: 0, vy: 0 };
           phase = "aim";
         }
       }
@@ -204,56 +264,75 @@
   function draw() {
     ctx.clearRect(0, 0, W, H);
 
-    // Concentric rings viewed head-on at the top of the lane, tightest (highest
-    // value) ring innermost — visually mirrors the BANDS ordering above.
-    const cx = W / 2, cy = 110;
-    const ringR = [90, 74, 58, 42, 26, 14, 6];
-    const ringColor = ["#5a3a1e", "#7a4e26", "#9a622e", "#ba7636", "#da8a3e", "#f5a94a", "#ffd166"];
+    // Concentric rings viewed head-on at the top of the lane, tightest
+    // (highest value) ring innermost, centered on the real physics bullseye.
+    const ringR = [98, 78, 60, 43, 27, 14];
+    const ringColor = ["#5a3a1e", "#7a4e26", "#9a622e", "#ba7636", "#da8a3e", "#f5a94a"];
     for (let i = 0; i < ringR.length; i++) {
       ctx.fillStyle = ringColor[i];
       ctx.beginPath();
-      ctx.ellipse(cx, cy, ringR[i], ringR[i] * 0.35, 0, 0, Math.PI * 2);
+      ctx.ellipse(BULLSEYE.x, BULLSEYE.y, ringR[i], ringR[i] * 0.35, 0, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.save();
+    ctx.shadowColor = "#ffd166";
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = "#ffd166";
+    ctx.beginPath();
+    ctx.ellipse(BULLSEYE.x, BULLSEYE.y, 6, 2.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
-    // Lane
+    // Approach lane (trapezoid, narrow at the player, flared into the bowl)
     ctx.fillStyle = "#4a3320";
     ctx.beginPath();
-    ctx.moveTo(cx - 70, cy + 15);
-    ctx.lineTo(cx + 70, cy + 15);
-    ctx.lineTo(cx + 30, H - 60);
-    ctx.lineTo(cx - 30, H - 60);
+    ctx.moveTo(BULLSEYE.x - LANE_HALF_TOP, RING_PLANE_Y);
+    ctx.lineTo(BULLSEYE.x + LANE_HALF_TOP, RING_PLANE_Y);
+    ctx.lineTo(BULLSEYE.x + LANE_HALF_BOTTOM, BALL_START.y + 40);
+    ctx.lineTo(BULLSEYE.x - LANE_HALF_BOTTOM, BALL_START.y + 40);
     ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,0.15)";
     ctx.beginPath();
-    ctx.moveTo(cx, cy + 15);
-    ctx.lineTo(cx, H - 60);
+    ctx.moveTo(BULLSEYE.x, RING_PLANE_Y);
+    ctx.lineTo(BULLSEYE.x, BALL_START.y + 40);
     ctx.stroke();
 
-    // Power meter
-    const barX = 30, barY = H - 230, barW = 26, barH = 190;
-    ctx.fillStyle = "rgba(255,255,255,0.1)";
-    ctx.fillRect(barX, barY, barW, barH);
-    BANDS.forEach((b, i) => {
-      const top = barY + barH * (1 - Math.min(100, b.hi) / 100);
-      const h = barH * (Math.min(100, b.hi) - b.lo) / 100;
-      ctx.fillStyle = ringColor[ringColor.length - 1 - i] + "cc";
-      ctx.fillRect(barX, top, barW, h);
-    });
-    if (phase === "aim") {
-      const markerY = barY + barH * (1 - meter / 100);
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(barX - 4, markerY - 3, barW + 8, 6);
+    // Aim guide while dragging
+    if (dragging && dragSamples.length) {
+      const start = dragSamples[0], cur = dragSamples[dragSamples.length - 1];
+      ctx.strokeStyle = "rgba(255,255,255,0.5)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(cur.x, cur.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
-    ctx.strokeStyle = "var(--border)";
-    ctx.strokeRect(barX, barY, barW, barH);
+
+    // Ball
+    if (phase !== "gameover") {
+      ctx.save();
+      ctx.shadowColor = "#fff";
+      ctx.shadowBlur = phase === "rolling" ? 10 : 4;
+      ctx.fillStyle = "#f4f1e8";
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     if (phase === "result") {
       ctx.fillStyle = lastResult.pts > 0 ? "#00e696" : "#ff6b6b";
-      ctx.font = "bold 30px sans-serif";
+      ctx.font = "bold 28px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(lastResult.label, W / 2, H - 20);
+      ctx.fillText(lastResult.label, W / 2, H - 30);
+    } else if (phase === "aim" && frame < 3) {
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.font = "14px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Press the ball and flick up", W / 2, H - 30);
     }
 
     if (phase === "gameover") {
@@ -283,19 +362,29 @@
     requestAnimationFrame(loop);
   }
 
+  function localXY(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: (clientX - rect.left) * (W / rect.width), y: (clientY - rect.top) * (H / rect.height) };
+  }
+
   canvas.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     if (phase === "gameover") { reset(); return; }
-    release();
+    if (phase !== "aim") return;
+    dragging = true;
+    dragSamples = [{ ...localXY(e.clientX, e.clientY), t: performance.now() }];
   });
-  document.addEventListener("keydown", (e) => {
-    if (e.code === "Space") {
-      e.preventDefault();
-      if (e.repeat) return;
-      if (phase === "gameover") { reset(); return; }
-      release();
-    }
+  canvas.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    dragSamples.push({ ...localXY(e.clientX, e.clientY), t: performance.now() });
+    if (dragSamples.length > 14) dragSamples.shift();
   });
+  window.addEventListener("pointerup", () => {
+    if (!dragging) return;
+    dragging = false;
+    releaseFlick();
+  });
+  window.addEventListener("pointercancel", () => { dragging = false; });
   document.getElementById("restartBtn").addEventListener("click", reset);
 
   reset();

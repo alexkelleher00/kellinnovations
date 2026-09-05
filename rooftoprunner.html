@@ -130,7 +130,16 @@
   const ROOF_THICK = 18;
 
   let runner, roofs, speed, frame, score, best, running, gameOver;
+  let particles, shake;
   let acc = 0, lastTs = 0;
+
+  function burst(x, y, color, n) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const spd = 2 + Math.random() * 5;
+      particles.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd - 2, life: 30 + Math.random() * 20, color });
+    }
+  }
 
   function loadBest() { return parseInt(localStorage.getItem("rooftoprunner_best") || "0", 10); }
   function saveBest(v) { localStorage.setItem("rooftoprunner_best", String(v)); }
@@ -151,6 +160,8 @@
     running = true;
     gameOver = false;
     best = loadBest();
+    particles = [];
+    shake = 0;
     acc = 0;
     lastTs = 0;
     document.getElementById("scoreEl").textContent = "0";
@@ -214,9 +225,25 @@
       runner.vy += GRAVITY;
       runner.y += runner.vy;
       if (under && runner.vy >= 0 && runner.y + RUNNER_H >= under.y) {
-        runner.y = under.y - RUNNER_H;
-        runner.vy = 0;
-        runner.onGround = true;
+        // Only a real landing if the runner's feet were at/above this roof's
+        // top surface *last* step — i.e. they fell onto it from above. If
+        // their feet were already below the roof top when its column swept
+        // under them (a taller building's x-range just reached the runner
+        // while they were still low from a previous fall), that's the side
+        // of the building, not the top: it should end the run, not act as
+        // a ladder. This was the "climbing the side of the wall" glitch —
+        // any x-overlap used to snap the runner onto the roof regardless of
+        // which face they actually met.
+        const prevFootY = runner.prevY + RUNNER_H;
+        const cameFromAbove = prevFootY <= under.y + 8; // small tolerance for one fast fall step
+        if (cameFromAbove) {
+          runner.y = under.y - RUNNER_H;
+          runner.vy = 0;
+          runner.onGround = true;
+        } else {
+          endGame();
+          return;
+        }
       }
     }
 
@@ -226,16 +253,26 @@
   function endGame() {
     gameOver = true;
     running = false;
+    burst(RUNNER_X, Math.min(H - 10, runner.y + RUNNER_H / 2), "#ffd166", 24);
+    shake = 12;
     if (score > best) { best = score; saveBest(best); document.getElementById("bestEl").textContent = best; }
     document.getElementById("restartBtn").style.display = "inline-block";
     claimCoins(score);
+  }
+
+  function stepParticles() {
+    shake = Math.max(0, shake - 0.7);
+    particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.35; p.life--; });
+    particles = particles.filter(p => p.life > 0);
   }
 
   function draw(alpha) {
     if (!running || gameOver) alpha = 1;
     const ry = runner.prevY + (runner.y - runner.prevY) * alpha;
 
-    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    if (shake > 0) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+    ctx.clearRect(-20, -20, W + 40, H + 40);
 
     // Distant skyline (parallax, cheap sine-based silhouette)
     ctx.fillStyle = "rgba(20,15,35,0.55)";
@@ -262,6 +299,13 @@
     ctx.fillStyle = "#1a1a1a";
     ctx.fillRect(RUNNER_X - RUNNER_W / 2 + 4, ry + 5, 5, 5);
 
+    particles.forEach(p => {
+      ctx.globalAlpha = Math.max(0, p.life / 40);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    });
+    ctx.globalAlpha = 1;
+
     if (!running && !gameOver) {
       ctx.fillStyle = "rgba(0,0,0,0.5)";
       ctx.fillRect(0, 0, W, H);
@@ -280,6 +324,7 @@
       ctx.font = "16px sans-serif";
       ctx.fillText(`Rooftops cleared: ${score}`, W / 2, H / 2 + 14);
     }
+    ctx.restore();
   }
 
   function loop(ts) {
@@ -293,6 +338,7 @@
       step();
       acc -= STEP_MS;
     }
+    stepParticles();
     draw(acc / STEP_MS);
     requestAnimationFrame(loop);
   }

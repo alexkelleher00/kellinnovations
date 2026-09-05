@@ -289,12 +289,20 @@
           <span class="gm-earn-tag">🪙 200 for playing</span>
         </div>
       </a>
-      <a href="thrustorbust.html" class="project-card gm-game-card">
-        <div class="project-card-icon">🚀</div>
+      <a href="spaceinvaders.html" class="project-card gm-game-card">
+        <div class="project-card-icon">👾</div>
         <div class="project-card-body">
-          <h3>Thrust or Bust</h3>
-          <p>Hold left or right to thrust your rocket and weave through the gates.</p>
-          <span class="gm-earn-tag">🪙 20 per gate cleared</span>
+          <h3>Space Invaders</h3>
+          <p>Blast the descending alien fleet before they reach the ground.</p>
+          <span class="gm-earn-tag">🪙 2 per point</span>
+        </div>
+      </a>
+      <a href="pacchomp.html" class="project-card gm-game-card">
+        <div class="project-card-icon">👻</div>
+        <div class="project-card-body">
+          <h3>Pac-Chomp</h3>
+          <p>Clear the maze, dodge the ghosts, chase power pellets for a counterattack.</p>
+          <span class="gm-earn-tag">🪙 1 per point</span>
         </div>
       </a>
       <a href="basketshot.html" class="project-card gm-game-card">
@@ -437,8 +445,8 @@
     casino_plinko: "Plinko", casino_slots: "Slots", flappybird: "Flappy Bird",
     flappygolf: "Flappy Golf · Course 1", flappygolf2: "Flappy Golf · Course 2",
     flappygolf3: "Flappy Golf · Course 3", tetris: "Tetris",
-    thrustorbust: "Thrust or Bust", basketshot: "Buzzer Beater",
-    skeeball: "Skee-Ball Alley", rooftoprunner: "Rooftop Runner",
+    basketshot: "Buzzer Beater", skeeball: "Skee-Ball Alley", rooftoprunner: "Rooftop Runner",
+    spaceinvaders: "Space Invaders", pacchomp: "Pac-Chomp",
   };
 
   // best_score is a single integer column but it means something different
@@ -451,10 +459,11 @@
     flappygolf: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
     flappygolf2: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
     flappygolf3: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
-    thrustorbust: v => `${v.toLocaleString()} gates`,
     basketshot: v => `${v.toLocaleString()} makes`,
     skeeball: v => `${v.toLocaleString()} pts`,
     rooftoprunner: v => `${v.toLocaleString()} roofs`,
+    spaceinvaders: v => `${v.toLocaleString()} pts`,
+    pacchomp: v => `${v.toLocaleString()} pts`,
   };
   const fmtBest = (game, v) => (BEST_FMT[game] ? BEST_FMT[game](v) : v.toLocaleString());
 
@@ -539,7 +548,7 @@
       const { games } = await api("/leaderboard");
       const box = document.getElementById("leaderboardGrid");
       const order = ["flappygolf", "flappygolf2", "flappygolf3", "flappybird",
-                     "thrustorbust", "basketshot", "skeeball", "rooftoprunner", "2048", "letterfall"];
+                     "spaceinvaders", "pacchomp", "basketshot", "skeeball", "rooftoprunner", "2048", "letterfall"];
       box.innerHTML = order.filter(g => games[g]).map(g => {
         const rows = games[g];
         const body = rows.length
