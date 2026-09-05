@@ -2619,9 +2619,7 @@ async function loadMap() {
 let ROOM = null;   // active editable-room render state
 let DETAIL = null; // active detail-modal render state
 let INTERIOR = null; // walkable house interior scene state (own or visiting)
-let HALL = null;     // walkable Town Hall scene state (Stage 4)
-function drawHallInterior() {}   // real impls added in Stage 4
-function leaveHall() {}
+let HALL = null;     // walkable Town Hall scene state
 
 function buildRoomState(cv, house, room, placed, pets, editable, maxCssH) {
   const cols = room.grid_cols, rows = room.grid_rows;
@@ -2841,45 +2839,20 @@ async function enterHouse(userId) {
   });
 }
 
-let townHallTab = "directory";
+/* ═══════════════════════════════════════════════════════════════════════
+   Walkable Town Hall (2026-09-05, "walking into town hall should have a
+   room inside where you can walk up and buy stuff at the shop... like one
+   of those interactive games not just a page that pops up"). Reuses the
+   Stage-2 fade + moveEntity + the shared #interiorStage. Walk up to a
+   display pedestal to buy that item, or to the shop counter for the full
+   catalogue in a slide-up panel, or to the noticeboard for the resident
+   directory. Walk into the doorway to leave.
+   ═══════════════════════════════════════════════════════════════════════ */
+const NPC_PAL = { h: "#3a2a1e", s: "#f0c8a4", 1: "#241a1e", t: "#7d8570", p: "#3d3d5c", 6: "#3b2b2b" };
 
-async function openTownHall(tab) {
-  townHallTab = tab || townHallTab || "directory";
-  const modal = document.getElementById("pickModal");
-  modal.classList.add("open");
-  modal.__cancel = null;
-  renderTownHall();
-  // The Shop pane needs My House's inventory/rooms to offer "Place" — load
-  // it lazily (same guard switchTab uses) so opening the Town Hall before
-  // ever visiting My House this session still works.
-  if (townHallTab === "shop" && currentUser && !mine) {
-    try { await loadMine(); } catch (e) { /* shop still shows, just no "your items" list yet */ }
-    if (townHallTab === "shop") renderTownHall();
-  }
-}
-
-function renderTownHall() {
-  const shell = `
-    <h3 style="margin-top:0;">🏛 Town Hall</h3>
-    <div style="display:flex; gap:8px; margin-bottom:12px;">
-      <button class="hn-mini-btn ${townHallTab === "directory" ? "" : "ghost"}" id="thTabDirectory">🧑‍🤝‍🧑 Directory</button>
-      <button class="hn-mini-btn ${townHallTab === "shop" ? "" : "ghost"}" id="thTabShop">🛒 Shop</button>
-    </div>
-    <div id="thPane"></div>
-    <div style="display:flex; justify-content:flex-end; margin-top:14px;">
-      <button class="hn-mini-btn ghost" id="thClose">Close</button>
-    </div>`;
-  document.getElementById("pickContent").innerHTML = shell;
-  document.getElementById("thClose").onclick = () => document.getElementById("pickModal").classList.remove("open");
-  document.getElementById("thTabDirectory").onclick = () => openTownHall("directory");
-  document.getElementById("thTabShop").onclick = () => openTownHall("shop");
-  if (townHallTab === "shop") renderTownHallShop(); else renderTownHallDirectory();
-}
-
-function renderTownHallDirectory() {
+function directoryHTML() {
   const residents = ((mapData && mapData.houses) || [])
-    .slice()
-    .sort((a, b) => (b.kellscoins || 0) - (a.kellscoins || 0) || String(a.name).localeCompare(b.name));
+    .slice().sort((a, b) => (b.kellscoins || 0) - (a.kellscoins || 0) || String(a.name).localeCompare(b.name));
   const hasCoins = residents.some(r => r.kellscoins != null);
   const mayor = residents[0];
   const rows = residents.map((r, i) => `
@@ -2889,59 +2862,281 @@ function renderTownHallDirectory() {
       <span style="flex:1; font-weight:600;">${escHtml(r.name || "Member")}${mayor && r === mayor ? ' <span title="Wealthiest resident">👑</span>' : ""}</span>
       ${hasCoins ? `<span style="color:#ffd166; font-size:0.85rem;">🪙 ${(r.kellscoins || 0).toLocaleString()}</span>` : ""}
     </div>`).join("");
-  document.getElementById("thPane").innerHTML = `
+  return `
     <p style="color:var(--muted); font-size:0.86rem; line-height:1.5; margin:4px 0 12px;">
-      ${residents.length} resident${residents.length === 1 ? "" : "s"} in the neighborhood.${mayor ? ` Mayor: <b style="color:var(--text);">${escHtml((mayor.name || "").split(" ")[0])}</b>.` : ""}
+      ${residents.length} resident${residents.length === 1 ? "" : "s"}.${mayor ? ` Mayor: <b style="color:var(--text);">${escHtml((mayor.name || "").split(" ")[0])}</b>.` : ""}
     </p>
     <div style="max-height:46vh; overflow:auto; margin:-4px -4px 0;">${rows || '<p style="color:var(--muted);">No residents yet.</p>'}</div>`;
 }
 
-function renderTownHallShop() {
-  const pane = document.getElementById("thPane");
-  if (!currentUser) {
-    pane.innerHTML = `<p style="color:var(--muted);">Log in on the Games hub to shop.</p>`;
-    return;
-  }
-  const unplaced = mine ? mine.inventory.filter(i => i.room_key == null) : [];
-  pane.innerHTML = `
-    <div style="max-height:50vh; overflow:auto; margin:-4px -4px 0;">
-      ${unplaced.length ? `
-        <div style="margin-bottom:10px;">
-          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--accent); margin-bottom:6px;">Your items — not placed yet</div>
-          <div id="thInventory" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
-        </div>` : ""}
-      <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--accent); margin-bottom:6px;">Shop</div>
-      <div class="hn-shop-grid" id="thShopGrid"></div>
-    </div>`;
-  if (unplaced.length) {
-    const invHost = document.getElementById("thInventory");
-    unplaced.forEach(i => {
-      const info = catItem(i.key) || {};
-      const card = document.createElement("div");
-      card.style.cssText = "display:flex; flex-direction:column; align-items:center; gap:4px; background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:8px; width:76px;";
-      const nameDiv = document.createElement("div");
-      nameDiv.style.cssText = "font-size:0.72rem; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%;";
-      nameDiv.textContent = info.name || i.key;
-      const btn = document.createElement("button");
-      btn.className = "hn-mini-btn"; btn.style.cssText = "font-size:0.7rem; padding:4px 8px;"; btn.textContent = "Place";
-      btn.addEventListener("click", () => placeFromTownHall(i.id));
-      card.append(nameDiv, thumbCanvas(i, 40), btn);
-      invHost.appendChild(card);
-    });
-  }
-  renderShop("thShopGrid", () => renderTownHallShop());
+function openTownHall() {
+  if (currentUser && !mine) { loadMine().catch(() => {}); }
+  beginFade(() => {
+    SCENE = "hall"; activeTab = "mine";
+    document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "mine"));
+    document.getElementById("mapView").style.display = "none";
+    document.getElementById("mineView").style.display = "block";
+    document.getElementById("loginHint").style.display = "none";
+    document.getElementById("editorWrap").style.display = "none";
+    document.getElementById("interiorStage").style.display = "flex";
+    document.getElementById("interiorBanner").textContent = "🏛 Town Hall";
+    document.getElementById("placeModeBtn").style.display = "none";
+    buildHall();
+  });
 }
 
-// The Town Hall's "Place" button: hands off to My House's own placement grid
-// (armedItemId + the existing click-a-tile flow) instead of re-implementing
-// it — closes the Town Hall, switches to My House, arms the item.
-async function placeFromTownHall(itemId) {
-  document.getElementById("pickModal").classList.remove("open");
-  await switchTab("mine");
-  if (!mine) return;  // not logged in / load failed — switchTab already surfaced the error
-  if (!mine.rooms.some(r => r.key === selectedRoomKey)) selectedRoomKey = mine.rooms[0] ? mine.rooms[0].key : "yard";
-  armedItemId = itemId; armedRot = 0;
-  renderEditor();
+function buildHall() {
+  const room = { key: "__hall", kind: "indoor", grid_cols: 15, grid_rows: 9 };
+  const house = { wall_color: "#c4baa0", roof_color: "#7d5b46", yard_color: "#5c9c5f", floor_color: "#d4cfc6" };
+  HALL = { rs: null, room, house, pedestals: [], npc: null, counter: null, board: null,
+           exitZone: null, counterZone: null, boardZone: null, prompt: null, panel: null };
+  const H = HALL;
+  let tries = 0;
+  const build = () => {
+    if (HALL !== H) return;
+    const cv = document.getElementById("interiorCanvas");
+    if ((!cv.parentElement || !cv.parentElement.clientWidth) && tries++ < 40) { setTimeout(build, 16); return; }
+    const rs = buildRoomState(cv, house, room, [], [], false, Math.round(window.innerHeight * 0.56));
+    cv.style.width = ""; cv.style.height = "";
+    cv.style.position = "relative"; cv.style.inset = "auto";
+    H.rs = rs;
+    const { cw, ch, padTop, TP } = rs;
+    // 5 featured items — a stable "today" slice of the catalogue, kept to
+    // small footprints so they sit nicely on a pedestal
+    const small = (catalogData.items || []).filter(it => { const [w, h] = fp(it); return w <= 2 && h <= 2; });
+    const feat = (small.length ? small : (catalogData.items || []))
+      .map((it, i) => ({ it, r: hash2(i, 4242) }))
+      .sort((a, b) => a.r - b.r).slice(0, 5).map(x => x.it);
+    H.pedestals = feat.map((it, i) => ({
+      it, key: it.key,
+      x: cw * (i + 1) / (feat.length + 1),
+      y: padTop + TP * 1.15,
+    }));
+    H.counter = { x0: cw * 0.30, y0: ch - TP * 3.4, x1: cw * 0.70, y1: ch - TP * 2.4 };
+    H.counterZone = { x0: H.counter.x0, y0: H.counter.y1, x1: H.counter.x1, y1: H.counter.y1 + TP * 1.1 };
+    H.board = { x0: 6, y0: padTop + TP * 2.2, x1: 6 + TP * 0.7, y1: padTop + TP * 5.2 };
+    H.boardZone = { x0: H.board.x1, y0: H.board.y0, x1: H.board.x1 + TP * 1.2, y1: H.board.y1 };
+    H.exitZone = { x0: cw / 2 - TP, x1: cw / 2 + TP, y0: ch - TP, y1: ch };
+    H.npc = { x: (H.counter.x0 + H.counter.x1) / 2, y: H.counter.y0 - TP * 0.3 };
+    PLAYER.x = cw / 2; PLAYER.y = ch - TP * 1.5; PLAYER.dir = "N";
+    PLAYER.moving = false; PLAYER.moveTarget = null; PLAYER.lastEnter = performance.now();
+  };
+  build();
+}
+
+function hallBounds() {
+  const rs = HALL.rs;
+  return { x0: 7, y0: rs.padTop + 7, x1: rs.cw - 7, y1: rs.ch - 7 };
+}
+function solidRectsHall() {
+  const rs = HALL.rs, { cw, ch, padTop, TP } = rs, T = 6, gap = TP, out = [];
+  out.push({ x0: 0, y0: padTop, x1: cw, y1: padTop + T });          // N wall (solid)
+  out.push({ x0: 0, y0: padTop, x1: T, y1: ch });                   // W
+  out.push({ x0: cw - T, y0: padTop, x1: cw, y1: ch });             // E
+  out.push({ x0: 0, y0: ch - T, x1: cw / 2 - gap, y1: ch });        // S wall minus the exit gap
+  out.push({ x0: cw / 2 + gap, y0: ch - T, x1: cw, y1: ch });
+  out.push(HALL.counter);                                            // shop desk
+  for (const p of HALL.pedestals) out.push({ x0: p.x - TP * 0.5, y0: p.y - TP * 0.2, x1: p.x + TP * 0.5, y1: p.y + TP * 0.7 });
+  return out;
+}
+
+function stepHall(dt) {
+  const H = HALL;
+  if (!H || !H.rs || anyModalOpen() || H.panel || sceneFade.active) { PLAYER.moving = false; return; }
+  let dx = 0, dy = 0;
+  for (const k of PLAYER_KEYS) { const d = MOVE_KEYS[k]; if (d) { dx += d[0]; dy += d[1]; } }
+  if (dx || dy) PLAYER.moveTarget = null;
+  else if (PLAYER.moveTarget) {
+    const tx = PLAYER.moveTarget.x - PLAYER.x, ty = PLAYER.moveTarget.y - PLAYER.y;
+    if (Math.hypot(tx, ty) < 5) PLAYER.moveTarget = null; else { dx = tx; dy = ty; }
+  }
+  if (dx || dy) {
+    const r = moveEntity(PLAYER, { x: dx, y: dy }, INTERIOR_SPEED, dt, solidRectsHall(), hallBounds());
+    if (r.bx && r.by && PLAYER.moveTarget) PLAYER.moveTarget = null;
+    PLAYER.phase += INTERIOR_SPEED * dt;
+    PLAYER.moving = true;
+    PLAYER.dir = Math.abs(r.dx) >= Math.abs(r.dy) ? (r.dx > 0 ? "E" : "W") : (r.dy > 0 ? "S" : "N");
+  } else PLAYER.moving = false;
+
+  // nearest interactable within reach → HUD prompt (no auto-trigger)
+  const TP = H.rs.TP, reach = TP * 1.35;
+  const inZone = (z) => PLAYER.x > z.x0 - reach && PLAYER.x < z.x1 + reach && PLAYER.y > z.y0 - reach && PLAYER.y < z.y1 + reach;
+  let prompt = null;
+  for (const p of H.pedestals) {
+    if (Math.hypot(PLAYER.x - p.x, PLAYER.y - (p.y + TP * 0.4)) < reach) {
+      const cat = catItem(p.key) || {};
+      prompt = { kind: "buy", key: p.key, name: cat.name || p.key, price: cat.price || 0 };
+      break;
+    }
+  }
+  if (!prompt && inZone(H.counterZone)) prompt = { kind: "counter" };
+  if (!prompt && inZone(H.boardZone)) prompt = { kind: "board" };
+  H.prompt = prompt;
+  const el = document.getElementById("hudPrompt"), btn = document.getElementById("sceneActionBtn");
+  if (prompt) {
+    el.style.display = "block";
+    el.innerHTML = prompt.kind === "buy"
+      ? `Buy <b>${escHtml(prompt.name)}</b> — 🪙 ${prompt.price.toLocaleString()} &nbsp; <b>▲ / tap</b>`
+      : prompt.kind === "counter" ? "Browse the shop &nbsp; <b>▲ / tap</b>"
+      : "Resident directory &nbsp; <b>▲ / tap</b>";
+    btn.style.display = "";
+  } else { el.style.display = "none"; btn.style.display = "none"; }
+
+  if (performance.now() - PLAYER.lastEnter > 700 &&
+      PLAYER.x > H.exitZone.x0 && PLAYER.x < H.exitZone.x1 && PLAYER.y > H.exitZone.y0) {
+    PLAYER.lastEnter = performance.now();
+    beginFade(() => leaveHall());
+  }
+}
+
+async function hallActivate() {
+  const H = HALL, p = H && H.prompt;
+  if (!p || H.panel) return;
+  if (p.kind === "buy") {
+    if (!currentUser) { toast("Log in on the Games hub to shop."); return; }
+    try {
+      const res = await api("/buy", { method: "POST", body: { item_key: p.key } });
+      currentUser.kellscoins = res.balance; updateCoinChip();
+      if (mine) mine.inventory.push(res.item);
+      toast(`Bought ${p.name} — 🪙 ${p.price.toLocaleString()}`);
+    } catch (e) { toast(e.message); }
+  } else if (p.kind === "counter") { openHallPanel("shop"); }
+  else if (p.kind === "board") { openHallPanel("board"); }
+}
+// Called from wireInteriorCanvas' pointerup — returns true if it consumed the tap.
+function hallTapActivate() {
+  if (SCENE !== "hall" || !HALL || !HALL.prompt || HALL.panel) return false;
+  hallActivate();
+  return true;
+}
+
+function openHallPanel(kind) {
+  HALL.panel = kind;
+  const el = document.getElementById("hallPanel");
+  document.getElementById("hudPrompt").style.display = "none";
+  document.getElementById("sceneActionBtn").style.display = "none";
+  if (kind === "shop") {
+    el.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <b>🛒 Town Hall Shop</b><button class="hn-mini-btn ghost" id="hallPanelClose">▾ Close</button>
+      </div>
+      <div class="hn-loc-toggle" id="hallLoc">
+        <button data-loc="all" class="${shopLocFilter === "all" ? "active" : ""}">All</button>
+        <button data-loc="indoor" class="${shopLocFilter === "indoor" ? "active" : ""}">Indoor</button>
+        <button data-loc="outdoor" class="${shopLocFilter === "outdoor" ? "active" : ""}">Outdoor</button>
+      </div>
+      <div class="hn-shop-grid" id="hallShopGrid"></div>`;
+    renderShop("hallShopGrid", () => renderShop("hallShopGrid", () => {}));
+    el.querySelector("#hallLoc").querySelectorAll("button").forEach(b =>
+      b.addEventListener("click", () => {
+        shopLocFilter = b.dataset.loc;
+        el.querySelector("#hallLoc").querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
+        renderShop("hallShopGrid", () => renderShop("hallShopGrid", () => {}));
+      }));
+  } else {
+    el.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <b>🧑‍🤝‍🧑 Resident Directory</b><button class="hn-mini-btn ghost" id="hallPanelClose">▾ Close</button>
+      </div>${directoryHTML()}`;
+  }
+  el.querySelector("#hallPanelClose").addEventListener("click", closeHallPanel);
+  el.classList.add("open");
+}
+function closeHallPanel() {
+  const el = document.getElementById("hallPanel");
+  el.classList.remove("open"); el.innerHTML = "";
+  if (HALL) HALL.panel = null;
+}
+
+function leaveHall() {
+  HALL = null; SCENE = "map"; activeTab = "map";
+  closeHallPanel();
+  document.getElementById("hudPrompt").style.display = "none";
+  document.getElementById("sceneActionBtn").style.display = "none";
+  document.getElementById("placeModeBtn").style.display = "";
+  document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "map"));
+  document.getElementById("mapView").style.display = "block";
+  document.getElementById("mineView").style.display = "none";
+  document.getElementById("interiorStage").style.display = "none";
+  document.getElementById("editorWrap").style.display = currentUser ? "block" : "none";
+  const th = MAP.townHall;
+  if (th) { PLAYER.x = th.bx; PLAYER.y = th.by + 50; PLAYER.dir = "S"; }
+  PLAYER.moveTarget = null; PLAYER.lastEnter = performance.now();
+  MAP.follow = true;
+  fitMapView();
+}
+
+function drawHallInterior(now, dt) {
+  const H = HALL;
+  if (!H || !H.rs) return;
+  stepHall(dt);
+  const rs = H.rs, g = rs.g, { cw, ch, padTop, TP } = rs;
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
+  g.clearRect(0, 0, cw, ch);
+  g.drawImage(rs.groundCv, 0, 0);
+  GLOWS = [];
+
+  // walls + S exit opening
+  g.fillStyle = shade(H.house.wall_color, -0.24);
+  g.fillRect(0, padTop, cw, 5); g.fillRect(0, padTop, 5, ch - padTop); g.fillRect(cw - 5, padTop, 5, ch - padTop);
+  g.fillRect(0, ch - 5, cw / 2 - TP, 5); g.fillRect(cw / 2 + TP, ch - 5, cw / 2 - TP, 5);
+  g.fillStyle = "rgba(255,214,140,0.16)";
+  roundRect(g, cw / 2 - TP, ch - TP * 1.2, TP * 2, TP * 1.4, 6); g.fill();
+  g.font = '600 10px system-ui, sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "rgba(10,11,22,0.74)"; roundRect(g, cw / 2 - 22, ch - 20, 44, 15, 5); g.fill();
+  g.fillStyle = "#e9e9f4"; g.fillText("↓ Exit", cw / 2, ch - 12);
+
+  const ents = [];
+  // noticeboard
+  ents.push({ y: H.board.y1, d: () => {
+    g.fillStyle = "#3a2a18"; g.fillRect(H.board.x0 - 2, H.board.y0 - 2, (H.board.x1 - H.board.x0) + 4, (H.board.y1 - H.board.y0) + 4);
+    g.fillStyle = "#c8b88a"; g.fillRect(H.board.x0, H.board.y0, H.board.x1 - H.board.x0, H.board.y1 - H.board.y0);
+    g.fillStyle = "#4a3a22"; g.font = "600 7px system-ui,sans-serif"; g.textAlign = "left"; g.textBaseline = "top";
+    g.fillText("DIRECTORY", H.board.x0 + 3, H.board.y0 + 4);
+    const names = ((mapData && mapData.houses) || []).slice()
+      .sort((a, b) => (b.kellscoins || 0) - (a.kellscoins || 0)).slice(0, 6);
+    names.forEach((n, i) => g.fillText((i + 1) + ". " + String(n.name || "").split(" ")[0], H.board.x0 + 3, H.board.y0 + 15 + i * 9));
+  } });
+  // shop counter + keeper
+  ents.push({ y: H.counter.y1, d: () => {
+    volBox(g, H.counter.x0, H.counter.y0, H.counter.x1 - H.counter.x0, H.counter.y1 - H.counter.y0, "#8a5a2b", 5);
+    g.fillStyle = "rgba(0,0,0,0.14)"; g.fillRect(H.counter.x0, H.counter.y1 - 3, H.counter.x1 - H.counter.x0, 3);
+    g.font = '600 8px system-ui,sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = "#3a2a18"; g.fillText("SHOP", (H.counter.x0 + H.counter.x1) / 2, (H.counter.y0 + H.counter.y1) / 2);
+  } });
+  ents.push({ y: H.npc.y, d: () => {
+    ovShadow(g, H.npc.x, H.npc.y, 6.5, 2.6, 0.28);
+    blit(g, PEOPLE_SPR.S[0], NPC_PAL, Math.round(H.npc.x - 6), Math.round(H.npc.y - 16), false);
+  } });
+  // pedestals
+  for (const p of H.pedestals) {
+    ents.push({ y: p.y + TP * 0.6, d: () => {
+      volBox(g, p.x - TP * 0.42, p.y + TP * 0.1, TP * 0.84, TP * 0.5, "#b6ada0", 4);
+      const gi = GLOWS.length;
+      g.save(); g.translate(p.x, p.y - TP * 0.15); g.scale(0.62, 0.62); g.translate(-p.x, -(p.y - TP * 0.15));
+      drawItem(g, { key: p.key, w: 1, h: 1 }, p.x - TP * 0.5, p.y - TP * 0.65, TP, now / 1000);
+      g.restore();
+      GLOWS.length = gi;
+      const cat = catItem(p.key) || {};
+      g.font = '700 8px system-ui,sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillStyle = "rgba(10,11,22,0.8)"; roundRect(g, p.x - 22, p.y + TP * 0.62, 44, 13, 4); g.fill();
+      g.fillStyle = "#ffd166"; g.fillText("🪙 " + (cat.price || 0).toLocaleString(), p.x, p.y + TP * 0.62 + 7);
+    } });
+  }
+  ents.push({ y: PLAYER.y, d: () => {
+    drawPlayer(g, 1.9);
+    if (currentUser && currentUser.avatar_emoji) {
+      const px = PLAYER.x, py = PLAYER.y - 40;
+      g.fillStyle = "rgba(10,11,22,0.72)"; roundRect(g, px - 12, py - 12, 24, 22, 7); g.fill();
+      g.font = '15px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif';
+      g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(currentUser.avatar_emoji, px, py);
+    }
+  } });
+  ents.sort((a, b) => a.y - b.y);
+  ents.forEach(e => e.d());
+
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
+  paintGlows(g, cw, ch, { x: cw / 2, y: ch / 2 }, 1, cw / 2, ch / 2);
 }
 
 function confirmVisit(h) {
@@ -3286,7 +3481,12 @@ async function togglePlaceMode() {
 document.getElementById("placeModeBtn").addEventListener("click", () => togglePlaceMode());
 document.getElementById("interiorLeaveBtn").addEventListener("click", () => {
   if (SCENE === "interior") beginFade(() => leaveInterior());
-  else if (SCENE === "hall" && typeof leaveHall === "function") beginFade(() => leaveHall());
+  else if (SCENE === "hall") beginFade(() => leaveHall());
+});
+document.getElementById("sceneActionBtn").addEventListener("click", () => { if (SCENE === "hall") hallActivate(); });
+window.addEventListener("keydown", e => {
+  if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (e.key === "Enter" && SCENE === "hall" && HALL && HALL.prompt && !HALL.panel) { e.preventDefault(); hallActivate(); }
 });
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -3792,6 +3992,8 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
     buildInterior, interiorEnterRoom, stepInterior, leaveInterior, drawInteriorScene,
     solidRectsInterior, interiorBounds, enterHouse,
     houseFootprint, houseHitBox, drawHouse, renderEditor,
+    buildHall, openTownHall, stepHall, drawHallInterior, hallActivate, leaveHall, openHallPanel, closeHallPanel,
+    get HALL() { return HALL; },
     setExterior(userId, level) {
       const mh = ((mapData && mapData.houses) || []).find(x => x.user_id === userId);
       if (mh) mh.house = { ...mh.house, exterior_level: level };
