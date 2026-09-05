@@ -102,6 +102,35 @@
   .hn-dpad .up { grid-area: 1 / 2; } .hn-dpad .left { grid-area: 2 / 1; }
   .hn-dpad .right { grid-area: 2 / 3; } .hn-dpad .down { grid-area: 3 / 2; }
 
+  /* ── Walkable interior / Town Hall scene ──────────────────────────── */
+  .hn-interior-stage { display: flex; align-items: center; justify-content: center; background: #10131f; }
+  .hn-interior-stage > #interiorCanvas {
+    position: relative; inset: auto; min-width: 0; min-height: 0;
+    width: 100%; height: 100%; object-fit: contain;   /* scale the room to fill the stage, letterboxed, aspect kept */
+    cursor: default;
+  }
+  .hn-scene-banner {
+    position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+    background: rgba(10,11,22,0.82); border: 1px solid var(--border); border-radius: 999px;
+    padding: 6px 14px; font-size: 0.74rem; font-weight: 700; color: var(--text);
+    white-space: nowrap; pointer-events: none; z-index: 6; max-width: 84%;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .hn-scene-btns { position: absolute; right: 12px; top: 12px; display: flex; gap: 8px; z-index: 7; }
+  .hn-scene-btns button { font-size: 0.72rem; padding: 6px 10px; }
+  .hn-hud-prompt {
+    position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%);
+    background: rgba(10,11,22,0.86); border: 1px solid var(--accent); border-radius: 999px;
+    padding: 7px 16px; font-size: 0.78rem; font-weight: 700; color: var(--text);
+    white-space: nowrap; pointer-events: none; z-index: 6;
+  }
+  .hn-slideup {
+    position: absolute; left: 0; right: 0; bottom: 0; max-height: 64%; overflow: auto;
+    background: var(--surface); border-top: 1px solid var(--border); border-radius: 16px 16px 0 0;
+    padding: 14px; transform: translateY(110%); transition: transform 0.2s ease; z-index: 8;
+  }
+  .hn-slideup.open { transform: translateY(0); }
+
   /* ── "My House" layout ───────────────────────────────────────────── */
   .hn-mine-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
   @media (min-width: 960px) { .hn-mine-grid { grid-template-columns: 1.4fr 1fr; align-items: start; } }
@@ -299,6 +328,24 @@
       <p>Log in on the <a href="games.html">Games hub</a> to customize your own house.</p>
     </div>
     <div id="editorWrap" style="display:none;"></div>
+    <div class="hn-stage hn-interior-stage" id="interiorStage" style="display:none;">
+      <canvas id="interiorCanvas"></canvas>
+      <div class="hn-dpad" id="dpad2" aria-hidden="true">
+        <button class="up" data-dir="ArrowUp">▲</button>
+        <button class="left" data-dir="ArrowLeft">◀</button>
+        <button class="right" data-dir="ArrowRight">▶</button>
+        <button class="down" data-dir="ArrowDown">▼</button>
+      </div>
+      <div class="hn-scene-banner" id="interiorBanner"></div>
+      <div class="hn-scene-btns">
+        <button class="hn-toggle" id="placeModeBtn">✎ Place items</button>
+        <button class="hn-mini-btn" id="sceneActionBtn" style="display:none;">▲</button>
+        <button class="hn-mini-btn ghost" id="interiorLeaveBtn">← Leave</button>
+      </div>
+      <div class="hn-stage-hint"><b>Tap</b> / <b>WASD</b> to walk · step into a <b>doorway</b> to move rooms</div>
+      <div class="hn-hud-prompt" id="hudPrompt" style="display:none;"></div>
+      <div class="hn-slideup" id="hallPanel"></div>
+    </div>
   </div>
 
   <div class="hn-modal-overlay" id="detailModal">
@@ -1823,8 +1870,23 @@ function solidRects() {
   }
   return rects;
 }
+// Shared movement core — normalize a direction, step by speed*dt, clamp to
+// `bounds`, and stop on each axis independently against `rects` (so you slide
+// along a wall instead of sticking). Used by the map player AND the walkable
+// interior/hall scenes. Returns {bx,by} (blocked-this-axis) + the normalized
+// {dx,dy} so the caller can set facing.
+function moveEntity(pos, dir, speed, dt, rects, bounds) {
+  const len = Math.hypot(dir.x, dir.y) || 1, dx = dir.x / len, dy = dir.y / len;
+  const blocked = (x, y) => rects.some(r => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1);
+  const nx = clamp(pos.x + dx * speed * dt, bounds.x0, bounds.x1);
+  const ny = clamp(pos.y + dy * speed * dt, bounds.y0, bounds.y1);
+  const bx = blocked(nx, pos.y), by = blocked(pos.x, ny);
+  if (!bx) pos.x = nx;
+  if (!by) pos.y = ny;
+  return { bx, by, dx, dy };
+}
 function stepPlayer(dt) {
-  if (anyModalOpen() || activeTab !== "map") { PLAYER.moving = false; return; }
+  if (anyModalOpen() || activeTab !== "map" || sceneFade.active) { PLAYER.moving = false; return; }
   let dx = 0, dy = 0;
   for (const k of PLAYER_KEYS) { const d = MOVE_KEYS[k]; if (d) { dx += d[0]; dy += d[1]; } }
   if (dx || dy) {
@@ -1836,20 +1898,15 @@ function stepPlayer(dt) {
     else { dx = tx; dy = ty; }
   }
   if (!dx && !dy) { PLAYER.moving = false; return; }
-  const len = Math.hypot(dx, dy) || 1;
-  dx /= len; dy /= len;
   const rects = solidRects();
-  const blocked = (x, y) => rects.some(r => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1);
-  const nx = clamp(PLAYER.x + dx * PLAYER.speed * dt, WORLD_PAD_X + 6, MAP.worldW - WORLD_PAD_X - 6);
-  const ny = clamp(PLAYER.y + dy * PLAYER.speed * dt, WORLD_PAD_Y + 6, MAP.worldH - WORLD_PAD_Y - 6);
-  const bx = blocked(nx, PLAYER.y), by = blocked(PLAYER.x, ny);
-  // Axis-separated so bumping into a wall diagonally still slides along it.
-  if (!bx) PLAYER.x = nx;
-  if (!by) PLAYER.y = ny;
-  if (bx && by && PLAYER.moveTarget) PLAYER.moveTarget = null;   // fully wedged — give up on the tap target
+  const r = moveEntity(PLAYER, { x: dx, y: dy }, PLAYER.speed, dt, rects, {
+    x0: WORLD_PAD_X + 6, y0: WORLD_PAD_Y + 6,
+    x1: MAP.worldW - WORLD_PAD_X - 6, y1: MAP.worldH - WORLD_PAD_Y - 6,
+  });
+  if (r.bx && r.by && PLAYER.moveTarget) PLAYER.moveTarget = null;   // fully wedged — give up on the tap target
   PLAYER.phase += PLAYER.speed * dt;
   PLAYER.moving = true;
-  PLAYER.dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "E" : "W") : (dy > 0 ? "S" : "N");
+  PLAYER.dir = Math.abs(r.dx) >= Math.abs(r.dy) ? (r.dx > 0 ? "E" : "W") : (r.dy > 0 ? "S" : "N");
 
   // Walking up to a house's door or the Town Hall auto-enters it, same as a
   // click — a slightly looser box than the solid one (so getting close is
@@ -1867,14 +1924,17 @@ function stepPlayer(dt) {
     }
   }
 }
-function drawPlayer(g) {
+function drawPlayer(g, sc) {
+  sc = sc || 1;
   const dir = PLAYER.dir === "W" ? "E" : PLAYER.dir, flip = PLAYER.dir === "W";
   const frame = !PLAYER.moving ? PEOPLE_SPR[dir][0] : PEOPLE_SPR[dir][Math.floor(PLAYER.phase / 5) % 2 ? 1 : 2];
-  ovShadow(g, PLAYER.x, PLAYER.y, 7.5, 3, 0.32);
-  ovShadow(g, PLAYER.x, PLAYER.y, 4, 1.7, 0.24);
+  ovShadow(g, PLAYER.x, PLAYER.y, 7.5 * sc, 3 * sc, 0.32);
+  ovShadow(g, PLAYER.x, PLAYER.y, 4 * sc, 1.7 * sc, 0.24);
   g.strokeStyle = "rgba(0,200,200,0.9)"; g.lineWidth = 1.4;
-  g.beginPath(); g.ellipse(PLAYER.x, PLAYER.y + 1, 8, 3, 0, 0, 7); g.stroke();
-  blit(g, frame, PLAYER_PAL, Math.round(PLAYER.x - 6), Math.round(PLAYER.y - 16), flip);
+  g.beginPath(); g.ellipse(PLAYER.x, PLAYER.y + 1, 8 * sc, 3 * sc, 0, 0, 7); g.stroke();
+  if (sc === 1) { blit(g, frame, PLAYER_PAL, Math.round(PLAYER.x - 6), Math.round(PLAYER.y - 16), flip); return; }
+  g.save(); g.translate(Math.round(PLAYER.x), Math.round(PLAYER.y)); g.scale(sc, sc);
+  blit(g, frame, PLAYER_PAL, -6, -16, flip); g.restore();
 }
 
 // Scenery scattered in each plot's margin (MAP.decor, built in layoutMap) —
@@ -2425,7 +2485,7 @@ function mapScreenToWorld(sx, sy) {
 // reads (PLAYER_KEYS), so there's no separate movement path to keep in sync.
 (function wireDpad() {
   const dpadHeld = new Set();   // only dirs the D-pad is holding, so the miss-safety below never clears a real keyboard key
-  document.querySelectorAll("#dpad button").forEach(btn => {
+  document.querySelectorAll(".hn-dpad button").forEach(btn => {
     const dir = btn.dataset.dir;
     const press = e => { if (e.cancelable) e.preventDefault(); PLAYER_KEYS.add(dir); dpadHeld.add(dir); PLAYER.moveTarget = null; MAP.follow = true; };
     const release = () => { if (dpadHeld.delete(dir)) PLAYER_KEYS.delete(dir); };
@@ -2449,6 +2509,10 @@ async function loadMap() {
    ═══════════════════════════════════════════════════════════════════════ */
 let ROOM = null;   // active editable-room render state
 let DETAIL = null; // active detail-modal render state
+let INTERIOR = null; // walkable house interior scene state (own or visiting)
+let HALL = null;     // walkable Town Hall scene state (Stage 4)
+function drawHallInterior() {}   // real impls added in Stage 4
+function leaveHall() {}
 
 function buildRoomState(cv, house, room, placed, pets, editable, maxCssH) {
   const cols = room.grid_cols, rows = room.grid_rows;
@@ -2652,7 +2716,18 @@ async function enterHouse(userId) {
   }
   if (currentUser && data.balance != null) { currentUser.kellscoins = data.balance; updateCoinChip(); }
   if (data.visit_cost) { toast(`Knocked — paid 🪙${data.visit_cost} to ${(h.name || "").split(" ")[0]}`); h.visited = true; }
-  openInside(data);
+  if (!data.user_id) data.user_id = userId;
+  if (isMine && !mine) { try { await loadMine(); } catch (e) { /* interior still walkable from `data` */ } }
+  beginFade(() => {
+    SCENE = "interior"; activeTab = "mine";
+    document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "mine"));
+    document.getElementById("mapView").style.display = "none";
+    document.getElementById("mineView").style.display = "block";
+    document.getElementById("loginHint").style.display = "none";
+    document.getElementById("editorWrap").style.display = "none";
+    document.getElementById("interiorStage").style.display = "flex";
+    buildInterior(data, isMine);   // after the stage is visible so it can be sized
+  });
 }
 
 let townHallTab = "directory";
@@ -2821,6 +2896,286 @@ document.getElementById("closePick").addEventListener("click", () => {
 });
 document.getElementById("pickModal").addEventListener("click", e => {
   if (e.target.id === "pickModal") { e.currentTarget.classList.remove("open"); if (e.currentTarget.__cancel) e.currentTarget.__cancel(); }
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Walkable house interior (2026-09-05, "have the character actually walk
+   into the rooms... cuts to that other view with a nice flow into it").
+   Reuses buildRoomState/drawRoomInto for the room contents, then draws the
+   player + walls + doorways on top. One room visible at a time; step into
+   a doorway to cross-fade to the next. "Place items" swaps in the classic
+   grid editor. Visiting someone else's house uses the same scene, read-only.
+   ═══════════════════════════════════════════════════════════════════════ */
+const OPP = { N: "S", S: "N", E: "W", W: "E" };
+const INTERIOR_SPEED = 118;   // px/s — a touch faster than the map since there's no zoom
+
+function buildInterior(data, editable) {
+  const all = data.rooms || [];
+  let rooms = all.filter(r => r.kind === "indoor" || r.key === "backyard");
+  if (!rooms.length) rooms = all.slice(0, 1);
+  // hub = a real indoor room (living_room if present), then the rest, backyard last
+  rooms.sort((a, b) => {
+    const rank = r => r.key === "living_room" ? 0 : r.key === "backyard" ? 2 : (r.kind === "indoor" ? 1 : 3);
+    return rank(a) - rank(b);
+  });
+  const hub = rooms[0].key;
+  const graph = {};
+  graph[hub] = { N: null, E: null, W: null, S: null, exit: true };
+  const used = new Set();
+  const pick = pref => {
+    if (pref && !used.has(pref)) { used.add(pref); return pref; }
+    for (const s of ["N", "E", "W"]) if (!used.has(s)) { used.add(s); return s; }
+    return null;
+  };
+  for (const r of rooms.slice(1)) {
+    const side = pick(r.key === "backyard" ? "N" : null);
+    if (!side) break;   // >3 spokes: rare (rooms are capped low); extra rooms just aren't wall-reachable
+    graph[hub][side] = r.key;
+    graph[r.key] = { N: null, E: null, W: null, S: null, exit: false };
+    graph[r.key][OPP[side]] = hub;
+  }
+  INTERIOR = {
+    owner: data.user_id, editable: !!editable, data, rooms, graph,
+    roomKey: hub, rsCache: {}, rs: null, doorZones: [], placeMode: false, panel: null,
+  };
+  interiorEnterRoom(hub, "S");
+}
+
+function interiorEnterRoom(key, fromSide) {
+  const I = INTERIOR;
+  if (!I) return;
+  const room = I.rooms.find(r => r.key === key);
+  if (!room) return;
+  I.roomKey = key;
+  let tries = 0;
+  const build = () => {
+    if (!INTERIOR || INTERIOR !== I) return;
+    const cv = document.getElementById("interiorCanvas");
+    let rs = I.rsCache[key];
+    if (!rs) {
+      // Wait (a few frames) for #interiorStage to be laid out — buildRoomState
+      // reads its parent's clientWidth to size the room.
+      if ((!cv.parentElement || !cv.parentElement.clientWidth) && tries++ < 40) {
+        setTimeout(build, 16); return;
+      }
+      rs = buildRoomState(cv, I.data.house, room,
+        (I.data.placed || []).filter(p => p.room_key === key),
+        (I.data.pets || []).filter(p => p.room_key === key),
+        false, Math.round(window.innerHeight * 0.56));
+      // undo buildRoomState's inline px sizing — CSS (object-fit:contain) now
+      // scales the whole room to fill the stage, letterboxed, aspect kept.
+      cv.style.width = ""; cv.style.height = "";
+      cv.style.position = "relative"; cv.style.inset = "auto";
+      I.rsCache[key] = rs;
+    }
+    I.rs = rs;
+    I.doorZones = interiorDoorZones(rs, I.graph[key]);
+    interiorSpawn(rs, fromSide);
+    PLAYER.lastEnter = performance.now();
+    renderInteriorBanner();
+  };
+  build();
+}
+
+function interiorDoorZones(rs, gph) {
+  const { cw, ch, padTop, TP } = rs, half = TP, out = [];
+  for (const side of ["N", "E", "W", "S"]) {
+    const target = gph[side];
+    const isExit = side === "S" && gph.exit;
+    if (!target && !isExit) continue;
+    let z;
+    if (side === "N") z = { x0: cw / 2 - half, x1: cw / 2 + half, y0: padTop, y1: padTop + TP };
+    else if (side === "S") z = { x0: cw / 2 - half, x1: cw / 2 + half, y0: ch - TP, y1: ch };
+    else if (side === "W") z = { x0: 0, x1: TP, y0: (padTop + ch) / 2 - half, y1: (padTop + ch) / 2 + half };
+    else z = { x0: cw - TP, x1: cw, y0: (padTop + ch) / 2 - half, y1: (padTop + ch) / 2 + half };
+    z.side = side; z.target = target || null; z.exit = !!isExit;
+    out.push(z);
+  }
+  return out;
+}
+function interiorSpawn(rs, fromSide) {
+  const { cw, ch, padTop, TP } = rs, midY = (padTop + ch) / 2;
+  if (fromSide === "N") { PLAYER.x = cw / 2; PLAYER.y = padTop + TP * 1.4; PLAYER.dir = "S"; }
+  else if (fromSide === "W") { PLAYER.x = TP * 1.4; PLAYER.y = midY; PLAYER.dir = "E"; }
+  else if (fromSide === "E") { PLAYER.x = cw - TP * 1.4; PLAYER.y = midY; PLAYER.dir = "W"; }
+  else { PLAYER.x = cw / 2; PLAYER.y = ch - TP * 1.4; PLAYER.dir = "N"; }
+  PLAYER.moving = false; PLAYER.moveTarget = null;
+}
+function interiorBounds() {
+  const rs = INTERIOR.rs;
+  return { x0: 7, y0: rs.padTop + 7, x1: rs.cw - 7, y1: rs.ch - 7 };
+}
+function solidRectsInterior() {
+  const rs = INTERIOR.rs, { cw, ch, padTop, TP } = rs;
+  const g = INTERIOR.graph[INTERIOR.roomKey], T = 6, gap = TP, midY = (padTop + ch) / 2, out = [];
+  const door = s => (s === "S" ? (g.exit || g.S) : g[s]);
+  // N (top wall band) — the ground already paints a back-wall stripe here
+  if (door("N")) { out.push({ x0: 0, y0: padTop, x1: cw / 2 - gap, y1: padTop + T }); out.push({ x0: cw / 2 + gap, y0: padTop, x1: cw, y1: padTop + T }); }
+  else out.push({ x0: 0, y0: padTop, x1: cw, y1: padTop + T });
+  if (door("S")) { out.push({ x0: 0, y0: ch - T, x1: cw / 2 - gap, y1: ch }); out.push({ x0: cw / 2 + gap, y0: ch - T, x1: cw, y1: ch }); }
+  else out.push({ x0: 0, y0: ch - T, x1: cw, y1: ch });
+  if (door("W")) { out.push({ x0: 0, y0: padTop, x1: T, y1: midY - gap }); out.push({ x0: 0, y0: midY + gap, x1: T, y1: ch }); }
+  else out.push({ x0: 0, y0: padTop, x1: T, y1: ch });
+  if (door("E")) { out.push({ x0: cw - T, y0: padTop, x1: cw, y1: midY - gap }); out.push({ x0: cw - T, y0: midY + gap, x1: cw, y1: ch }); }
+  else out.push({ x0: cw - T, y0: padTop, x1: cw, y1: ch });
+  return out;
+}
+
+function stepInterior(dt) {
+  const I = INTERIOR;
+  if (!I || !I.rs || anyModalOpen() || I.placeMode || I.panel || sceneFade.active) { PLAYER.moving = false; return; }
+  let dx = 0, dy = 0;
+  for (const k of PLAYER_KEYS) { const d = MOVE_KEYS[k]; if (d) { dx += d[0]; dy += d[1]; } }
+  if (dx || dy) PLAYER.moveTarget = null;
+  else if (PLAYER.moveTarget) {
+    const tx = PLAYER.moveTarget.x - PLAYER.x, ty = PLAYER.moveTarget.y - PLAYER.y;
+    if (Math.hypot(tx, ty) < 5) PLAYER.moveTarget = null; else { dx = tx; dy = ty; }
+  }
+  if (!dx && !dy) { PLAYER.moving = false; return; }
+  const r = moveEntity(PLAYER, { x: dx, y: dy }, INTERIOR_SPEED, dt, solidRectsInterior(), interiorBounds());
+  if (r.bx && r.by && PLAYER.moveTarget) PLAYER.moveTarget = null;
+  PLAYER.phase += INTERIOR_SPEED * dt;
+  PLAYER.moving = true;
+  PLAYER.dir = Math.abs(r.dx) >= Math.abs(r.dy) ? (r.dx > 0 ? "E" : "W") : (r.dy > 0 ? "S" : "N");
+
+  const now = performance.now();
+  if (now - PLAYER.lastEnter > 700) {
+    for (const z of I.doorZones) {
+      if (PLAYER.x > z.x0 && PLAYER.x < z.x1 && PLAYER.y > z.y0 && PLAYER.y < z.y1) {
+        PLAYER.lastEnter = now;
+        if (z.exit) beginFade(() => leaveInterior());
+        else beginFade(() => interiorEnterRoom(z.target, OPP[z.side]));
+        break;
+      }
+    }
+  }
+}
+
+function drawInteriorWalls(g, rs, I) {
+  const { cw, ch, padTop, TP } = rs;
+  const base = shade(I.data.house.wall_color || "#c9b58c", -0.24);
+  const gph = I.graph[I.roomKey], gap = TP, midY = (padTop + ch) / 2;
+  g.fillStyle = base;
+  const doorS = gph.exit || gph.S;
+  if (doorS) { g.fillRect(0, ch - 5, cw / 2 - gap, 5); g.fillRect(cw / 2 + gap, ch - 5, cw - (cw / 2 + gap), 5); }
+  else g.fillRect(0, ch - 5, cw, 5);
+  if (gph.W) { g.fillRect(0, padTop, 5, midY - gap - padTop); g.fillRect(0, midY + gap, 5, ch - (midY + gap)); }
+  else g.fillRect(0, padTop, 5, ch - padTop);
+  if (gph.E) { g.fillRect(cw - 5, padTop, 5, midY - gap - padTop); g.fillRect(cw - 5, midY + gap, 5, ch - (midY + gap)); }
+  else g.fillRect(cw - 5, padTop, 5, ch - padTop);
+
+  const nameFor = k => k === null ? "Exit" : ((I.rooms.find(r => r.key === k) || {}).name || k);
+  for (const z of I.doorZones) {
+    const cx = (z.x0 + z.x1) / 2, cy = (z.y0 + z.y1) / 2;
+    g.fillStyle = "rgba(255,214,140,0.16)";
+    roundRect(g, z.x0, cy - TP * 0.7, z.x1 - z.x0, TP * 1.4, 6); g.fill();
+    const txt = z.exit ? "↓ Exit" : nameFor(z.target);
+    g.font = '600 10px system-ui, sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+    const w = g.measureText(txt).width + 10;
+    const ly = z.side === "N" ? padTop + 13 : z.side === "S" ? ch - 13 : cy;
+    g.fillStyle = "rgba(10,11,22,0.74)"; roundRect(g, cx - w / 2, ly - 8, w, 16, 5); g.fill();
+    g.fillStyle = "#e9e9f4"; g.fillText(txt, cx, ly);
+  }
+}
+
+function drawInteriorScene(now, dt) {
+  const I = INTERIOR;
+  if (!I || !I.rs) return;
+  stepInterior(dt);
+  drawRoomInto(I.rs, now, dt);
+  const g = I.rs.g;
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
+  drawInteriorWalls(g, I.rs, I);
+  drawPlayer(g, 1.9);
+  if (currentUser && currentUser.avatar_emoji && I.editable) {
+    const px = PLAYER.x, py = PLAYER.y - 40;
+    g.fillStyle = "rgba(10,11,22,0.72)";
+    roundRect(g, px - 12, py - 12, 24, 22, 7); g.fill();
+    g.font = '15px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif';
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(currentUser.avatar_emoji, px, py);
+  }
+}
+
+function renderInteriorBanner() {
+  const I = INTERIOR;
+  if (!I) return;
+  const room = I.rooms.find(r => r.key === I.roomKey) || {};
+  const who = I.editable ? "🏠 Your House" : "👋 Visiting " + String(I.data.name || "").split(" ")[0];
+  document.getElementById("interiorBanner").textContent = who + " · " + (room.name || "");
+  document.getElementById("placeModeBtn").style.display = I.editable ? "" : "none";
+}
+
+function leaveInterior() {
+  const owner = INTERIOR && INTERIOR.owner;
+  INTERIOR = null; SCENE = "map"; activeTab = "map";
+  document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "map"));
+  document.getElementById("mapView").style.display = "block";
+  document.getElementById("mineView").style.display = "none";
+  document.getElementById("interiorStage").style.display = "none";
+  document.getElementById("editorWrap").style.display = currentUser ? "block" : "none";
+  const h = ((mapData && mapData.houses) || []).find(x => x.user_id === owner);
+  if (h) { PLAYER.x = h.bx; PLAYER.y = h.by + 24; PLAYER.dir = "S"; }
+  PLAYER.moveTarget = null; PLAYER.lastEnter = performance.now();
+  MAP.follow = true;
+  fitMapView();
+}
+
+async function togglePlaceMode() {
+  const I = INTERIOR;
+  if (!I || !I.editable) return;
+  if (!I.placeMode) {
+    if (!mine) { try { await loadMine(); } catch (e) { showError(e.message); return; } }
+    if (mine.rooms.some(r => r.key === I.roomKey)) selectedRoomKey = I.roomKey;
+    armedItemId = null; armedRot = 0;
+    I.placeMode = true;
+    document.getElementById("interiorStage").style.display = "none";
+    document.getElementById("editorWrap").style.display = "block";
+    document.getElementById("placeModeBtn").classList.add("on");
+    renderEditor();
+  } else {
+    I.placeMode = false;
+    document.getElementById("placeModeBtn").classList.remove("on");
+    if (mine && mine.rooms.some(r => r.key === selectedRoomKey)) I.roomKey = selectedRoomKey;
+    if (mine) { I.data.placed = (mine.placed || []).slice(); I.data.pets = (mine.pets || []).slice(); }
+    delete I.rsCache[I.roomKey];
+    document.getElementById("editorWrap").style.display = "none";
+    document.getElementById("interiorStage").style.display = "flex";
+    interiorEnterRoom(I.roomKey, "S");
+  }
+}
+
+// Tap-to-walk + iOS gesture guards for the interior/hall canvas (no camera pan).
+(function wireInteriorCanvas() {
+  const cv = document.getElementById("interiorCanvas");
+  const stage = document.getElementById("interiorStage");
+  let down = false, moved = false, lx = 0, ly = 0;
+  ["gesturestart", "gesturechange", "gestureend"].forEach(t =>
+    stage.addEventListener(t, e => e.preventDefault(), { passive: false }));
+  cv.addEventListener("touchstart", e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+  cv.addEventListener("pointerdown", e => { down = true; moved = false; lx = e.clientX; ly = e.clientY; });
+  cv.addEventListener("pointermove", e => { if (down && Math.abs(e.clientX - lx) + Math.abs(e.clientY - ly) > 4) moved = true; });
+  cv.addEventListener("pointerup", e => {
+    down = false;
+    if (moved) return;
+    if (SCENE === "hall" && typeof hallTapActivate === "function" && hallTapActivate()) return;
+    const rs = SCENE === "hall" ? (HALL && HALL.rs) : (INTERIOR && INTERIOR.rs);
+    if (!rs || (INTERIOR && INTERIOR.placeMode) || (HALL && HALL.panel) || (INTERIOR && INTERIOR.panel)) return;
+    // object-fit:contain letterboxes the bitmap inside the element box — undo it.
+    const b = cv.getBoundingClientRect();
+    const s = Math.min(b.width / rs.cw, b.height / rs.ch);
+    const offX = (b.width - rs.cw * s) / 2, offY = (b.height - rs.ch * s) / 2;
+    PLAYER.moveTarget = {
+      x: clamp((e.clientX - b.left - offX) / s, 8, rs.cw - 8),
+      y: clamp((e.clientY - b.top - offY) / s, rs.padTop + 8, rs.ch - 8),
+    };
+  });
+  cv.addEventListener("pointercancel", () => { down = false; });
+})();
+document.getElementById("placeModeBtn").addEventListener("click", () => togglePlaceMode());
+document.getElementById("interiorLeaveBtn").addEventListener("click", () => {
+  if (SCENE === "interior") beginFade(() => leaveInterior());
+  else if (SCENE === "hall" && typeof leaveHall === "function") beginFade(() => leaveHall());
 });
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -3149,6 +3504,47 @@ function updateCoinChip() {
    RAF loop + tabs + boot
    ═══════════════════════════════════════════════════════════════════════ */
 let activeTab = "map";
+// Which thing the "mine" tab is currently showing: the top-down map, a
+// walkable house INTERIOR, or the walkable Town HALL. (activeTab stays "mine"
+// for both interior scenes — SCENE picks the renderer.)
+let SCENE = "map";   // "map" | "interior" | "hall"
+// Short black cross-fade between scenes. beginFade(cb) fades out, runs cb once
+// at the darkest point, fades back in. Everything that changes scene goes
+// through it so the cut is never jarring.
+let sceneFade = { active: false, t: 0, dir: 1, dur: 0.16, cb: null, held: false };
+function beginFade(cb) {
+  if (sceneFade.active) { try { cb && cb(); } catch (e) { console.warn(e); } return; }
+  sceneFade = { active: true, t: 0, dir: 1, dur: 0.16, cb: cb || null, held: false };
+}
+function stepFade(dt) {
+  sceneFade.t += dt;
+  if (sceneFade.dir > 0 && sceneFade.t >= sceneFade.dur) {
+    if (!sceneFade.held) { sceneFade.held = true; try { sceneFade.cb && sceneFade.cb(); } catch (e) { console.warn(e); } }
+    sceneFade.dir = -1; sceneFade.t = 0;
+  } else if (sceneFade.dir < 0 && sceneFade.t >= sceneFade.dur) {
+    sceneFade.active = false;
+  }
+}
+function fadeAlpha() {
+  const p = clamp(sceneFade.t / sceneFade.dur, 0, 1);
+  const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;   // easeInOut
+  return sceneFade.dir > 0 ? e : 1 - e;
+}
+function fadeSkip() {   // headless-test escape hatch
+  if (!sceneFade.active) return;
+  if (!sceneFade.held && sceneFade.cb) { sceneFade.held = true; try { sceneFade.cb(); } catch (e) {} }
+  sceneFade.active = false;
+}
+function paintFade() {
+  const cv = activeTab === "map" ? mapCv : document.getElementById("interiorCanvas");
+  if (!cv || !cv.width) return;
+  const g = cv.getContext("2d");
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalAlpha = fadeAlpha();
+  g.fillStyle = "#000";
+  g.fillRect(0, 0, cv.width, cv.height);
+  g.globalAlpha = 1;
+}
 let lastT = performance.now();
 function tick(now) {
   let dt = (now - lastT) / 1000; lastT = now;
@@ -3156,8 +3552,14 @@ function tick(now) {
   if (autoDayNight && !REDUCED) timeOfDay = (timeOfDay + dt * 0.35) % 24;
 
   if (activeTab === "map" && mapData) drawMapScene(now, dt);
-  if (activeTab === "mine" && ROOM) drawRoomInto(ROOM, now, dt);
+  else if (activeTab === "mine") {
+    if (SCENE === "interior" && INTERIOR && !INTERIOR.placeMode) drawInteriorScene(now, dt);
+    else if (SCENE === "hall" && typeof HALL !== "undefined" && HALL) drawHallInterior(now, dt);
+    else if (ROOM) drawRoomInto(ROOM, now, dt);
+  }
   if (document.getElementById("detailModal").classList.contains("open") && DETAIL) drawRoomInto(DETAIL, now, dt);
+
+  if (sceneFade.active) { stepFade(dt); paintFade(); }
   requestAnimationFrame(tick);
 }
 
@@ -3165,10 +3567,18 @@ function tick(now) {
 // (placeFromTownHall) — one place that knows how to switch tabs and lazily
 // load My House data, so both entry points behave identically.
 async function switchTab(key) {
+  // The tab bar is Map vs. My-House-editor. The walkable interior / Town Hall
+  // are modes you walk into — clicking a tab exits them cleanly first.
+  if (SCENE !== "map") {
+    if (key === "map") { beginFade(() => (SCENE === "hall" ? leaveHall() : leaveInterior())); return; }
+    if (SCENE === "hall") leaveHall(); else { INTERIOR = null; SCENE = "map"; }
+  }
   document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === key));
   activeTab = key;
   document.getElementById("mapView").style.display = activeTab === "map" ? "block" : "none";
   document.getElementById("mineView").style.display = activeTab === "mine" ? "block" : "none";
+  document.getElementById("interiorStage").style.display = "none";
+  if (activeTab === "mine") document.getElementById("editorWrap").style.display = currentUser ? "block" : "none";
   if (activeTab === "mine" && currentUser && !mine) { try { await loadMine(); } catch (e) { showError(e.message); } }
   if (activeTab === "map") { fitMapView(); }
 }
@@ -3231,7 +3641,13 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
   window.NB_DEBUG = {
     PLAYER, MAP, PLAYER_KEYS, stepPlayer, spawnPlayer, drawMapScene,
     scatterForest, layoutMap, onPath, onPlaza, pondZone, solidRects,
+    beginFade, fadeSkip, fadeAlpha, moveEntity,
+    buildInterior, interiorEnterRoom, stepInterior, leaveInterior, drawInteriorScene,
+    solidRectsInterior, interiorBounds, enterHouse,
     get activeTab() { return activeTab; },
+    get SCENE() { return SCENE; },
+    get sceneFade() { return sceneFade; },
+    get INTERIOR() { return INTERIOR; },
     get currentUser() { return currentUser; },
     set currentUser(v) { currentUser = v; },
     get mine() { return mine; },
@@ -3242,6 +3658,7 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
     get plotRects() {
       return MAP.houses.map(h => ({ x0: h.plotX, y0: h.plotY, x1: h.plotX + PLOT_W, y1: h.plotY + PLOT_H, id: h.user_id }));
     },
+    setPlaceMode(v) { if (INTERIOR && INTERIOR.editable && !!v !== INTERIOR.placeMode) togglePlaceMode(); },
   };
 }
 </script>
