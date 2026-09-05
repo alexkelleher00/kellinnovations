@@ -1507,6 +1507,29 @@ function drawPlayer(g) {
   g.beginPath(); g.ellipse(PLAYER.x, PLAYER.y + 1, 8, 3, 0, 0, 7); g.stroke();
 }
 
+// Scenery scattered in each plot's margin (MAP.decor, built in layoutMap) —
+// purely cosmetic filler so the gaps between houses read as a real
+// neighborhood instead of empty grass. (d.x, d.y) is the ground point the
+// object stands on, same convention drawHouse/drawTownHall use.
+function drawMapDecor(g, d) {
+  const s = d.scale, x = d.x, y = d.y;
+  g.fillStyle = "rgba(0,0,0,0.22)"; g.beginPath(); g.ellipse(x, y, 11 * s, 3.6 * s, 0, 0, 7); g.fill();
+  if (d.kind === "tree") {
+    R(g, x - 2 * s, y - 22 * s, 4 * s, 22 * s, "#6b4a2e");
+    g.fillStyle = "#356b32"; g.beginPath(); g.ellipse(x + 4 * s, y - 28 * s, 13 * s, 13 * s, 0, 0, 7); g.fill();
+    g.fillStyle = "#4c9645"; g.beginPath(); g.ellipse(x - 3 * s, y - 26 * s, 12 * s, 12 * s, 0, 0, 7); g.fill();
+    g.fillStyle = "#6ec25f"; g.beginPath(); g.ellipse(x - 6 * s, y - 32 * s, 6 * s, 6 * s, 0, 0, 7); g.fill();
+  } else if (d.kind === "bush") {
+    g.fillStyle = "#356b32"; g.beginPath(); g.ellipse(x + 2 * s, y - 6 * s, 9 * s, 8 * s, 0, 0, 7); g.fill();
+    g.fillStyle = "#4c9645"; g.beginPath(); g.ellipse(x - 3 * s, y - 7 * s, 8 * s, 7 * s, 0, 0, 7); g.fill();
+    g.fillStyle = "#6ec25f"; g.beginPath(); g.ellipse(x - 5 * s, y - 11 * s, 4 * s, 4 * s, 0, 0, 7); g.fill();
+  } else {
+    g.fillStyle = "#8a8f9c"; g.beginPath(); g.ellipse(x, y - 4 * s, 9 * s, 6 * s, 0, 0, 7); g.fill();
+    g.fillStyle = "#a5aab6"; g.beginPath(); g.ellipse(x - 2 * s, y - 6 * s, 4 * s, 3 * s, 0, 0, 7); g.fill();
+    g.fillStyle = "#6a6f7c"; g.beginPath(); g.ellipse(x + 3 * s, y - 2 * s, 3.5 * s, 2.5 * s, 0, 0, 7); g.fill();
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    MAP scene
    ═══════════════════════════════════════════════════════════════════════ */
@@ -1517,12 +1540,26 @@ const MAP = {
   houses: [], walkers: [], mapPets: [], townHall: null, groundCv: document.createElement("canvas"),
   worldW: 800, worldH: 600, cam: { x: 400, y: 300, zoom: 3 }, userZoomed: false, ready: false,
   follow: true,  // camera tracks PLAYER while true; a manual drag turns it off until the next keypress
+  pathSegs: [], decor: [], pond: null,
 };
 // PLOT_H grew from 210 (2026-09-04) to make room for a backyard band behind
 // the house — BACK_H tall, opposite the road — since Backyard items (a Pool,
 // say) used to be invisible from the map: only the front yard ever rendered
 // outside. See h.backArea/h.backyardItems below and drawMapScene's use of them.
-const PLOT_W = 210, PLOT_H = 300, ROAD_W = 24, MARGIN = 54, BACK_H = 110;
+const PLOT_W = 210, PLOT_H = 300, ROAD_W = 24, MARGIN = 60, BACK_H = 110;
+// CELL_W/H (2026-09-04, "make the neighborhood way more unique... not a
+// grid... real space between the houses") is the spacing BETWEEN plots —
+// bigger than PLOT_W/H on purpose, so each plot centers inside a larger
+// cell with real margin around it. Every house's plot also jitters within
+// that margin (seeded by its index, so the layout is identical on every
+// reload/for every viewer — never a per-visit shuffle) instead of sitting
+// dead-center in a grid square. The margin (CELL-PLOT) comfortably exceeds
+// 2x the jitter range on each axis, so two neighboring plots can never
+// overlap even at max jitter in opposite directions.
+const CELL_W = 270, CELL_H = 360, JITTER_X = 16, JITTER_Y = 14;
+function plotJitter(i) {
+  return { dx: (hash2(i, 401) - 0.5) * 2 * JITTER_X, dy: (hash2(i, 502) - 0.5) * 2 * JITTER_Y };
+}
 
 function layoutMap() {
   const houses = (mapData && mapData.houses) || [];
@@ -1533,27 +1570,39 @@ function layoutMap() {
   if (cols % 2 === 0) cols++;
   let rows = Math.max(3, Math.ceil((n + 1) / cols));
   if (rows % 2 === 0) rows++;
-  MAP.worldW = MARGIN * 2 + cols * PLOT_W;
-  MAP.worldH = MARGIN * 2 + rows * PLOT_H;
+  MAP.worldW = MARGIN * 2 + cols * CELL_W;
+  MAP.worldH = MARGIN * 2 + rows * CELL_H;
+  const cellPad = { x: (CELL_W - PLOT_W) / 2, y: (CELL_H - PLOT_H) / 2 };
 
   const centerPlot = ((rows - 1) / 2) * cols + (cols - 1) / 2;
   const plotForHouse = i => (i < centerPlot ? i : i + 1);   // shift past the reserved centre
 
   {
     const cCol = (cols - 1) / 2, cRow = (rows - 1) / 2;
-    const px = MARGIN + cCol * PLOT_W, py = MARGIN + cRow * PLOT_H;
+    const px = MARGIN + cCol * CELL_W + cellPad.x, py = MARGIN + cRow * CELL_H + cellPad.y;
     const gx0 = px + ROAD_W, gy0 = py + ROAD_W, gw = PLOT_W - ROAD_W, gh = PLOT_H - ROAD_W;
     MAP.townHall = {
       bx: gx0 + gw * 0.5, by: gy0 + gh * 0.60, smoke: [],
       plotX: px, plotY: py, gx0, gy0, gw, gh,
     };
   }
+  MAP.pathSegs = [];
+  MAP.decor = [];
+  // One signature pond just off the Town Hall plaza — fixed relative to it
+  // (the Town Hall never jitters) rather than randomly scattered; a small
+  // neighborhood like this reads better with one deliberate landmark pond
+  // than several scattered ones.
+  {
+    const th = MAP.townHall;
+    MAP.pond = { x: th.plotX + PLOT_W + 26, y: th.plotY + PLOT_H * 0.32, rx: 30, ry: 20 };
+  }
 
   MAP.walkers = []; MAP.mapPets = [];
   MAP.houses = houses.map((entry, i) => {
     const plot = plotForHouse(i);
     const col = plot % cols, row = (plot / cols) | 0;
-    const plotX = MARGIN + col * PLOT_W, plotY = MARGIN + row * PLOT_H;
+    const j = plotJitter(i);
+    const plotX = MARGIN + col * CELL_W + cellPad.x + j.dx, plotY = MARGIN + row * CELL_H + cellPad.y + j.dy;
     const gx0 = plotX + ROAD_W, gy0 = plotY + ROAD_W;         // whole plot's green origin
     const gw = PLOT_W - ROAD_W, gh = PLOT_H - ROAD_W;
     // The plot splits into a back band (away from the road — Backyard) and
@@ -1587,6 +1636,34 @@ function layoutMap() {
 
     // A stroll along the street out front, with the odd trip up to the door.
     const roadY = plotY + PLOT_H - ROAD_W * 0.5;
+
+    // A winding dirt path from the Town Hall to this house's street, instead
+    // of a straight grid road — one bent midpoint (jittered) per house, see
+    // buildMapGround's use of MAP.pathSegs.
+    if (MAP.townHall) {
+      const th = MAP.townHall;
+      const midX = (th.bx + bx) / 2 + (hash2(i, 7) - 0.5) * 70;
+      const midY = (th.by + roadY) / 2 + (hash2(i, 11) - 0.5) * 70;
+      MAP.pathSegs.push({ ax: th.bx, ay: th.by + 20, bx: midX, by: midY });
+      MAP.pathSegs.push({ ax: midX, ay: midY, bx, by: roadY });
+    }
+
+    // A little scenery in this plot's own margin (just outside its
+    // functional yard/backyard rect, inside the cell's gutter) — never the
+    // same spot twice, deterministic per house index like everything else
+    // on this map, so the neighborhood looks the same on every reload.
+    const DECOR_KINDS = ["tree", "bush", "rock"];
+    for (let d = 0; d < 2; d++) {
+      const ang = hash2(i, 900 + d) * Math.PI * 2;
+      const ux = Math.cos(ang), uy = Math.sin(ang);
+      const edgeDist = Math.min(ux ? (PLOT_W / 2) / Math.abs(ux) : Infinity, uy ? (PLOT_H / 2) / Math.abs(uy) : Infinity);
+      const rad = edgeDist + 12 + hash2(i, 950 + d) * 8;
+      MAP.decor.push({
+        kind: DECOR_KINDS[Math.floor(hash2(i, 970 + d) * DECOR_KINDS.length)],
+        x: (plotX + PLOT_W / 2) + ux * rad, y: (plotY + PLOT_H / 2) + uy * rad,
+        scale: 0.75 + hash2(i, 990 + d) * 0.45,
+      });
+    }
     const wk = mkWalker(i, [
       [bx - 46 - hash2(i, 2) * 44, roadY], [bx + 46 + hash2(i, 5) * 44, roadY],
       [bx, roadY - 14], [bx, by + 16], [bx, roadY - 14],
@@ -1614,15 +1691,35 @@ function layoutMap() {
   buildMapGround();
   fitMapView();
 }
-function onMapRoad(x, y) {
-  const rx = (x - MARGIN) % PLOT_W, ry = (y - MARGIN) % PLOT_H;
-  if (x < MARGIN || y < MARGIN || x > MAP.worldW - MARGIN || y > MAP.worldH - MARGIN) return true;
-  return (rx >= 0 && rx < ROAD_W) || (ry >= 0 && ry < ROAD_W);
+// Winding dirt paths (2026-09-04, replacing the old straight grid-line
+// roads — "not a grid... real space between the houses"): MAP.pathSegs is a
+// bag of line segments built in layoutMap (Town Hall -> a jittered bend ->
+// each house's street). A pixel counts as "on the path" if it's within
+// PATH_HALF_W of any segment — plain point-to-segment distance, cheap
+// enough to run over the whole ground canvas once per layout.
+const PATH_HALF_W = 15;
+function distToSeg(px, py, ax, ay, bx, by) {
+  const abx = bx - ax, aby = by - ay;
+  const len2 = abx * abx + aby * aby || 1;
+  let t = ((px - ax) * abx + (py - ay) * aby) / len2;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return Math.hypot(px - (ax + abx * t), py - (ay + aby * t));
+}
+function onPath(x, y) {
+  for (const s of MAP.pathSegs) if (distToSeg(x, y, s.ax, s.ay, s.bx, s.by) < PATH_HALF_W) return true;
+  return false;
 }
 function onPlaza(x, y) {
   const th = MAP.townHall;
   if (!th) return false;
   return x >= th.gx0 + 2 && x <= th.gx0 + th.gw - 2 && y >= th.gy0 + 2 && y <= th.gy0 + th.gh - 2;
+}
+// 0 = dry land, 1 = water, 2 = the sandy/muddy shore ring around it.
+function pondZone(x, y) {
+  const p = MAP.pond;
+  if (!p) return 0;
+  const dx = (x - p.x) / p.rx, dy = (y - p.y) / p.ry, d2 = dx * dx + dy * dy;
+  return d2 <= 1 ? 1 : d2 <= 1.4 ? 2 : 0;
 }
 function buildMapGround() {
   const c = MAP.groundCv; c.width = MAP.worldW; c.height = MAP.worldH;
@@ -1630,17 +1727,27 @@ function buildMapGround() {
   for (let yy = 0; yy < MAP.worldH; yy += 4) {
     for (let xx = 0; xx < MAP.worldW; xx += 4) {
       const nz = hash2(xx, yy);
+      const plaza = onPlaza(xx, yy);
+      const pond = plaza ? 0 : pondZone(xx, yy);
+      const path = (plaza || pond) ? false : onPath(xx, yy);
       let col;
-      if (onPlaza(xx, yy)) {
+      if (plaza) {
         // paved civic square under the Town Hall, with a border ring
         const th = MAP.townHall;
         const edge = xx < th.gx0 + 8 || xx > th.gx0 + th.gw - 8 || yy < th.gy0 + 8 || yy > th.gy0 + th.gh - 8;
         col = edge ? "#a9a29a" : nz < 0.15 ? "#c9c3ba" : nz > 0.86 ? "#ded9d0" : "#d4cfc6";
-      } else if (onMapRoad(xx, yy)) col = nz < 0.14 ? "#b6935f" : nz > 0.9 ? "#d0b083" : "#c6a878";
+      } else if (pond === 1) col = nz < 0.2 ? "#3f7fa8" : nz > 0.85 ? "#5aa3c9" : "#4a90b8";
+      else if (pond === 2) col = nz < 0.3 ? "#c9b183" : "#d8c298";
+      else if (path) col = nz < 0.14 ? "#b6935f" : nz > 0.9 ? "#d0b083" : "#c6a878";
       else col = nz < 0.12 ? "#4d8a38" : nz > 0.88 ? "#72b657" : "#5fa246";
       x.fillStyle = col; x.fillRect(xx, yy, 4, 4);
-      if (!onMapRoad(xx, yy) && !onPlaza(xx, yy) && nz > 0.985) { x.fillStyle = ["#f2e34d", "#e8ecef", "#e46b8a", "#d7d7ff"][((xx + yy) >> 2) & 3]; x.fillRect(xx + 1, yy + 1, 2, 2); }
+      if (!plaza && !pond && !path && nz > 0.985) { x.fillStyle = ["#f2e34d", "#e8ecef", "#e46b8a", "#d7d7ff"][((xx + yy) >> 2) & 3]; x.fillRect(xx + 1, yy + 1, 2, 2); }
     }
+  }
+  if (MAP.pond) {
+    const p = MAP.pond;
+    x.fillStyle = "rgba(255,255,255,0.35)";
+    x.beginPath(); x.ellipse(p.x - p.rx * 0.3, p.y - p.ry * 0.3, p.rx * 0.28, p.ry * 0.16, -0.4, 0, 7); x.fill();
   }
   MAP.ready = true;
 }
@@ -1698,6 +1805,7 @@ function drawMapScene(now, dt) {
   MAP.walkers.forEach(a => ents.push({ y: a.y, d: () => drawWalker(g, a) }));
   MAP.mapPets.forEach(p => ents.push({ y: p.y, d: () => drawPetActor(g, p, now / 1000, 1.35) }));
   ents.push({ y: PLAYER.y, d: () => drawPlayer(g) });
+  (MAP.decor || []).forEach(d => ents.push({ y: d.y, d: () => drawMapDecor(g, d) }));
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
 
