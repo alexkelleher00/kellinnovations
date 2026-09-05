@@ -62,18 +62,45 @@
 
   /* ── Map canvas stage ─────────────────────────────────────────────── */
   .hn-stage {
-    position: relative; width: 100%; height: 68vh; min-height: 420px;
+    position: relative; width: 100%;
+    height: 68vh; height: 68dvh;   /* dvh tracks iOS Safari's live toolbar so the map isn't cut off */
+    min-height: 420px;
     border-radius: var(--radius); overflow: hidden;
     border: 1px solid var(--border); background: #0c1024;
+    overscroll-behavior: none; -webkit-user-select: none; user-select: none;
+    touch-action: none;   /* belt to the canvas's braces — stop iOS scrolling/zooming the page from a touch that starts here */
   }
-  .hn-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; cursor: grab; touch-action: none; }
+  /* iOS Safari is spotty on `pixelated` for canvas — the -webkit / crisp-edges
+     fallbacks + JS-side imageSmoothing=false (crisp()) keep the pixel art sharp. */
+  .hn-stage canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+    image-rendering: pixelated; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;
+    cursor: grab; touch-action: none;
+  }
   .hn-stage canvas.dragging { cursor: grabbing; }
   .hn-stage-hint {
     position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
     background: rgba(10,11,22,0.8); border: 1px solid var(--border); border-radius: 999px;
     padding: 6px 14px; font-size: 0.72rem; color: var(--muted); white-space: nowrap; pointer-events: none;
+    max-width: 92%; overflow: hidden; text-overflow: ellipsis;
   }
   .hn-stage-hint b { color: var(--text); }
+
+  /* ── On-screen D-pad (mobile; harmless on desktop) ─────────────────── */
+  .hn-dpad {
+    position: absolute; left: 14px; bottom: 14px; width: 132px; height: 132px;
+    display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+    gap: 4px; z-index: 5; touch-action: none; opacity: 0.72;
+  }
+  .hn-dpad button {
+    -webkit-appearance: none; appearance: none; border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(10,11,22,0.55); color: #e9e9f4; font-size: 1.1rem; font-weight: 800;
+    border-radius: 10px; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .hn-dpad button:active { background: var(--accent); color: #04201f; }
+  .hn-dpad .up { grid-area: 1 / 2; } .hn-dpad .left { grid-area: 2 / 1; }
+  .hn-dpad .right { grid-area: 2 / 3; } .hn-dpad .down { grid-area: 3 / 2; }
 
   /* ── "My House" layout ───────────────────────────────────────────── */
   .hn-mine-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
@@ -106,7 +133,7 @@
     position: relative; width: 100%; border-radius: 10px; overflow: hidden;
     border: 1px solid rgba(0,0,0,0.45); box-shadow: inset 0 0 40px rgba(0,0,0,0.30); line-height: 0;
   }
-  .hn-room-canvas-box canvas { width: 100%; height: auto; display: block; image-rendering: pixelated; touch-action: none; }
+  .hn-room-canvas-box canvas { width: 100%; height: auto; display: block; image-rendering: pixelated; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; touch-action: none; }
   .hn-rotate-btn {
     position: absolute; top: 8px; right: 8px; z-index: 3; display: none;
     width: 34px; height: 34px; border-radius: 8px; cursor: pointer; line-height: 1;
@@ -133,7 +160,7 @@
     background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 8px;
     text-align: center; display: flex; flex-direction: column; gap: 3px; align-items: center;
   }
-  .hn-shop-item canvas { image-rendering: pixelated; }
+  .hn-shop-item canvas { image-rendering: pixelated; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; }
   .hn-thumb { position: relative; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; }
   .hn-thumb .sz {
     position: absolute; right: -2px; bottom: -2px; font-size: 0.56rem; font-weight: 800;
@@ -154,7 +181,7 @@
     position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
     background: var(--bg2); border: 2px solid var(--border); border-radius: 8px; cursor: pointer;
   }
-  .hn-inv-item canvas { image-rendering: pixelated; }
+  .hn-inv-item canvas { image-rendering: pixelated; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; }
   .hn-inv-item.armed { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,200,200,0.45); }
   .hn-inv-item.dim { opacity: 0.4; }
   .hn-inv-item .sz {
@@ -167,7 +194,7 @@
     display: flex; align-items: center; gap: 10px; background: var(--bg2);
     border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
   }
-  .hn-pet-card canvas { image-rendering: pixelated; flex: none; }
+  .hn-pet-card canvas { image-rendering: pixelated; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; flex: none; }
   .hn-pet-card input, .hn-pet-card select {
     background: var(--surface); border: 1px solid var(--border); color: var(--text);
     border-radius: 6px; padding: 4px 6px; font-size: 0.74rem; font-family: inherit;
@@ -194,7 +221,7 @@
   }
   .hn-modal-close:hover { color: var(--text); }
   .hn-detail-canvas-box { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); line-height: 0; margin-bottom: 12px; }
-  .hn-detail-canvas-box canvas { width: 100%; height: auto; display: block; image-rendering: pixelated; }
+  .hn-detail-canvas-box canvas { width: 100%; height: auto; display: block; image-rendering: pixelated; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; }
 
   .hn-login-hint {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -257,7 +284,13 @@
   <div id="mapView">
     <div class="hn-stage" id="mapStage">
       <canvas id="mapCanvas"></canvas>
-      <div class="hn-stage-hint"><b>Drag</b> to pan · <b>Scroll / pinch</b> to zoom · <b>Click a house</b> to visit</div>
+      <div class="hn-dpad" id="dpad" aria-hidden="true">
+        <button class="up" data-dir="ArrowUp">▲</button>
+        <button class="left" data-dir="ArrowLeft">◀</button>
+        <button class="right" data-dir="ArrowRight">▶</button>
+        <button class="down" data-dir="ArrowDown">▼</button>
+      </div>
+      <div class="hn-stage-hint"><b>Tap</b> to walk · <b>tap a house</b> to visit · <b>drag</b> to look · <b>WASD</b> / D-pad to move</div>
     </div>
   </div>
 
@@ -1322,6 +1355,16 @@ function drawItemRot(g, item, px, py, TP, t, rot) {
 let DPR = Math.min(2, window.devicePixelRatio || 1);
 let GLOWS = [];
 
+// iOS Safari resets imageSmoothingEnabled on some context state changes (incl.
+// setTransform) and honours the webkit-prefixed name on old versions — call
+// this right after EVERY setTransform on a pixel-art context so the ground
+// blit and sprites stay sharp on iPhone the way they already are on Android.
+function crisp(g) {
+  g.imageSmoothingEnabled = false;
+  g.webkitImageSmoothingEnabled = false;
+  g.mozImageSmoothingEnabled = false;
+  g.msImageSmoothingEnabled = false;
+}
 function fitCanvas(cv, cssW, cssH) {
   DPR = Math.min(2, window.devicePixelRatio || 1);
   cv.width = Math.max(1, Math.round(cssW * DPR));
@@ -1429,7 +1472,7 @@ function mkPet(type, rgn, i) {
    player's own account avatar_emoji so it's unmistakably "you" among the
    ambient strollers (who show their name instead).
    ═══════════════════════════════════════════════════════════════════════ */
-const PLAYER = { x: 0, y: 0, dir: "S", phase: 0, moving: false, speed: 70, lastEnter: 0 };
+const PLAYER = { x: 0, y: 0, dir: "S", phase: 0, moving: false, speed: 70, lastEnter: 0, moveTarget: null };
 const PLAYER_PAL = { h: HAIR[0], s: "#f0c8a4", 1: "#241a1e", t: "#00c8c8", p: PANTS[0], 6: "#3b2b2b" };
 const PLAYER_KEYS = new Set();
 const MOVE_KEYS = {
@@ -1468,6 +1511,14 @@ function stepPlayer(dt) {
   if (anyModalOpen() || activeTab !== "map") { PLAYER.moving = false; return; }
   let dx = 0, dy = 0;
   for (const k of PLAYER_KEYS) { const d = MOVE_KEYS[k]; if (d) { dx += d[0]; dy += d[1]; } }
+  if (dx || dy) {
+    PLAYER.moveTarget = null;             // a held key beats a tap-to-walk target
+  } else if (PLAYER.moveTarget) {
+    // Tap-to-walk (mobile mainly): head toward the tapped point.
+    const tx = PLAYER.moveTarget.x - PLAYER.x, ty = PLAYER.moveTarget.y - PLAYER.y;
+    if (Math.hypot(tx, ty) < 4) PLAYER.moveTarget = null;
+    else { dx = tx; dy = ty; }
+  }
   if (!dx && !dy) { PLAYER.moving = false; return; }
   const len = Math.hypot(dx, dy) || 1;
   dx /= len; dy /= len;
@@ -1475,9 +1526,11 @@ function stepPlayer(dt) {
   const blocked = (x, y) => rects.some(r => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1);
   const nx = clamp(PLAYER.x + dx * PLAYER.speed * dt, MARGIN + 6, MAP.worldW - MARGIN - 6);
   const ny = clamp(PLAYER.y + dy * PLAYER.speed * dt, MARGIN + 6, MAP.worldH - MARGIN - 6);
+  const bx = blocked(nx, PLAYER.y), by = blocked(PLAYER.x, ny);
   // Axis-separated so bumping into a wall diagonally still slides along it.
-  if (!blocked(nx, PLAYER.y)) PLAYER.x = nx;
-  if (!blocked(PLAYER.x, ny)) PLAYER.y = ny;
+  if (!bx) PLAYER.x = nx;
+  if (!by) PLAYER.y = ny;
+  if (bx && by && PLAYER.moveTarget) PLAYER.moveTarget = null;   // fully wedged — give up on the tap target
   PLAYER.phase += PLAYER.speed * dt;
   PLAYER.moving = true;
   PLAYER.dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "E" : "W") : (dy > 0 ? "S" : "N");
@@ -1723,7 +1776,7 @@ function pondZone(x, y) {
 }
 function buildMapGround() {
   const c = MAP.groundCv; c.width = MAP.worldW; c.height = MAP.worldH;
-  const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
+  const x = c.getContext("2d"); crisp(x);
   for (let yy = 0; yy < MAP.worldH; yy += 4) {
     for (let xx = 0; xx < MAP.worldW; xx += 4) {
       const nz = hash2(xx, yy);
@@ -1784,14 +1837,13 @@ function drawMapScene(now, dt) {
     clampMapCam();
   }
 
-  g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  g.imageSmoothingEnabled = false;
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
   g.fillStyle = night > 0.5 ? "#0c1024" : "#7ec6e6";
   g.fillRect(0, 0, W, H);
 
   const f = z * DPR;
   g.setTransform(f, 0, 0, f, Math.round(W * DPR / 2 - MAP.cam.x * f), Math.round(H * DPR / 2 - MAP.cam.y * f));
-  g.imageSmoothingEnabled = false;
+  crisp(g);
   if (MAP.ready) g.drawImage(MAP.groundCv, 0, 0);
   GLOWS = [];
 
@@ -1809,22 +1861,27 @@ function drawMapScene(now, dt) {
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
 
-  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
   paintAmbient(g, W, H, timeOfDay, false);
   paintGlows(g, W, H, MAP.cam, z, W / 2, H / 2);
 
   // Your own avatar emoji floats over your character always — regardless of
-  // the Labels toggle — so you can never lose track of "which one is me".
+  // the Labels toggle — so you can never lose track of "which one is me". A
+  // small rounded chip behind it keeps it readable on any background and
+  // gives iOS's color-emoji box something consistent to sit in.
   if (currentUser && currentUser.avatar_emoji) {
-    const px = W / 2 + (PLAYER.x - MAP.cam.x) * z, py = H / 2 + (PLAYER.y - MAP.cam.y) * z - 24;
-    g.font = "16px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "alphabetic";
+    const px = W / 2 + (PLAYER.x - MAP.cam.x) * z, py = H / 2 + (PLAYER.y - MAP.cam.y) * z - 26;
+    g.fillStyle = "rgba(10,11,22,0.72)";
+    roundRect(g, px - 12, py - 12, 24, 22, 7); g.fill();
+    g.font = '15px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif';
+    g.textAlign = "center"; g.textBaseline = "middle";
     g.fillText(currentUser.avatar_emoji, px, py);
   }
 
   if (showLabels) {
     const sx = wx => W / 2 + (wx - MAP.cam.x) * z, sy = wy => H / 2 + (wy - MAP.cam.y) * z;
     const tag = (text, x, y, big) => {
-      g.font = (big ? "700 11px " : "600 9px ") + "system-ui, sans-serif";
+      g.font = (big ? "700 11px " : "600 9px ") + '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif';
       g.textAlign = "center"; g.textBaseline = "alphabetic";
       const w = g.measureText(text).width + (big ? 14 : 10);
       g.fillStyle = "rgba(10,11,22,0.82)"; g.fillRect(x - w / 2, y - (big ? 12 : 10), w, big ? 17 : 14);
@@ -1856,11 +1913,18 @@ function mapScreenToWorld(sx, sy) {
 }
 (function wireMap() {
   let down = false, moved = false, lx = 0, ly = 0, pinch = 0;
+  // iOS Safari ignores user-scalable=no and fires its own gesture* events to
+  // pinch-zoom the whole PAGE from a touch that starts on the canvas — kill
+  // those, and preventDefault touch scrolling, so the map owns the gesture.
+  ["gesturestart", "gesturechange", "gestureend"].forEach(t =>
+    mapStage.addEventListener(t, e => e.preventDefault(), { passive: false }));
+  mapCv.addEventListener("touchstart", e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+
   mapCv.addEventListener("pointerdown", e => { down = true; moved = false; lx = e.clientX; ly = e.clientY; mapCv.setPointerCapture(e.pointerId); mapCv.classList.add("dragging"); });
   mapCv.addEventListener("pointermove", e => {
     if (!down) return;
     const dx = e.clientX - lx, dy = e.clientY - ly;
-    if (Math.abs(dx) + Math.abs(dy) > 3) { moved = true; MAP.follow = false; }
+    if (Math.abs(dx) + Math.abs(dy) > 3) { moved = true; MAP.follow = false; PLAYER.moveTarget = null; }
     MAP.cam.x -= dx / MAP.cam.zoom; MAP.cam.y -= dy / MAP.cam.zoom;
     lx = e.clientX; ly = e.clientY; MAP.userZoomed = true; clampMapCam();
   });
@@ -1873,6 +1937,12 @@ function mapScreenToWorld(sx, sy) {
     if (th && w.x > th.bx - 44 && w.x < th.bx + 44 && w.y > th.by - 80 && w.y < th.by + 10) { openTownHall(); return; }
     for (const h of MAP.houses) {
       if (w.x > h.bx - 28 && w.x < h.bx + 28 && w.y > h.by - 58 && w.y < h.by + 8) { enterHouse(h.user_id); return; }
+    }
+    // A tap on open ground walks the character there (mobile mainly, but
+    // works everywhere) — stepPlayer heads toward PLAYER.moveTarget.
+    if (currentUser && w.x > 0 && w.x < MAP.worldW && w.y > 0 && w.y < MAP.worldH) {
+      PLAYER.moveTarget = { x: clamp(w.x, MARGIN + 6, MAP.worldW - MARGIN - 6), y: clamp(w.y, MARGIN + 6, MAP.worldH - MARGIN - 6) };
+      MAP.follow = true;
     }
   });
   mapCv.addEventListener("pointercancel", () => { down = false; mapCv.classList.remove("dragging"); });
@@ -1891,6 +1961,24 @@ function mapScreenToWorld(sx, sy) {
     pinch = d;
   }, { passive: false });
   mapCv.addEventListener("touchend", () => { pinch = 0; });
+})();
+
+// On-screen D-pad — just synthesizes the same key codes stepPlayer already
+// reads (PLAYER_KEYS), so there's no separate movement path to keep in sync.
+(function wireDpad() {
+  const dpadHeld = new Set();   // only dirs the D-pad is holding, so the miss-safety below never clears a real keyboard key
+  document.querySelectorAll("#dpad button").forEach(btn => {
+    const dir = btn.dataset.dir;
+    const press = e => { if (e.cancelable) e.preventDefault(); PLAYER_KEYS.add(dir); dpadHeld.add(dir); PLAYER.moveTarget = null; MAP.follow = true; };
+    const release = () => { if (dpadHeld.delete(dir)) PLAYER_KEYS.delete(dir); };
+    btn.addEventListener("pointerdown", press);
+    btn.addEventListener("pointerup", release);
+    btn.addEventListener("pointerleave", release);
+    btn.addEventListener("pointercancel", release);
+  });
+  // If a finger slides off the button entirely and no release fires, drop
+  // whatever the D-pad still thinks it's holding on the next global pointerup.
+  window.addEventListener("pointerup", () => { dpadHeld.forEach(d => PLAYER_KEYS.delete(d)); dpadHeld.clear(); });
 })();
 
 async function loadMap() {
@@ -1920,7 +2008,7 @@ function buildRoomState(cv, house, room, placed, pets, editable, maxCssH) {
 
   // static ground → offscreen
   const gc = document.createElement("canvas"); gc.width = cw; gc.height = ch;
-  const gx = gc.getContext("2d"); gx.imageSmoothingEnabled = false;
+  const gx = gc.getContext("2d"); crisp(gx);
   const ground = outdoor ? house.yard_color : house.floor_color;
 
   if (outdoor) {                                   // band = more yard
@@ -1966,8 +2054,7 @@ function drawRoomInto(rs, now, dt) {
   const houseFeetY = isYard ? clamp(padTop + TP * 1.35, padTop + 34, padTop + rs.rows * TP * 0.42) : 0;
   if (isYard) stepSmoke(rs.smoke, dt, 0, -52);                    // smoke in house-local coords
 
-  g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  g.imageSmoothingEnabled = false;
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
   g.clearRect(0, 0, cw, ch);
   g.drawImage(rs.groundCv, 0, 0);
   GLOWS = [];
@@ -2007,7 +2094,7 @@ function drawRoomInto(rs, now, dt) {
     }
   }
 
-  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
   if (rs.outdoor) paintAmbient(g, cw, ch, timeOfDay, false);
   paintGlows(g, cw, ch, { x: cw / 2, y: ch / 2 }, 1, cw / 2, ch / 2);
 }
@@ -2419,7 +2506,7 @@ function itemFitsRoom(item, room) { return item.location === "any" || item.locat
 function thumbCanvas(item, size) {
   const cv = document.createElement("canvas");
   cv.width = size * DPR; cv.height = size * DPR; cv.style.width = size + "px"; cv.style.height = size + "px";
-  const g = cv.getContext("2d"); g.setTransform(DPR, 0, 0, DPR, 0, 0); g.imageSmoothingEnabled = false;
+  const g = cv.getContext("2d"); g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
   const [w, h] = fp(item);
   const TP = Math.floor((size - 6) / Math.max(w, h, 1));
   const ox = (size - w * TP) / 2, oy = (size - h * TP) / 2;
@@ -2495,9 +2582,9 @@ function petThumb(petType, size) {
   const S = PET_SPRITES[petType] || PET_SPRITES.cat;
   const cv = document.createElement("canvas");
   cv.width = size * DPR; cv.height = size * DPR; cv.style.width = size + "px"; cv.style.height = size + "px";
-  const g = cv.getContext("2d"); g.setTransform(DPR, 0, 0, DPR, 0, 0); g.imageSmoothingEnabled = false;
+  const g = cv.getContext("2d"); g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
   const sc = Math.floor((size - 2) / Math.max(S.w, S.h));
-  g.setTransform(DPR * sc, 0, 0, DPR * sc, DPR * (size - S.w * sc) / 2, DPR * (size - S.h * sc) / 2);
+  g.setTransform(DPR * sc, 0, 0, DPR * sc, DPR * (size - S.w * sc) / 2, DPR * (size - S.h * sc) / 2); crisp(g);
   blit(g, S.sit, S.pal, 0, 0, false);
   return cv;
 }
