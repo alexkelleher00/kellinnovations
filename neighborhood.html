@@ -2075,6 +2075,17 @@ function drawPlayer(g, sc) {
 // purely cosmetic filler so the gaps between houses read as a real
 // neighborhood instead of empty grass. (d.x, d.y) is the ground point the
 // object stands on, same convention drawHouse/drawTownHall use.
+// A picket fence around a house's backyard band — auto-appears once the
+// member buys the Backyard room (Alex, 2026-09-06). Purely a visual marker
+// on the map; the walkable backyard's own fence walls are what actually
+// block the avatar.
+function drawBackyardFence(g, h) {
+  const x0 = h.gx0 + 2, y0 = h.gy0 + 2, x1 = h.gx0 + h.gw - 2, y1 = h.gy0 + BACK_H - 10;
+  fenceRun(g, x0, y0, x1, y0, false);
+  fenceRun(g, x0, y1, x1, y1, false);
+  fenceRun(g, x0, y0, x0, y1, true);
+  fenceRun(g, x1 - 5, y0, x1 - 5, y1, true);
+}
 function drawMapDecor(g, d, t) {
   const s = d.scale, x = d.x, y = d.y;
   t = t || 0;
@@ -2629,6 +2640,9 @@ function drawMapScene(now, dt) {
   const ents = [];
   if (MAP.townHall) ents.push({ y: MAP.townHall.by, d: () => drawTownHall(g, MAP.townHall.bx, MAP.townHall.by, night, now / 1000) });
   MAP.houses.forEach(h => {
+    if (h.room_keys && h.room_keys.includes("backyard")) {
+      ents.push({ y: h.gy0 + 1, d: () => drawBackyardFence(g, h) });
+    }
     ents.push({ y: h.by, d: () => drawHouse(g, h.house, h.bx, h.by, night, h.smoke) });
     h.yardItems.forEach(yi => ents.push({ y: yi.sortY, d: () => drawItemRot(g, yi.it, yi.px, yi.py, yi.mtp, now / 1000, yi.it.rot) }));
     h.backyardItems.forEach(bi => ents.push({ y: bi.sortY, d: () => drawItemRot(g, bi.it, bi.px, bi.py, bi.mtp, now / 1000, bi.it.rot) }));
@@ -2653,29 +2667,38 @@ function drawMapScene(now, dt) {
   paintAmbient(g, W, H, timeOfDay, false);
   paintGlows(g, W, H, MAP.cam, z, W / 2, H / 2);
 
-  // Your own avatar emoji floats over your character always — regardless of
-  // the Labels toggle — so you can never lose track of "which one is me". A
-  // small rounded chip behind it keeps it readable on any background and
-  // gives iOS's color-emoji box something consistent to sit in.
-  if (currentUser && currentUser.avatar_emoji) {
-    const px = W / 2 + (PLAYER.x - MAP.cam.x) * z, py = H / 2 + (PLAYER.y - MAP.cam.y) * z - 26;
-    g.fillStyle = "rgba(10,11,22,0.72)";
-    roundRect(g, px - 12, py - 12, 24, 22, 7); g.fill();
-    g.font = '15px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif';
-    g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillText(currentUser.avatar_emoji, px, py);
+  const sx = wx => W / 2 + (wx - MAP.cam.x) * z, sy = wy => H / 2 + (wy - MAP.cam.y) * z;
+  const tag = (text, x, y, big) => {
+    g.font = (big ? "700 11px " : "600 9px ") + '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif';
+    g.textAlign = "center"; g.textBaseline = "alphabetic";
+    const w = g.measureText(text).width + (big ? 14 : 10);
+    g.fillStyle = "rgba(10,11,22,0.82)"; g.fillRect(x - w / 2, y - (big ? 12 : 10), w, big ? 17 : 14);
+    if (big) { g.fillStyle = "#00c8c8"; g.fillRect(x - w / 2, y + 5, w, 1); }
+    g.fillStyle = "#e9e9f4"; g.fillText(text, x, y);
+  };
+
+  // Pet names always show for everyone (Alex, 2026-09-06) — not gated by the
+  // Labels toggle.
+  for (const p of MAP.mapPets) if (p.name) {
+    const x = sx(p.x), y = sy(p.y - 13);
+    if (x > -70 && x < W + 70 && y > 0 && y < H) tag(p.name, x, y, false);
+  }
+
+  // Your own avatar: name tag + emoji floating over your character, always,
+  // so "which one is me" and "what's my name" are never in doubt.
+  if (currentUser) {
+    const px = sx(PLAYER.x), py = sy(PLAYER.y);
+    if (currentUser.name) tag(String(currentUser.name).split(" ")[0], px, py - 28, false);
+    if (currentUser.avatar_emoji) {
+      g.fillStyle = "rgba(10,11,22,0.72)";
+      roundRect(g, px - 12, py - 52, 24, 22, 7); g.fill();
+      g.font = '15px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif';
+      g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText(currentUser.avatar_emoji, px, py - 41);
+    }
   }
 
   if (showLabels) {
-    const sx = wx => W / 2 + (wx - MAP.cam.x) * z, sy = wy => H / 2 + (wy - MAP.cam.y) * z;
-    const tag = (text, x, y, big) => {
-      g.font = (big ? "700 11px " : "600 9px ") + '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif';
-      g.textAlign = "center"; g.textBaseline = "alphabetic";
-      const w = g.measureText(text).width + (big ? 14 : 10);
-      g.fillStyle = "rgba(10,11,22,0.82)"; g.fillRect(x - w / 2, y - (big ? 12 : 10), w, big ? 17 : 14);
-      if (big) { g.fillStyle = "#00c8c8"; g.fillRect(x - w / 2, y + 5, w, 1); }
-      g.fillStyle = "#e9e9f4"; g.fillText(text, x, y);
-    };
     if (MAP.townHall) {
       const x = sx(MAP.townHall.bx), y = sy(MAP.townHall.by - 92);
       if (x > -110 && x < W + 110 && y > -20 && y < H + 20) tag("🏛 Town Hall", x, y, true);
@@ -2688,10 +2711,6 @@ function drawMapScene(now, dt) {
     for (const a of MAP.walkers) if (a.name) {
       const x = sx(a.x), y = sy(a.y - 20);
       if (x > -70 && x < W + 70 && y > 0 && y < H) tag(a.name.split(" ")[0], x, y, false);
-    }
-    for (const p of MAP.mapPets) if (p.name) {
-      const x = sx(p.x), y = sy(p.y - 13);
-      if (x > -70 && x < W + 70 && y > 0 && y < H) tag(p.name, x, y, false);
     }
   }
 }
@@ -2841,6 +2860,12 @@ function buildRoomState(cv, house, room, placed, pets, editable, maxCssH) {
 function drawRoomInto(rs, now, dt) {
   if (!rs) return;
   const { g, TP, padTop, cw, ch } = rs;
+  // The walkable interior reuses ONE #interiorCanvas for every room via a
+  // per-room rsCache; when you come back to a room its cached rs has
+  // different cw/ch than whatever room was drawn last, so the canvas bitmap
+  // has to be re-fitted or the room renders cropped/mis-scaled (Alex,
+  // 2026-09-06 "weird zooming... part of the room is cut off").
+  if (rs.cv.width !== Math.round(cw * DPR) || rs.cv.height !== Math.round(ch * DPR)) fitCanvas(rs.cv, cw, ch);
   const night = rs.outdoor ? nightAmount(timeOfDay) : 0;
   rs.pets.forEach(p => stepPet(p, dt));
   const isYard = rs.room.key === "yard";
@@ -2878,7 +2903,16 @@ function drawRoomInto(rs, now, dt) {
   // Pets always render on top of the furniture (never boxed in by an item),
   // and bigger than they draw out on the map.
   const petSc = rs.outdoor ? 1.8 : 2.1;
-  rs.pets.forEach(p => drawPetActor(g, p, now / 1000, petSc));
+  rs.pets.forEach(p => {
+    drawPetActor(g, p, now / 1000, petSc);
+    if (p.name) {   // pet names always visible to anyone looking at the room
+      g.font = '600 9px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif';
+      g.textAlign = "center"; g.textBaseline = "alphabetic";
+      const w = g.measureText(p.name).width + 10;
+      g.fillStyle = "rgba(10,11,22,0.82)"; g.fillRect(p.x - w / 2, p.y - 22, w, 13);
+      g.fillStyle = "#e9e9f4"; g.fillText(p.name, p.x, p.y - 12);
+    }
+  });
 
   // placement ghost
   if (rs.editable && armedItemId != null && rs.hover) {
@@ -3294,15 +3328,7 @@ function drawHallInterior(now, dt) {
       g.fillStyle = "#ffd166"; g.fillText("🪙 " + (cat.price || 0).toLocaleString(), p.x, p.y + TP * 0.62 + 7);
     } });
   }
-  ents.push({ y: PLAYER.y, d: () => {
-    drawPlayer(g, 1.9);
-    if (currentUser && currentUser.avatar_emoji) {
-      const px = PLAYER.x, py = PLAYER.y - 40;
-      g.fillStyle = "rgba(10,11,22,0.72)"; roundRect(g, px - 12, py - 12, 24, 22, 7); g.fill();
-      g.font = '15px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif';
-      g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(currentUser.avatar_emoji, px, py);
-    }
-  } });
+  ents.push({ y: PLAYER.y, d: () => { drawPlayer(g, 1.9); drawAvatarTag(g, PLAYER.x, PLAYER.y - 30); } });
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
 
@@ -3528,18 +3554,41 @@ function stepInterior(dt) {
   }
 }
 
+// A run of picket fence along one wall strip (backyards are fenced, not
+// walled). vert=true for the E/W sides.
+function fenceRun(g, x0, y0, x1, y1, vert) {
+  const len = vert ? (y1 - y0) : (x1 - x0);
+  if (len <= 0) return;
+  g.fillStyle = "#6b4a2b";
+  if (vert) g.fillRect(x0, y0, 6, len); else g.fillRect(x0, y0, len, 6);
+  g.fillStyle = vert ? lgrad(g, x0, y0, x0 + 5, y0, "#b98c58", "#8a663c")
+                     : lgrad(g, x0, y0, x0, y0 + 5, "#b98c58", "#8a663c");
+  if (vert) g.fillRect(x0, y0, 5, len); else g.fillRect(x0, y0, len, 5);
+  g.fillStyle = "#c49764";
+  for (let d = 3; d < len - 2; d += 9) {
+    if (vert) g.fillRect(x0 - 1, y0 + d, 7, 4);
+    else g.fillRect(x0 + d, y0 - 3, 4, 8);
+  }
+}
 function drawInteriorWalls(g, rs, I) {
   const { cw, ch, padTop, TP } = rs;
+  const room = I.rooms.find(r => r.key === I.roomKey) || {};
+  const fenced = room.kind === "outdoor";   // backyard = fenced, indoor rooms = walled
   const base = shade(I.data.house.wall_color || "#c9b58c", -0.24);
   const gph = I.graph[I.roomKey], gap = TP, midY = (padTop + ch) / 2;
+  const seg = (x, y, w, h, vert) => {
+    if (fenced) fenceRun(g, x, y, x + w, y + h, vert);
+    else { g.fillStyle = base; g.fillRect(x, y, w, h); }
+  };
   g.fillStyle = base;
   const doorS = gph.exit || gph.S;
-  if (doorS) { g.fillRect(0, ch - 5, cw / 2 - gap, 5); g.fillRect(cw / 2 + gap, ch - 5, cw - (cw / 2 + gap), 5); }
-  else g.fillRect(0, ch - 5, cw, 5);
-  if (gph.W) { g.fillRect(0, padTop, 5, midY - gap - padTop); g.fillRect(0, midY + gap, 5, ch - (midY + gap)); }
-  else g.fillRect(0, padTop, 5, ch - padTop);
-  if (gph.E) { g.fillRect(cw - 5, padTop, 5, midY - gap - padTop); g.fillRect(cw - 5, midY + gap, 5, ch - (midY + gap)); }
-  else g.fillRect(cw - 5, padTop, 5, ch - padTop);
+  if (doorS) { seg(0, ch - 5, cw / 2 - gap, 5, false); seg(cw / 2 + gap, ch - 5, cw - (cw / 2 + gap), 5, false); }
+  else seg(0, ch - 5, cw, 5, false);
+  if (gph.W) { seg(0, padTop, 5, midY - gap - padTop, true); seg(0, midY + gap, 5, ch - (midY + gap), true); }
+  else seg(0, padTop, 5, ch - padTop, true);
+  if (gph.E) { seg(cw - 5, padTop, 5, midY - gap - padTop, true); seg(cw - 5, midY + gap, 5, ch - (midY + gap), true); }
+  else seg(cw - 5, padTop, 5, ch - padTop, true);
+  if (fenced) seg(0, padTop, cw, 5, false);   // top fence rail too (indoor rooms use the baked wall band)
 
   const nameFor = k => k === null ? "Exit" : ((I.rooms.find(r => r.key === k) || {}).name || k);
   for (const z of I.doorZones) {
@@ -3564,13 +3613,25 @@ function drawInteriorScene(now, dt) {
   g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
   drawInteriorWalls(g, I.rs, I);
   drawPlayer(g, 1.9);
-  if (currentUser && currentUser.avatar_emoji && I.editable) {
-    const px = PLAYER.x, py = PLAYER.y - 40;
+  drawAvatarTag(g, PLAYER.x, PLAYER.y - 30);
+}
+// Name label + emoji chip floating over the player — used in the walkable
+// interior and Town Hall so "who am I / what's my name" always shows.
+function drawAvatarTag(g, px, py) {
+  if (!currentUser) return;
+  if (currentUser.name) {
+    const nm = String(currentUser.name).split(" ")[0];
+    g.font = '600 10px system-ui, sans-serif'; g.textAlign = "center"; g.textBaseline = "alphabetic";
+    const w = g.measureText(nm).width + 12;
+    g.fillStyle = "rgba(10,11,22,0.82)"; roundRect(g, px - w / 2, py - 12, w, 15, 5); g.fill();
+    g.fillStyle = "#e9e9f4"; g.fillText(nm, px, py);
+  }
+  if (currentUser.avatar_emoji) {
     g.fillStyle = "rgba(10,11,22,0.72)";
-    roundRect(g, px - 12, py - 12, 24, 22, 7); g.fill();
+    roundRect(g, px - 12, py - 36, 24, 22, 7); g.fill();
     g.font = '15px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif';
     g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillText(currentUser.avatar_emoji, px, py);
+    g.fillText(currentUser.avatar_emoji, px, py - 25);
   }
 }
 
