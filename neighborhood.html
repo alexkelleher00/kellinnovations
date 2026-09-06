@@ -342,7 +342,6 @@
         <button class="hn-mini-btn" id="sceneActionBtn" style="display:none;">▲</button>
         <button class="hn-mini-btn ghost" id="interiorLeaveBtn">← Leave</button>
       </div>
-      <div class="hn-stage-hint"><b>Tap</b> / <b>WASD</b> to walk · step into a <b>doorway</b> to move rooms</div>
       <div class="hn-hud-prompt" id="hudPrompt" style="display:none;"></div>
       <div class="hn-slideup" id="hallPanel"></div>
     </div>
@@ -1945,6 +1944,20 @@ function mkPet(type, rgn, i) {
    ═══════════════════════════════════════════════════════════════════════ */
 const PLAYER = { x: 0, y: 0, dir: "S", phase: 0, moving: false, speed: 70, lastEnter: 0, moveTarget: null };
 const PLAYER_PAL = { h: HAIR[0], s: "#f0c8a4", 1: "#241a1e", t: "#00c8c8", p: PANTS[0], 6: "#3b2b2b" };
+function hashStr(s) { let h = 0; s = String(s || ""); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
+function personPal(seed) {
+  const n = hashStr(seed);
+  return { h: HAIR[(n * 3 + 1) % HAIR.length], s: "#f0c8a4", 1: "#241a1e",
+           t: SHIRT[(n * 5 + 2) % SHIRT.length], p: PANTS[(n * 2) % PANTS.length], 6: "#3b2b2b" };
+}
+// Vary "your" hair/pants by account so you're a distinct little person, but
+// keep the cyan shirt (+ ring + emoji badge) as the "this is you" marker.
+// Call once currentUser is known (boot / layoutMap).
+function syncPlayerPal() {
+  if (!currentUser) return;
+  const p = personPal(currentUser.id);
+  PLAYER_PAL.h = p.h; PLAYER_PAL.p = p.p;
+}
 const PLAYER_KEYS = new Set();
 const MOVE_KEYS = {
   KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1],
@@ -1964,9 +1977,17 @@ window.addEventListener("keyup", e => PLAYER_KEYS.delete(e.code));
 window.addEventListener("blur", () => PLAYER_KEYS.clear());
 
 function spawnPlayer() {
-  const th = MAP.townHall;
-  PLAYER.x = th ? th.bx : MAP.worldW / 2;
-  PLAYER.y = th ? th.by + 50 : MAP.worldH / 2;
+  // Spawn at your own house's doorstep if you're logged in and have one on
+  // the map; otherwise fall back to the Town Hall plaza.
+  const mine = currentUser && MAP.houses.find(h => h.user_id === currentUser.id);
+  if (mine) { PLAYER.x = mine.bx; PLAYER.y = mine.by + 24; PLAYER.dir = "S"; }
+  else {
+    const th = MAP.townHall;
+    PLAYER.x = th ? th.bx : MAP.worldW / 2;
+    PLAYER.y = th ? th.by + 50 : MAP.worldH / 2;
+    PLAYER.dir = "S";
+  }
+  PLAYER.moveTarget = null;
 }
 // Same footprints the click-to-enter hit-tests use (see wireMap's pointerup)
 // so "solid to walk into" always matches "clickable to enter".
@@ -2256,13 +2277,18 @@ function layoutMap() {
         scale: 0.75 + hash2(i, 990 + d) * 0.45,
       });
     }
-    const wk = mkWalker(i, [
-      [bx - 46 - hash2(i, 2) * 44, roadY], [bx + 46 + hash2(i, 5) * 44, roadY],
-      [bx, roadY - 14], [bx, by + 16], [bx, roadY - 14],
-    ]);
-    wk.name = h.name; wk.avatar = h.avatar_emoji;
-    wk.idx = 1 + (i % 2); wk.x = wk.path[wk.idx - 1][0]; wk.y = wk.path[wk.idx - 1][1];  // stagger, start on the street
-    h.walker = wk; MAP.walkers.push(wk);
+    // No ambient stroller for the logged-in member's OWN house — that's the
+    // walkable player avatar's spot, a scripted clone of "you" in your own
+    // front yard is just confusing.
+    if (!(currentUser && h.user_id === currentUser.id)) {
+      const wk = mkWalker(i, [
+        [bx - 46 - hash2(i, 2) * 44, roadY], [bx + 46 + hash2(i, 5) * 44, roadY],
+        [bx, roadY - 14], [bx, by + 16], [bx, roadY - 14],
+      ]);
+      wk.name = h.name; wk.avatar = h.avatar_emoji;
+      wk.idx = 1 + (i % 2); wk.x = wk.path[wk.idx - 1][0]; wk.y = wk.path[wk.idx - 1][1];  // stagger, start on the street
+      h.walker = wk; MAP.walkers.push(wk);
+    }
 
     (h.pets || []).filter(p => !p.room_key || p.room_key === "yard").forEach((p, k) => {
       const a = mkPet(p.pet_type, yard, i * 10 + k + 3);
@@ -2280,6 +2306,7 @@ function layoutMap() {
   });
 
   scatterForest();
+  syncPlayerPal();
   spawnPlayer();
   buildMapGround();
   fitMapView();
@@ -2447,6 +2474,7 @@ function drawMapScene(now, dt) {
   MAP.mapPets.forEach(p => stepPet(p, dt));
   MAP.houses.forEach(h => stepSmoke(h.smoke, dt, h.bx + 15.5, h.by - 55));
   stepPlayer(dt);
+  if (!Number.isFinite(PLAYER.x) || !Number.isFinite(PLAYER.y)) spawnPlayer();   // never let a bad coord NaN the camera
   if (MAP.follow) {
     const t = Math.min(1, dt * 5);
     MAP.cam.x += (PLAYER.x - MAP.cam.x) * t;
@@ -3060,7 +3088,8 @@ function leaveHall() {
   document.getElementById("interiorStage").style.display = "none";
   document.getElementById("editorWrap").style.display = currentUser ? "block" : "none";
   const th = MAP.townHall;
-  if (th) { PLAYER.x = th.bx; PLAYER.y = th.by + 50; PLAYER.dir = "S"; }
+  if (th && Number.isFinite(th.bx)) { PLAYER.x = th.bx; PLAYER.y = th.by + 50; PLAYER.dir = "S"; }
+  else spawnPlayer();
   PLAYER.moveTarget = null; PLAYER.lastEnter = performance.now();
   MAP.follow = true;
   fitMapView();
@@ -3420,8 +3449,11 @@ function leaveInterior() {
   document.getElementById("mineView").style.display = "none";
   document.getElementById("interiorStage").style.display = "none";
   document.getElementById("editorWrap").style.display = currentUser ? "block" : "none";
-  const h = ((mapData && mapData.houses) || []).find(x => x.user_id === owner);
-  if (h) { PLAYER.x = h.bx; PLAYER.y = h.by + 24; PLAYER.dir = "S"; }
+  // MAP.houses (not mapData.houses) is the one with computed bx/by — using the
+  // raw list here left PLAYER at undefined coords and NaN'd the whole map.
+  const h = (MAP.houses || []).find(x => x.user_id === owner);
+  if (h && Number.isFinite(h.bx)) { PLAYER.x = h.bx; PLAYER.y = h.by + 24; PLAYER.dir = "S"; }
+  else spawnPlayer();
   PLAYER.moveTarget = null; PLAYER.lastEnter = performance.now();
   MAP.follow = true;
   fitMapView();
