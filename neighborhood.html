@@ -2078,7 +2078,86 @@ function drawPlayer(g, sc) {
 function drawMapDecor(g, d, t) {
   const s = d.scale, x = d.x, y = d.y;
   t = t || 0;
+  const night = nightAmount(timeOfDay);
   ovShadow(g, x, y, 11 * s, 3.6 * s, 0.22);
+  if (d.kind === "gazebo") {
+    ovShadow(g, x, y, 26 * s, 8 * s, 0.24);
+    // stone base
+    g.fillStyle = "#8f8a80"; g.beginPath(); g.ellipse(x, y, 24 * s, 9 * s, 0, 0, 7); g.fill();
+    g.fillStyle = "#a9a49a"; g.beginPath(); g.ellipse(x, y - 2 * s, 22 * s, 7.5 * s, 0, 0, 7); g.fill();
+    // posts
+    const px = [-18, -6, 6, 18];
+    for (const o of px) { g.fillStyle = "#e9e2d1"; g.fillRect(x + o * s - 1.5 * s, y - 26 * s, 3 * s, 24 * s);
+      g.fillStyle = "rgba(0,0,0,0.18)"; g.fillRect(x + o * s + 0.6 * s, y - 25 * s, 1.2 * s, 22 * s); }
+    // roof — hexagonal cone
+    g.fillStyle = "#7d5b46";
+    g.beginPath();
+    g.moveTo(x - 26 * s, y - 26 * s); g.lineTo(x + 26 * s, y - 26 * s);
+    g.lineTo(x + 8 * s, y - 40 * s); g.lineTo(x, y - 46 * s); g.lineTo(x - 8 * s, y - 40 * s);
+    g.closePath(); g.fill();
+    g.fillStyle = lgrad(g, x, y - 46 * s, x, y - 26 * s, "#95705a", "#6a4c3b"); g.fill();
+    g.strokeStyle = "rgba(0,0,0,0.2)"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x, y - 46 * s); g.lineTo(x, y - 27 * s);
+    g.moveTo(x - 13 * s, y - 33 * s); g.lineTo(x - 26 * s, y - 26 * s);
+    g.moveTo(x + 13 * s, y - 33 * s); g.lineTo(x + 26 * s, y - 26 * s); g.stroke();
+    g.fillStyle = "#f4c65a"; g.beginPath(); g.arc(x, y - 48 * s, 2 * s, 0, 7); g.fill();
+    if (night > 0.05) GLOWS.push({ x, y: y - 20 * s, r: 46 * s, col: "#ffdb8a", i: night * 0.7 });
+    return;
+  }
+  if (d.kind === "fountain") {
+    ovShadow(g, x, y, 20 * s, 7 * s, 0.24);
+    g.fillStyle = "#8a8f9c"; g.beginPath(); g.ellipse(x, y, 18 * s, 8 * s, 0, 0, 7); g.fill();
+    g.fillStyle = "#a5aab6"; g.beginPath(); g.ellipse(x, y - 1.5 * s, 16 * s, 6.5 * s, 0, 0, 7); g.fill();
+    g.fillStyle = lgrad(g, x, y - 6 * s, x, y + 2 * s, "#3fa0bf", "#256b86");
+    g.beginPath(); g.ellipse(x, y - 2 * s, 12 * s, 4.6 * s, 0, 0, 7); g.fill();
+    // centre pedestal + plume
+    g.fillStyle = "#b7bcc7"; g.fillRect(x - 3 * s, y - 12 * s, 6 * s, 10 * s);
+    g.fillStyle = "#c9ced8"; g.beginPath(); g.ellipse(x, y - 12 * s, 6 * s, 2.4 * s, 0, 0, 7); g.fill();
+    const jet = REDUCED ? 8 * s : (7 + Math.abs(Math.sin(t * 4)) * 4) * s;
+    g.strokeStyle = "rgba(180,225,240,0.8)"; g.lineWidth = 2 * s; g.lineCap = "round";
+    g.beginPath(); g.moveTo(x, y - 12 * s); g.lineTo(x, y - 12 * s - jet); g.stroke(); g.lineCap = "butt";
+    g.fillStyle = "rgba(200,235,245,0.7)";
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * 6.28, rr = jet * 0.7;
+      g.beginPath(); g.arc(x + Math.cos(a) * rr, y - 12 * s - jet * 0.4 + Math.sin(a) * rr * 0.4, 1.4 * s, 0, 7); g.fill();
+    }
+    g.strokeStyle = "rgba(255,255,255,0.5)"; g.lineWidth = 1;
+    g.beginPath(); g.ellipse(x, y - 2 * s, 8 * s + Math.sin(t * 3) * 1.5, 3 * s, 0, 0, 7); g.stroke();
+    return;
+  }
+  if (d.kind === "lamppost") {
+    ovShadow(g, x, y, 7 * s, 2.6 * s, 0.28);
+    g.fillStyle = "#2a2a30"; g.beginPath(); g.ellipse(x, y, 6 * s, 2.4 * s, 0, 0, 7); g.fill();
+    g.fillStyle = lgrad(g, x - 2 * s, y, x + 2 * s, y, "#5a5a64", "#33333a");
+    g.fillRect(x - 1.8 * s, y - 34 * s, 3.6 * s, 34 * s);
+    g.fillStyle = "#2a2a30";
+    g.beginPath();
+    g.moveTo(x - 6 * s, y - 34 * s); g.lineTo(x + 6 * s, y - 34 * s);
+    g.lineTo(x + 4 * s, y - 44 * s); g.lineTo(x - 4 * s, y - 44 * s); g.closePath(); g.fill();
+    g.fillStyle = night > 0.05 ? rgrad(g, x, y - 39 * s, 7 * s, "#fff3c8", "#e0b45a") : "#cdd7dc";
+    g.beginPath();
+    g.moveTo(x - 4.5 * s, y - 35 * s); g.lineTo(x + 4.5 * s, y - 35 * s);
+    g.lineTo(x + 3 * s, y - 43 * s); g.lineTo(x - 3 * s, y - 43 * s); g.closePath(); g.fill();
+    g.fillStyle = "#f4c65a"; g.fillRect(x - 1 * s, y - 46 * s, 2 * s, 3 * s);
+    if (night > 0.05) GLOWS.push({ x, y: y - 39 * s, r: 40 * s, col: "#ffdb8a", i: 0.55 + night * 0.3 });
+    return;
+  }
+  if (d.kind === "flowerfield") {
+    ovShadow(g, x, y, 22 * s, 6 * s, 0.16);
+    g.fillStyle = "#4c9645"; g.beginPath(); g.ellipse(x, y - 2 * s, 22 * s, 8 * s, 0, 0, 7); g.fill();
+    g.fillStyle = "#5fb257"; g.beginPath(); g.ellipse(x - 3 * s, y - 4 * s, 17 * s, 6 * s, 0, 0, 7); g.fill();
+    const cols = ["#e46b8a", "#f2e34d", "#c9c2f7", "#ff8a3c", "#f5f7fa"];
+    for (let i = 0; i < 22; i++) {
+      const fx = x + (hash2(i, 71) - 0.5) * 40 * s, fy = y - 2 * s - hash2(i, 72) * 10 * s;
+      const sway = Math.sin(t * 2 + i) * 1.2 * s * (REDUCED ? 0 : 1);
+      g.strokeStyle = "#3f7d38"; g.lineWidth = 1 * s;
+      g.beginPath(); g.moveTo(fx, fy + 6 * s); g.lineTo(fx + sway, fy); g.stroke();
+      g.fillStyle = cols[i % cols.length];
+      g.beginPath(); g.arc(fx + sway, fy, 2.4 * s, 0, 7); g.fill();
+      g.fillStyle = "#ffd166"; g.beginPath(); g.arc(fx + sway, fy, 0.9 * s, 0, 7); g.fill();
+    }
+    return;
+  }
   if (d.kind === "tree") {
     // gentle per-instance sway of the canopy only (trunk stays planted)
     const sway = Math.sin(t * 1.1 + hash2(x, y) * 6.28) * 2.2 * s * (REDUCED ? 0 : 1);
@@ -2162,13 +2241,15 @@ const PLOT_W = 210, PLOT_H = 300, ROAD_W = 24, MARGIN = 60, BACK_H = 110;
 // dead-center in a grid square. The margin (CELL-PLOT) comfortably exceeds
 // 2x the jitter range on each axis, so two neighboring plots can never
 // overlap even at max jitter in opposite directions.
-const CELL_W = 420, CELL_H = 520, JITTER_X = 34, JITTER_Y = 90;
-// Whole rows slide left/right as a unit (same value for every house in a row)
-// so columns stop lining up, without any risk of two plots in a row colliding.
-// Invariant: ROW_STAGGER + JITTER_X <= (CELL_W-PLOT_W)/2 - 8  (84 <= 97)
-//        and JITTER_Y            <= (CELL_H-PLOT_H)/2 - 8  (90 <= 102)
-const ROW_STAGGER = 50;
+const CELL_W = 420, CELL_H = 520, JITTER_X = 34, JITTER_Y = 58;
+// Whole rows slide left/right and whole columns slide up/down as a unit
+// (same value for every plot sharing that row/col) so the grid weaves out of
+// alignment, without any risk of two neighbouring plots colliding.
+// Invariant: ROW_STAGGER + JITTER_X <= (CELL_W-PLOT_W)/2 - 8   (84 <= 97)
+//        and COL_STAGGER + JITTER_Y <= (CELL_H-PLOT_H)/2 - 8   (98 <= 102)
+const ROW_STAGGER = 50, COL_STAGGER = 40;
 function rowStagger(row) { return (hash2(row, 313) - 0.5) * 2 * ROW_STAGGER; }
+function colStagger(col) { return (hash2(col, 517) - 0.5) * 2 * COL_STAGGER; }
 function plotJitter(i) {
   return { dx: (hash2(i, 401) - 0.5) * 2 * JITTER_X, dy: (hash2(i, 502) - 0.5) * 2 * JITTER_Y };
 }
@@ -2187,17 +2268,20 @@ function layoutMap() {
   let rows = Math.max(3, Math.ceil((n + 1) / cols));
   if (rows % 2 === 0) rows++;
   WORLD_PAD_X = MARGIN + ROW_STAGGER + JITTER_X + 10;
-  WORLD_PAD_Y = MARGIN + JITTER_Y + 10;
+  WORLD_PAD_Y = MARGIN + COL_STAGGER + JITTER_Y + 10;
+  const LAKE_BAND = 340;   // extra world below the last row for a big lake
   MAP.worldW = WORLD_PAD_X * 2 + cols * CELL_W;
-  MAP.worldH = WORLD_PAD_Y * 2 + rows * CELL_H;
+  MAP.worldH = WORLD_PAD_Y * 2 + rows * CELL_H + LAKE_BAND;
   const cellPad = { x: (CELL_W - PLOT_W) / 2, y: (CELL_H - PLOT_H) / 2 };
+  const plotX0 = (col, row) => WORLD_PAD_X + col * CELL_W + cellPad.x + rowStagger(row);
+  const plotY0 = (col, row) => WORLD_PAD_Y + row * CELL_H + cellPad.y + colStagger(col);
 
   const centerPlot = ((rows - 1) / 2) * cols + (cols - 1) / 2;
   const plotForHouse = i => (i < centerPlot ? i : i + 1);   // shift past the reserved centre
 
   {
     const cCol = (cols - 1) / 2, cRow = (rows - 1) / 2;
-    const px = WORLD_PAD_X + cCol * CELL_W + cellPad.x + rowStagger(cRow), py = WORLD_PAD_Y + cRow * CELL_H + cellPad.y;
+    const px = plotX0(cCol, cRow), py = plotY0(cCol, cRow);
     const gx0 = px + ROAD_W, gy0 = py + ROAD_W, gw = PLOT_W - ROAD_W, gh = PLOT_H - ROAD_W;
     MAP.townHall = {
       bx: gx0 + gw * 0.5, by: gy0 + gh * 0.60, smoke: [],
@@ -2206,13 +2290,16 @@ function layoutMap() {
   }
   MAP.pathSegs = [];
   MAP.decor = [];
-  // One signature pond just off the Town Hall plaza — fixed relative to it
-  // (the Town Hall never jitters) rather than randomly scattered; a small
-  // neighborhood like this reads better with one deliberate landmark pond
-  // than several scattered ones.
+  // Water features: a pond right beside the Town Hall plaza, and one big lake
+  // in the open land below the neighbourhood (Alex, 2026-09-06 — "move the
+  // pond near the town house... add a large lake somewhere").
   {
     const th = MAP.townHall;
-    MAP.pond = { x: th.plotX + PLOT_W + 26, y: th.plotY + PLOT_H * 0.32, rx: 30, ry: 20 };
+    MAP.ponds = [
+      { x: th.gx0 + th.gw + 46, y: th.gy0 + th.gh * 0.5, rx: 44, ry: 30 },
+      { x: WORLD_PAD_X + (MAP.worldW - 2 * WORLD_PAD_X) * 0.32, y: MAP.worldH - LAKE_BAND * 0.5, rx: 230, ry: 125, big: true },
+    ];
+    MAP.pond = MAP.ponds[0];   // back-compat for anything still reading .pond
   }
 
   MAP.walkers = []; MAP.mapPets = [];
@@ -2220,24 +2307,30 @@ function layoutMap() {
     const plot = plotForHouse(i);
     const col = plot % cols, row = (plot / cols) | 0;
     const j = plotJitter(i);
-    const plotX = WORLD_PAD_X + col * CELL_W + cellPad.x + rowStagger(row) + j.dx, plotY = WORLD_PAD_Y + row * CELL_H + cellPad.y + j.dy;
+    const plotX = plotX0(col, row) + j.dx, plotY = plotY0(col, row) + j.dy;
     const gx0 = plotX + ROAD_W, gy0 = plotY + ROAD_W;         // whole plot's green origin
     const gw = PLOT_W - ROAD_W, gh = PLOT_H - ROAD_W;
     // The plot splits into a back band (away from the road — Backyard) and
     // the rest (toward the road — Front Yard, where the house + door sit).
     const frontY0 = gy0 + BACK_H, frontH = gh - BACK_H;
-    const bx = gx0 + gw * 0.5, by = frontY0 + frontH * 0.62;  // house feet
+    // House sits near the BACK of the front band so the whole Front-Yard grid
+    // is in front of it (toward the road / the viewer) — otherwise placed
+    // yard items depth-sort behind the house, which is exactly what "front
+    // yard" should never do (Alex, 2026-09-06). Big exteriors drop a touch so
+    // their roof doesn't swallow the backyard band.
+    const exLvl = (entry.house && entry.house.exterior_level) || 0;
+    const bx = gx0 + gw * 0.5, by = frontY0 + frontH * 0.40 + (exLvl >= 2 ? 22 : 0);  // house feet
     const h = { ...entry, bx, by, smoke: [], plotX, plotY, gx0, gy0, gw, gh };
 
-    // Front yard: house sits inside it, so placed items depth-sort with the
-    // house the same way they do inside the editor.
     const yard = { x: gx0 + 6, y: frontY0 + 6, w: gw - 12, h: frontH - 12 };
     h.yardArea = yard;
     const yc = h.yard_cols || 8, yr = h.yard_rows || 5;
     const mtp = Math.max(3, Math.min(yard.w / yc, yard.h / yr));
     h.yardItems = (h.yard_placed || []).map(it => {
       const [iw, ih] = dims(it);
-      return { it, px: yard.x + it.x * mtp, py: yard.y + it.y * mtp, mtp, sortY: yard.y + (it.y + ih) * mtp };
+      // never let a front-yard item sort behind its own house
+      return { it, px: yard.x + it.x * mtp, py: yard.y + it.y * mtp, mtp,
+               sortY: Math.max(yard.y + (it.y + ih) * mtp, by + 0.5) };
     });
 
     // Backyard: the band behind the house, away from the road — its own
@@ -2311,10 +2404,41 @@ function layoutMap() {
   });
 
   scatterForest();
+  scatterLandmarks();
   syncPlayerPal();
   spawnPlayer();
   buildMapGround();
   fitMapView();
+}
+// Plot rects (padded) for anything that scatters around the map and must
+// avoid houses + the Town Hall.
+function plotAvoidRects(pad) {
+  pad = pad == null ? 22 : pad;
+  const r = MAP.houses.map(h => ({ x0: h.plotX - pad, y0: h.plotY - pad, x1: h.plotX + PLOT_W + pad, y1: h.plotY + PLOT_H + pad }));
+  if (MAP.townHall) { const t = MAP.townHall; r.push({ x0: t.plotX - pad, y0: t.plotY - pad, x1: t.plotX + PLOT_W + pad, y1: t.plotY + PLOT_H + pad }); }
+  return r;
+}
+// Cool landscape landmarks (Alex, 2026-09-06: "add gazebos and cool stuff to
+// the landscape") — a gazebo, a fountain, lamp posts, flower fields, scattered
+// through the clearings between houses. Deterministic; depth-sorted with
+// everything else via MAP.decor.
+function scatterLandmarks() {
+  const W = MAP.worldW, H = MAP.worldH;
+  const rects = plotAvoidRects(30);
+  const want = Math.max(3, Math.round(MAP.houses.length * 0.7));
+  const kinds = ["gazebo", "fountain", "lamppost", "flowerfield", "gazebo", "lamppost", "flowerfield"];
+  const placed = [];
+  for (let k = 0; k < want * 40 && placed.length < want; k++) {
+    const x = hash2(k, 811) * W, y = hash2(k, 823) * H;
+    const edge = Math.min(x, W - x, y, H - y);
+    if (edge < 120) continue;                                   // keep them out of the deep forest border
+    if (onPlaza(x, y) || pondZone(x, y) !== 0 || onPath(x, y)) continue;
+    if (rects.some(p => x > p.x0 && x < p.x1 && y > p.y0 && y < p.y1)) continue;
+    if (placed.some(d => Math.hypot(d.x - x, d.y - y) < 150)) continue;
+    const kind = kinds[placed.length % kinds.length];
+    const d = { kind, x, y, scale: kind === "gazebo" ? 1.5 : kind === "fountain" ? 1.3 : 1.15, landmark: true };
+    placed.push(d); MAP.decor.push(d);
+  }
 }
 // A real forest around the neighborhood (2026-09-05, "add some trees or
 // forest... space between houses so you really need to walk and find them"):
@@ -2324,23 +2448,16 @@ function layoutMap() {
 // the map — identical on every reload / for every viewer.
 function scatterForest() {
   const W = MAP.worldW, H = MAP.worldH;
-  const N = Math.min(520, Math.round(MAP.houses.length * 16));
-  const MIN_SP = 24, PLOT_PAD = 22;
-  const rects = MAP.houses.map(h => ({
-    x0: h.plotX - PLOT_PAD, y0: h.plotY - PLOT_PAD,
-    x1: h.plotX + PLOT_W + PLOT_PAD, y1: h.plotY + PLOT_H + PLOT_PAD,
-  }));
-  if (MAP.townHall) {
-    const t = MAP.townHall;
-    rects.push({ x0: t.plotX - PLOT_PAD, y0: t.plotY - PLOT_PAD, x1: t.plotX + PLOT_W + PLOT_PAD, y1: t.plotY + PLOT_H + PLOT_PAD });
-  }
+  const N = Math.min(680, Math.round(MAP.houses.length * 22));
+  const MIN_SP = 24;
+  const rects = plotAvoidRects(22);
   const placed = [];
   const maxEdge = Math.min(W, H) / 2;
   for (let k = 0; k < N * 6 && placed.length < N; k++) {
     const x = hash2(k, 11) * W, y = hash2(k, 23) * H;
     const edgeDist = Math.min(x, W - x, y, H - y);
     const openness = clamp(edgeDist / maxEdge, 0, 1);           // 0 at the border, 1 mid-world
-    if (hash2(k, 31) < 0.06 + 0.66 * openness) continue;         // thin out the interior, keep the rim
+    if (hash2(k, 31) < 0.04 + 0.55 * openness) continue;         // thin out the interior, keep the rim
     if (onPlaza(x, y) || pondZone(x, y) !== 0 || onPath(x, y)) continue;
     if (rects.some(p => x > p.x0 && x < p.x1 && y > p.y0 && y < p.y1)) continue;
     if (placed.some(d => Math.hypot(d.x - x, d.y - y) < MIN_SP)) continue;
@@ -2376,11 +2493,16 @@ function onPlaza(x, y) {
   return x >= th.gx0 + 2 && x <= th.gx0 + th.gw - 2 && y >= th.gy0 + 2 && y <= th.gy0 + th.gh - 2;
 }
 // 0 = dry land, 1 = water, 2 = the sandy/muddy shore ring around it.
+// Checks every water body in MAP.ponds and returns the strongest zone.
 function pondZone(x, y) {
-  const p = MAP.pond;
-  if (!p) return 0;
-  const dx = (x - p.x) / p.rx, dy = (y - p.y) / p.ry, d2 = dx * dx + dy * dy;
-  return d2 <= 1 ? 1 : d2 <= 1.4 ? 2 : 0;
+  let z = 0;
+  for (const p of (MAP.ponds || [])) {
+    const dx = (x - p.x) / p.rx, dy = (y - p.y) / p.ry, d2 = dx * dx + dy * dy;
+    const zz = d2 <= 1 ? 1 : d2 <= 1.35 ? 2 : 0;
+    if (zz > z) z = zz;
+    if (z === 1) return 1;
+  }
+  return z;
 }
 function buildMapGround() {
   const c = MAP.groundCv; c.width = MAP.worldW; c.height = MAP.worldH;
@@ -2416,23 +2538,30 @@ function buildMapGround() {
       }
     }
   }
-  if (MAP.pond) {
-    const p = MAP.pond;
+  for (const p of (MAP.ponds || [])) {
     // depth gradient (dark centre → lighter rim) then a bright glint + reeds
     const gr = x.createRadialGradient(p.x, p.y, 1, p.x, p.y, Math.max(p.rx, p.ry));
-    gr.addColorStop(0, "rgba(20,58,84,0.55)");
+    gr.addColorStop(0, "rgba(20,58,84,0.6)");
     gr.addColorStop(0.7, "rgba(74,144,184,0)");
     gr.addColorStop(1, "rgba(150,205,225,0.4)");
     x.fillStyle = gr;
     x.beginPath(); x.ellipse(p.x, p.y, p.rx, p.ry, 0, 0, 7); x.fill();
-    x.fillStyle = "rgba(255,255,255,0.4)";
-    x.beginPath(); x.ellipse(p.x - p.rx * 0.3, p.y - p.ry * 0.3, p.rx * 0.28, p.ry * 0.14, -0.4, 0, 7); x.fill();
-    x.fillStyle = "rgba(255,255,255,0.22)";
-    x.beginPath(); x.ellipse(p.x + p.rx * 0.28, p.y + p.ry * 0.12, p.rx * 0.18, p.ry * 0.08, -0.3, 0, 7); x.fill();
-    for (let i = 0; i < 9; i++) {
-      const a = (i / 9) * 6.28 + hash2(i, 3) * 0.5;
-      const rx = p.x + Math.cos(a) * p.rx * 1.06, ry = p.y + Math.sin(a) * p.ry * 1.06;
-      if (a > 0.6 && a < 2.4) continue;   // leave the near shore open
+    x.fillStyle = "rgba(255,255,255,0.38)";
+    x.beginPath(); x.ellipse(p.x - p.rx * 0.3, p.y - p.ry * 0.3, p.rx * 0.24, p.ry * 0.12, -0.4, 0, 7); x.fill();
+    x.fillStyle = "rgba(255,255,255,0.2)";
+    x.beginPath(); x.ellipse(p.x + p.rx * 0.28, p.y + p.ry * 0.12, p.rx * 0.16, p.ry * 0.07, -0.3, 0, 7); x.fill();
+    if (p.big) {   // a few lily pads on the lake
+      for (let i = 0; i < 7; i++) {
+        const lx = p.x + (hash2(i, 61) - 0.5) * p.rx * 1.4, ly = p.y + (hash2(i, 62) - 0.5) * p.ry * 1.4;
+        if (((lx - p.x) / p.rx) ** 2 + ((ly - p.y) / p.ry) ** 2 > 0.75) continue;
+        x.fillStyle = "#3f7d43"; x.beginPath(); x.ellipse(lx, ly, 5 + hash2(i, 63) * 4, 3 + hash2(i, 64) * 3, 0, 0, 7); x.fill();
+        x.fillStyle = "#4c9645"; x.beginPath(); x.ellipse(lx - 1, ly - 1, 2.5, 1.6, 0, 0, 7); x.fill();
+      }
+    }
+    const reeds = p.big ? 26 : 9;
+    for (let i = 0; i < reeds; i++) {
+      const a = (i / reeds) * 6.28 + hash2(i, 3) * 0.5;
+      const rx = p.x + Math.cos(a) * p.rx * 1.05, ry = p.y + Math.sin(a) * p.ry * 1.05;
       x.strokeStyle = "#3c6b39"; x.lineWidth = 1.4;
       x.beginPath(); x.moveTo(rx, ry); x.lineTo(rx + (hash2(i, 7) - 0.5) * 4, ry - 6 - hash2(i, 9) * 4); x.stroke();
       x.beginPath(); x.moveTo(rx + 1.5, ry); x.lineTo(rx + 1.5 + (hash2(i, 11) - 0.5) * 4, ry - 4 - hash2(i, 4) * 3); x.stroke();
@@ -2663,7 +2792,10 @@ function buildRoomState(cv, house, room, placed, pets, editable, maxCssH) {
   const outdoor = room.kind === "outdoor";
   // headroom above row 0 so tall items (TV, bookshelf, lamp) and the house
   // rise into a wall / open-air band instead of being clipped at the edge.
-  const padTop = outdoor ? Math.round(TP * 1.15) : Math.round(TP * 1.8);
+  // The Front Yard gets extra sky so the whole house can sit at the back of
+  // the grid with its roof fully visible above the placeable rows.
+  const padTop = room.key === "yard" ? Math.round(TP * 2.7)
+    : outdoor ? Math.round(TP * 1.15) : Math.round(TP * 1.8);
   const cw = cols * TP, ch = rows * TP + padTop;
   cv.style.width = cw + "px";
   fitCanvas(cv, cw, ch);
@@ -2713,9 +2845,13 @@ function drawRoomInto(rs, now, dt) {
   rs.pets.forEach(p => stepPet(p, dt));
   const isYard = rs.room.key === "yard";
   const exLvl = (rs.house && rs.house.exterior_level) || 0;         // a Mansion is already big — cap the yard-preview scale lower
-  const hsCap = exLvl >= 3 ? 1.2 : exLvl >= 2 ? 1.4 : exLvl >= 1 ? 1.6 : 1.9;
-  const hs = isYard ? clamp(TP / 18, 1, hsCap) : 1;                // house scale in the yard
-  const houseFeetY = isYard ? clamp(padTop + TP * 1.35 + (exLvl >= 3 ? TP * 0.35 : 0), padTop + 34, padTop + rs.rows * TP * 0.46) : 0;
+  const hsCap = exLvl >= 3 ? 1.15 : exLvl >= 2 ? 1.35 : exLvl >= 1 ? 1.55 : 1.8;
+  const hs = isYard ? clamp(TP / 20, 0.9, hsCap) : 1;             // house scale in the yard
+  // House sits at the very back of the yard grid — its whole roof rises into
+  // the extra padTop headroom buildRoomState gives the yard room — and every
+  // placed yard item then renders IN FRONT of it (a front yard, not a back
+  // one). Matches how it now depth-sorts on the map.
+  const houseFeetY = isYard ? padTop - TP * 0.1 : 0;
   if (isYard) stepSmoke(rs.smoke, dt, 0, -52);                    // smoke in house-local coords
 
   g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
@@ -2723,15 +2859,15 @@ function drawRoomInto(rs, now, dt) {
   g.drawImage(rs.groundCv, 0, 0);
   GLOWS = [];
 
-  const ents = [];
-  if (isYard) ents.push({ y: (houseFeetY - padTop) / TP, d: () => {
+  if (isYard) {   // always behind the yard items
     const gi = GLOWS.length;
     g.save(); g.translate(cw / 2, houseFeetY); g.scale(hs, hs);
     drawHouse(g, rs.house, 0, 0, night, rs.smoke); g.restore();
     for (let i = gi; i < GLOWS.length; i++) {   // remap glows out of house-local space
       GLOWS[i].x = cw / 2 + GLOWS[i].x * hs; GLOWS[i].y = houseFeetY + GLOWS[i].y * hs; GLOWS[i].r *= hs;
     }
-  } });
+  }
+  const ents = [];
   rs.placed.forEach(it => {
     const [w, h] = dims(it);
     ents.push({ y: it.y + h, d: () => drawItemRot(g, it, it.x * TP, it.y * TP + padTop, TP, now / 1000, it.rot) });
