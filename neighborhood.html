@@ -343,7 +343,7 @@
       </div>
       <div class="hn-scene-banner" id="interiorBanner"></div>
       <div class="hn-scene-btns">
-        <button class="hn-toggle" id="placeModeBtn">✎ Place items</button>
+        <button class="hn-toggle" id="placeModeBtn">✎ Place items (E)</button>
         <button class="hn-mini-btn" id="sceneActionBtn" style="display:none;">▲</button>
         <button class="hn-mini-btn ghost" id="interiorLeaveBtn">← Leave</button>
       </div>
@@ -2023,7 +2023,7 @@ function spawnPlayer() {
     PLAYER.y = th ? th.by + 50 : MAP.worldH / 2;
     PLAYER.dir = "S";
   }
-  PLAYER.moveTarget = null;
+  PLAYER.moveTarget = null; PLAYER.sitting = false;
 }
 // Same footprints the click-to-enter hit-tests use (see wireMap's pointerup)
 // so "solid to walk into" always matches "clickable to enter".
@@ -2032,6 +2032,16 @@ function solidRects() {
   if (MAP.townHall) {
     const th = MAP.townHall;
     rects.push({ x0: th.bx - 44, x1: th.bx + 44, y0: th.by - 80, y1: th.by + 10, kind: "townhall" });
+  }
+  // Backyard fences block the map player too (Alex, 2026-09-06) — a closed
+  // box around the backyard band for any house that's bought the room.
+  for (const h of MAP.houses) {
+    if (!(h.room_keys && h.room_keys.includes("backyard"))) continue;
+    const x0 = h.gx0 - 2, x1 = h.gx0 + h.gw + 2, y0 = h.gy0 - 2, y1 = h.gy0 + BACK_H - 8;
+    rects.push({ x0, x1, y0: y0 - 3, y1: y0 + 6, kind: "fence" });   // back rail
+    rects.push({ x0, x1, y0: y1 - 5, y1: y1 + 5, kind: "fence" });   // front rail (behind the house)
+    rects.push({ x0: x0 - 3, x1: x0 + 6, y0, y1, kind: "fence" });   // left rail
+    rects.push({ x0: x1 - 6, x1: x1 + 3, y0, y1, kind: "fence" });   // right rail
   }
   return rects;
 }
@@ -2081,6 +2091,7 @@ function stepPlayer(dt) {
   if (now - PLAYER.lastEnter > 1200) {
     const pad = 12;
     for (const r of rects) {
+      if (r.kind !== "house" && r.kind !== "townhall") continue;   // fences etc. are just walls
       if (PLAYER.x > r.x0 - pad && PLAYER.x < r.x1 + pad && PLAYER.y > r.y0 - pad && PLAYER.y < r.y1 + pad) {
         PLAYER.lastEnter = now;
         if (r.kind === "house") enterHouse(r.ref.user_id); else openTownHall();
@@ -2091,14 +2102,18 @@ function stepPlayer(dt) {
 }
 function drawPlayer(g, sc) {
   sc = sc || 1;
+  const sit = !!PLAYER.sitting;
   const dir = PLAYER.dir === "W" ? "E" : PLAYER.dir, flip = PLAYER.dir === "W";
-  const frame = !PLAYER.moving ? PEOPLE_SPR[dir][0] : PEOPLE_SPR[dir][Math.floor(PLAYER.phase / 5) % 2 ? 1 : 2];
+  const frame = (sit || !PLAYER.moving) ? PEOPLE_SPR[dir][0] : PEOPLE_SPR[dir][Math.floor(PLAYER.phase / 5) % 2 ? 1 : 2];
+  const yoff = sit ? 5 * sc : 0;   // sunk into the seat
   ovShadow(g, PLAYER.x, PLAYER.y, 7.5 * sc, 3 * sc, 0.32);
   ovShadow(g, PLAYER.x, PLAYER.y, 4 * sc, 1.7 * sc, 0.24);
-  g.strokeStyle = "rgba(0,200,200,0.9)"; g.lineWidth = 1.4;
-  g.beginPath(); g.ellipse(PLAYER.x, PLAYER.y + 1, 8 * sc, 3 * sc, 0, 0, 7); g.stroke();
-  if (sc === 1) { blit(g, frame, PLAYER_PAL, Math.round(PLAYER.x - 6), Math.round(PLAYER.y - 16), flip); return; }
-  g.save(); g.translate(Math.round(PLAYER.x), Math.round(PLAYER.y)); g.scale(sc, sc);
+  if (!sit) {
+    g.strokeStyle = "rgba(0,200,200,0.9)"; g.lineWidth = 1.4;
+    g.beginPath(); g.ellipse(PLAYER.x, PLAYER.y + 1, 8 * sc, 3 * sc, 0, 0, 7); g.stroke();
+  }
+  if (sc === 1) { blit(g, frame, PLAYER_PAL, Math.round(PLAYER.x - 6), Math.round(PLAYER.y - 16 + yoff), flip); return; }
+  g.save(); g.translate(Math.round(PLAYER.x), Math.round(PLAYER.y + yoff)); g.scale(sc, sc);
   blit(g, frame, PLAYER_PAL, -6, -16, flip); g.restore();
 }
 
@@ -3304,10 +3319,28 @@ function openTrophyPanel() {
   el.querySelector("#hallPanelClose").addEventListener("click", closeHallPanel);
   el.classList.add("open");
 }
-// One entry point for the ▲ button / Enter / E / tapping the HUD prompt.
+// One entry point for the E button / Enter / E key / tapping the HUD prompt.
 function sceneActivate() {
-  if (SCENE === "hall") hallActivate();
-  else if (SCENE === "interior" && INTERIOR && INTERIOR.trophyPrompt && !INTERIOR.panel) openTrophyPanel();
+  if (SCENE === "hall") { hallActivate(); return; }
+  if (SCENE !== "interior" || !INTERIOR || INTERIOR.panel || sceneFade.active) return;
+  const p = INTERIOR.prompt;
+  if (!p) return;
+  if (p.kind === "trophy") openTrophyPanel();
+  else if (p.kind === "place") togglePlaceMode();
+  else if (p.kind === "sit") sitOnSeat(p.seat);
+  else if (p.kind === "stand") standUp();
+}
+function sitOnSeat(seat) {
+  PLAYER.sitting = true;
+  PLAYER.x = (seat.x0 + seat.x1) / 2;
+  PLAYER.y = seat.y0 + (seat.y1 - seat.y0) * 0.5;
+  PLAYER.dir = "S"; PLAYER.moving = false; PLAYER.moveTarget = null;
+}
+function standUp() {
+  const I = INTERIOR;
+  PLAYER.sitting = false;
+  PLAYER.moveTarget = null;
+  if (I && I.rs) PLAYER.y = Math.min(PLAYER.y + I.rs.TP * 0.9, I.rs.ch - 12);   // step off the front of the seat
 }
 function closeHallPanel() {
   const el = document.getElementById("hallPanel");
@@ -3503,8 +3536,8 @@ function buildInterior(data, editable) {
   }
   INTERIOR = {
     owner: data.user_id, editable: !!editable, data, rooms, graph,
-    roomKey: hub, rsCache: {}, rs: null, doorZones: [], trophyRects: [],
-    trophyPrompt: false, placeMode: false, panel: null,
+    roomKey: hub, rsCache: {}, rs: null, doorZones: [], trophyRects: [], sitRects: [],
+    prompt: null, placeMode: false, panel: null,
   };
   // A placed Trophy Vault pulls in the live per-game leaderboards so it can
   // show this member's real placements when you walk up to it.
@@ -3547,10 +3580,13 @@ function interiorEnterRoom(key, fromSide) {
     }
     I.rs = rs;
     I.doorZones = interiorDoorZones(rs, I.graph[key]);
-    // Trophy Vault footprint rects in this room (room-space px) for the walk-up prompt.
-    I.trophyRects = (I.data.placed || [])
-      .filter(p => p.room_key === key && p.key === "vault")
-      .map(p => { const [w, h] = dims(p); return { x0: p.x * rs.TP, y0: p.y * rs.TP + rs.padTop, x1: (p.x + w) * rs.TP, y1: (p.y + h) * rs.TP + rs.padTop }; });
+    // Interactable footprint rects in this room (room-space px): trophy cases
+    // to inspect, sofas/benches to sit on.
+    const itemRect = p => { const [w, h] = dims(p); return { x0: p.x * rs.TP, y0: p.y * rs.TP + rs.padTop, x1: (p.x + w) * rs.TP, y1: (p.y + h) * rs.TP + rs.padTop, item: p }; };
+    const inRoom = I.data.placed.filter(p => p.room_key === key);
+    I.trophyRects = inRoom.filter(p => p.key === "vault").map(itemRect);
+    I.sitRects = inRoom.filter(p => p.key === "sofa" || p.key === "bench").map(itemRect);
+    PLAYER.sitting = false;
     interiorSpawn(rs, fromSide);
     PLAYER.lastEnter = performance.now();
     renderInteriorBanner();
@@ -3602,23 +3638,42 @@ function solidRectsInterior() {
   return out;
 }
 
+// Prompt priority when standing in a room: sit on a nearby seat > inspect a
+// trophy case > (in your own house) open the place-items menu.
+function interiorPrompt(I) {
+  const near = list => (list || []).some(r => {
+    const reach = I.rs.TP * 1.3;
+    return PLAYER.x > r.x0 - reach && PLAYER.x < r.x1 + reach && PLAYER.y > r.y0 - reach && PLAYER.y < r.y1 + reach;
+  });
+  if (PLAYER.sitting) return { kind: "stand", label: "🪑 Stand up" };
+  const seat = (I.sitRects || []).find(r => {
+    const reach = I.rs.TP * 1.1;
+    return PLAYER.x > r.x0 - reach && PLAYER.x < r.x1 + reach && PLAYER.y > r.y0 - reach && PLAYER.y < r.y1 + reach;
+  });
+  if (seat) return { kind: "sit", seat, label: "🪑 Sit down" };
+  if (near(I.trophyRects)) return { kind: "trophy", label: "🏆 " + (I.editable ? "Your trophies" : "View trophies") };
+  if (I.editable) return { kind: "place", label: "✎ Place items" };
+  return null;
+}
 function stepInterior(dt) {
   const I = INTERIOR;
   if (!I || !I.rs || anyModalOpen() || I.placeMode || I.panel || sceneFade.active) { PLAYER.moving = false; return; }
 
-  // Trophy Vault prompt — updated every frame (even standing still) so walking
-  // up to the case reliably shows "View trophies".
-  {
-    const reach = I.rs.TP * 1.3;
-    const near = (I.trophyRects || []).some(r =>
-      PLAYER.x > r.x0 - reach && PLAYER.x < r.x1 + reach && PLAYER.y > r.y0 - reach && PLAYER.y < r.y1 + reach);
-    I.trophyPrompt = near;
-    const el = document.getElementById("hudPrompt"), btn = document.getElementById("sceneActionBtn");
-    if (near) {
-      el.style.display = "block";
-      el.innerHTML = `🏆 ${I.editable ? "Your trophies" : "View trophies"}<span class="sub">tap this · or press E</span>`;
-      btn.style.display = ""; btn.textContent = "🏆";
-    } else { el.style.display = "none"; btn.style.display = "none"; }
+  // Interaction prompt — refreshed every frame so it appears the moment you're
+  // near something (and while sitting still).
+  I.prompt = interiorPrompt(I);
+  const el = document.getElementById("hudPrompt"), btn = document.getElementById("sceneActionBtn");
+  if (I.prompt) {
+    el.style.display = "block";
+    el.innerHTML = `${I.prompt.label}<span class="sub">tap this · or press E</span>`;
+    btn.style.display = ""; btn.textContent = "E";
+  } else { el.style.display = "none"; btn.style.display = "none"; }
+
+  if (PLAYER.sitting) {   // frozen on the seat until a move input or Stand up
+    let held = false;
+    for (const k of PLAYER_KEYS) if (MOVE_KEYS[k]) held = true;
+    if (!held && !PLAYER.moveTarget) { PLAYER.moving = false; return; }
+    standUp();
   }
 
   let dx = 0, dy = 0;
@@ -3794,7 +3849,13 @@ async function togglePlaceMode() {
     down = false;
     if (moved) return;
     if (SCENE === "hall" && typeof hallTapActivate === "function" && hallTapActivate()) return;
-    if (SCENE === "interior" && INTERIOR && INTERIOR.trophyPrompt && !INTERIOR.panel) { sceneActivate(); return; }
+    // Tapping the canvas activates a sit / stand / trophy prompt; the
+    // "place items" prompt is the E key / top-right button only, so a tap
+    // in your own house still walks you around.
+    if (SCENE === "interior" && INTERIOR && INTERIOR.prompt && !INTERIOR.panel &&
+        (INTERIOR.prompt.kind === "sit" || INTERIOR.prompt.kind === "stand" || INTERIOR.prompt.kind === "trophy")) {
+      sceneActivate(); return;
+    }
     const rs = SCENE === "hall" ? (HALL && HALL.rs) : (INTERIOR && INTERIOR.rs);
     if (!rs || (INTERIOR && INTERIOR.placeMode) || (HALL && HALL.panel) || (INTERIOR && INTERIOR.panel)) return;
     // object-fit:contain letterboxes the bitmap inside the element box — undo it.
@@ -3819,11 +3880,10 @@ document.getElementById("sceneActionBtn").addEventListener("click", () => sceneA
 document.getElementById("hudPrompt").addEventListener("click", e => { e.stopPropagation(); sceneActivate(); });
 window.addEventListener("keydown", e => {
   if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-  if (e.key !== "Enter" && e.key !== "e" && e.key !== "E") return;
-  if ((SCENE === "hall" && HALL && HALL.prompt && !HALL.panel) ||
-      (SCENE === "interior" && INTERIOR && INTERIOR.trophyPrompt && !INTERIOR.panel)) {
-    e.preventDefault(); sceneActivate();
-  }
+  const k = e.key;
+  const eKey = (k === "e" || k === "E");
+  if (SCENE === "hall" && HALL && HALL.prompt && !HALL.panel && (k === "Enter" || eKey)) { e.preventDefault(); sceneActivate(); }
+  else if (SCENE === "interior" && INTERIOR && INTERIOR.prompt && !INTERIOR.panel && eKey) { e.preventDefault(); sceneActivate(); }
 });
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -4354,7 +4414,7 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
     solidRectsInterior, interiorBounds, enterHouse,
     houseFootprint, houseHitBox, drawHouse, renderEditor,
     buildHall, openTownHall, stepHall, drawHallInterior, hallActivate, leaveHall, openHallPanel, closeHallPanel,
-    sceneActivate, openTrophyPanel, syncPlayerPal, trophiesFor,
+    sceneActivate, openTrophyPanel, syncPlayerPal, trophiesFor, sitOnSeat, standUp, togglePlaceMode,
     set LEADERBOARD(v) { LEADERBOARD = v; },
     get HALL() { return HALL; },
     get PLAYER_PAL() { return PLAYER_PAL; },
