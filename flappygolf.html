@@ -87,6 +87,9 @@
       <button type="button" class="fg-course-tab active" data-course="0">Course 1 · The Meadow</button>
       <button type="button" class="fg-course-tab" data-course="1">Course 2 · The Bluffs</button>
       <button type="button" class="fg-course-tab" data-course="2">Course 3 · The Gauntlet</button>
+      <button type="button" class="fg-course-tab" data-course="3">Course 4 · The Orchard</button>
+      <button type="button" class="fg-course-tab" data-course="4">Course 5 · The Ruins</button>
+      <button type="button" class="fg-course-tab" data-course="5">Course 6 · The Volcano</button>
     </div>
     <div class="fg-hud">
       <span class="fg-chip" id="courseNameEl">Course 1 · The Meadow</span>
@@ -378,10 +381,204 @@
     },
   ];
 
+  // ── Course 4 · The Orchard — rolling humps, a canopy to fly under, a
+  // pit carry and a short climb. A friendly mid-tier set. ────────────────
+  const COURSE_4_HOLES = [
+    {
+      name: "Rolling Start", par: 3,
+      tee: { x: 90, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 300, y: 372, w: 24, h: GROUND_Y - 372 },
+        { x: 470, y: 340, w: 24, h: GROUND_Y - 340 },
+        { x: 690, y: 396, w: 18, h: GROUND_Y - 396 },
+      ],
+      cup: { x: 620, y: GROUND_Y, r: 13 },
+    },
+    {
+      name: "Orchard Gap", par: 3,
+      tee: { x: 80, y: GROUND_Y - BALL_R },
+      walls: [
+        { x: -80, y: GROUND_Y, w: 500, h: 160 },            // ground ends x=420 — pit
+        { x: 300, y: 300, w: 20, h: GROUND_Y - 300 },       // low tree to carry
+        { x: 520, y: GROUND_Y, w: 320, h: 160 },            // far green
+        { x: 720, y: 386, w: 18, h: GROUND_Y - 386 },
+      ],
+      cup: { x: 640, y: GROUND_Y, r: 13 },
+    },
+    {
+      name: "Under the Canopy", par: 4,
+      tee: { x: 70, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 300, y: 0, w: 200, h: 236 },                   // canopy overhang — fly under (200px gap)
+        { x: 560, y: 344, w: 22, h: GROUND_Y - 344 },       // hump after
+        { x: 700, y: 392, w: 18, h: GROUND_Y - 392 },
+      ],
+      cup: { x: 640, y: GROUND_Y, r: 13 },
+    },
+    {
+      name: "Twin Hills", par: 4,
+      tee: { x: 70, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 270, y: 300, w: 26, h: GROUND_Y - 300 },
+        { x: 470, y: 276, w: 26, h: GROUND_Y - 276 },
+        { x: 360, y: 340, w: 90, h: 14 },                   // little rest between the hills
+        { x: 705, y: 388, w: 18, h: GROUND_Y - 388 },
+      ],
+      cup: { x: 650, y: GROUND_Y, r: 13 },
+    },
+    {
+      name: "The Short Climb", par: 4,
+      tee: { x: 70, y: GROUND_Y - BALL_R },
+      walls: [
+        { x: -80, y: GROUND_Y, w: 550, h: 160 },            // ground ends x=470 — pit on the right
+        { x: 300, y: 350, w: 150, h: 20 },
+        { x: 470, y: 268, w: 150, h: 20 },
+        { x: 620, y: 186, w: 150, h: 20 },
+        { x: 748, y: 118, w: 12, h: 88 },
+      ],
+      cup: { x: 690, y: 186, r: 13 },
+    },
+  ];
+
+  // ── Course 5 · The Ruins — arches, colonnades, a sunken court carry and
+  // a chimney. Tight windows, plenty of air. ───────────────────────────
+  const COURSE_5_HOLES = [
+    {
+      name: "Broken Arch", par: 3,
+      tee: { x: 70, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 350, y: 0, w: 24, h: 250 },                    // stalactite
+        { x: 350, y: 312, w: 24, h: GROUND_Y - 312 },       // spike — 62px slot
+        { x: 660, y: 396, w: 18, h: GROUND_Y - 396 },
+      ],
+      cup: { x: 570, y: GROUND_Y, r: 13 },
+    },
+    {
+      name: "Colonnade", par: 4,
+      tee: { x: 64, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 250, y: 150, w: 22, h: GROUND_Y - 150 },       // over (150px above)
+        { x: 410, y: 0, w: 22, h: 256 },                    // under (180px below)
+        { x: 570, y: 165, w: 22, h: GROUND_Y - 165 },       // over
+        { x: 715, y: 392, w: 16, h: GROUND_Y - 392 },
+      ],
+      cup: { x: 665, y: GROUND_Y, r: 13 },
+    },
+    {
+      name: "Sunken Court", par: 4,
+      tee: { x: 80, y: 392 - BALL_R },
+      walls: [
+        { x: 18, y: 392, w: 150, h: 90 },                   // tee shelf
+        { x: 370, y: 250, w: 22, h: GROUND_Y - 250 },       // wall to carry, pit below
+        { x: 440, y: 392, w: 380, h: 90 },                  // landing court
+        { x: 720, y: 336, w: 18, h: GROUND_Y - 336 },
+      ],
+      cup: { x: 620, y: 392, r: 13 },
+    },
+    {
+      name: "The Cistern", par: 5,
+      tee: { x: 110, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 250, y: 100, w: 26, h: 240 },                  // left wall — 96px gap below to enter
+        { x: 380, y: 150, w: 26, h: GROUND_Y - 150 },       // right wall — solid, climb & clear
+        { x: 690, y: 392, w: 20, h: GROUND_Y - 392 },
+      ],
+      cup: { x: 620, y: GROUND_Y, r: 13 },
+    },
+    {
+      name: "Toppled Column", par: 5,
+      tee: { x: 90, y: GROUND_Y - BALL_R },
+      walls: [
+        { x: -80, y: GROUND_Y, w: 250, h: 160 },            // left ground ends x=170
+        { x: 370, y: 250, w: 80, h: 14 },                   // island rest
+        { x: 600, y: GROUND_Y, w: 240, h: 160 },            // far green
+        { x: 470, y: 96, w: 210, h: 16 },                   // ceiling overhang — can't loft the approach
+        { x: 748, y: 250, w: 12, h: GROUND_Y - 250 },
+      ],
+      cup: { x: 690, y: GROUND_Y, r: 13 },
+    },
+  ];
+
+  // ── Course 6 · The Volcano — double needles, stepping over lava, a rift,
+  // a double chimney and a carry into the crater. The hardest set. ──────
+  const COURSE_6_HOLES = [
+    {
+      name: "Eruption", par: 4,
+      tee: { x: 60, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 250, y: 0, w: 22, h: 248 },
+        { x: 250, y: 306, w: 22, h: GROUND_Y - 306 },       // slot 1 (~58px)
+        { x: 440, y: 0, w: 22, h: 236 },
+        { x: 440, y: 294, w: 22, h: GROUND_Y - 294 },       // slot 2 (~58px)
+        { x: 660, y: 396, w: 18, h: GROUND_Y - 396 },
+      ],
+      cup: { x: 580, y: GROUND_Y, r: 13 },
+    },
+    {
+      name: "Lava Steps", par: 5,
+      tee: { x: 70, y: GROUND_Y - BALL_R },
+      walls: [
+        { x: -80, y: GROUND_Y, w: 230, h: 160 },            // ground ends x=150 — pits between steps
+        { x: 250, y: 372, w: 90, h: 14 },
+        { x: 380, y: 312, w: 90, h: 14 },
+        { x: 510, y: 252, w: 90, h: 14 },
+        { x: 620, y: 188, w: 140, h: 14 },
+        { x: 748, y: 120, w: 12, h: 82 },
+      ],
+      cup: { x: 690, y: 188, r: 13 },
+    },
+    {
+      name: "The Rift", par: 4,
+      tee: { x: 64, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 360, y: 130, w: 24, h: 120 },                  // fly over (y<130) …
+        { x: 360, y: 302, w: 24, h: GROUND_Y - 302 },       // … or thread the 52px slot
+        { x: 560, y: 300, w: 22, h: GROUND_Y - 300 },
+        { x: 690, y: 392, w: 18, h: GROUND_Y - 392 },
+      ],
+      cup: { x: 630, y: GROUND_Y, r: 13 },
+    },
+    {
+      name: "Double Chimney", par: 6,
+      tee: { x: 120, y: GROUND_Y - BALL_R },
+      walls: [
+        GROUND,
+        { x: 230, y: 120, w: 24, h: GROUND_Y - 120 },       // carry over the top
+        { x: 360, y: 60, w: 24, h: 250 },                   // divider — 126px gap below to shaft 2
+        { x: 490, y: 120, w: 24, h: GROUND_Y - 120 },       // climb shaft 2 and clear it
+        { x: 700, y: 392, w: 18, h: GROUND_Y - 392 },
+      ],
+      cup: { x: 620, y: GROUND_Y, r: 13 },
+    },
+    {
+      name: "Into the Crater", par: 6,
+      tee: { x: 70, y: GROUND_Y - BALL_R },
+      walls: [
+        { x: -80, y: GROUND_Y, w: 220, h: 160 },            // left ground ends x=140
+        { x: 380, y: 250, w: 66, h: 14 },                   // the only rest over the canyon
+        { x: 610, y: GROUND_Y, w: 230, h: 160 },            // far green
+        { x: 470, y: 88, w: 210, h: 18 },                   // ceiling — no lofting the final approach
+        { x: 748, y: 250, w: 12, h: GROUND_Y - 250 },
+      ],
+      cup: { x: 690, y: GROUND_Y, r: 13 },
+    },
+  ];
+
   const COURSES = [
     { key: "flappygolf",  name: "Course 1 · The Meadow",  holes: COURSE_1_HOLES, bestKey: "flappygolf_best_vs_par" },
     { key: "flappygolf2", name: "Course 2 · The Bluffs",  holes: COURSE_2_HOLES, bestKey: "flappygolf2_best_vs_par" },
     { key: "flappygolf3", name: "Course 3 · The Gauntlet", holes: COURSE_3_HOLES, bestKey: "flappygolf3_best_vs_par" },
+    { key: "flappygolf4", name: "Course 4 · The Orchard", holes: COURSE_4_HOLES, bestKey: "flappygolf4_best_vs_par" },
+    { key: "flappygolf5", name: "Course 5 · The Ruins",   holes: COURSE_5_HOLES, bestKey: "flappygolf5_best_vs_par" },
+    { key: "flappygolf6", name: "Course 6 · The Volcano", holes: COURSE_6_HOLES, bestKey: "flappygolf6_best_vs_par" },
   ];
   let courseIdx = 0;
   try {

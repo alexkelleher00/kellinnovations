@@ -444,7 +444,9 @@
     casino_roulette: "Roulette", casino_blackjack: "Blackjack", casino_craps: "Craps",
     casino_plinko: "Plinko", casino_slots: "Slots", flappybird: "Flappy Bird",
     flappygolf: "Flappy Golf · Course 1", flappygolf2: "Flappy Golf · Course 2",
-    flappygolf3: "Flappy Golf · Course 3", tetris: "Tetris",
+    flappygolf3: "Flappy Golf · Course 3", flappygolf4: "Flappy Golf · Course 4",
+    flappygolf5: "Flappy Golf · Course 5", flappygolf6: "Flappy Golf · Course 6",
+    tetris: "Tetris",
     basketshot: "Buzzer Beater", skeeball: "Skee-Ball Alley", rooftoprunner: "Rooftop Runner",
     spaceinvaders: "Space Invaders", pacchomp: "Pac-Chomp",
   };
@@ -459,6 +461,9 @@
     flappygolf: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
     flappygolf2: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
     flappygolf3: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
+    flappygolf4: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
+    flappygolf5: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
+    flappygolf6: v => v === 0 ? "even par" : v > 0 ? `${v} under par` : `${-v} over par`,
     basketshot: v => `${v.toLocaleString()} makes`,
     skeeball: v => `${v.toLocaleString()} pts`,
     rooftoprunner: v => `${v.toLocaleString()} roofs`,
@@ -547,8 +552,8 @@
     try {
       const { games } = await api("/leaderboard");
       const box = document.getElementById("leaderboardGrid");
-      const order = ["flappygolf", "flappygolf2", "flappygolf3", "flappybird",
-                     "spaceinvaders", "pacchomp", "basketshot", "skeeball", "rooftoprunner", "2048", "letterfall"];
+      const order = ["flappygolf", "flappygolf2", "flappygolf3", "flappygolf4", "flappygolf5", "flappygolf6",
+                     "flappybird", "spaceinvaders", "pacchomp", "basketshot", "skeeball", "rooftoprunner", "2048", "letterfall"];
       box.innerHTML = order.filter(g => games[g]).map(g => {
         const rows = games[g];
         const body = rows.length
