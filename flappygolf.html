@@ -822,7 +822,9 @@
   }
 
   function draw() {
-    ctx.clearRect(0, 0, W, H);
+    // Opaque sky on the canvas itself — relying on the CSS gradient through a
+    // transparent clear flashes on mobile. Alex, 2026-09-06.
+    { const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#8ec9e8"); bg.addColorStop(0.58, "#bfe3f2"); bg.addColorStop(1, "#dceff8"); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H); }
     const hole = HOLES[holeIdx];
     const GRASS = ["#7ec850", "#6cbf44", "#7ec850", "#6cbf44", "#7ec850"][holeIdx];
 

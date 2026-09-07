@@ -467,7 +467,7 @@
   }
 
   function draw() {
-    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);   // opaque, not a transparent clear (mobile flash)
 
     // Walls
     for (let r = 0; r < MROWS; r++) {

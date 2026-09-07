@@ -203,7 +203,9 @@
   }
 
   function draw() {
-    ctx.clearRect(0, 0, W, H);
+    // Opaque bg on the canvas itself (not the CSS gradient through a
+    // transparent clear — flashes on mobile). Alex, 2026-09-06.
+    { const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#16324a"); bg.addColorStop(1, "#0d2033"); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H); }
 
     // Backboard + hoop
     ctx.fillStyle = "#e8ecff";

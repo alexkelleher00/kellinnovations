@@ -219,8 +219,11 @@
     if (!running || gameOver) alpha = 1;
     const birdY = bird.prevY + (bird.y - bird.prevY) * alpha;
 
-    ctx.clearRect(0, 0, W, H);
-    // Sky handled by CSS gradient background showing through; just draw pipes/bird/ground accents.
+    // Paint the sky opaquely on the canvas itself (was relying on the CSS
+    // gradient showing through a transparent clear — which desyncs from the
+    // canvas layer on mobile and shows as an annoying flash). Alex, 2026-09-06.
+    ctx.fillStyle = "#4ec0ca"; ctx.fillRect(0, 0, W, H * 0.8);
+    ctx.fillStyle = "#ded895"; ctx.fillRect(0, H * 0.8, W, H * 0.2);
     // Darker, more saturated greens than the original (Alex, 2026-08-31: pipes
     // were too close to the sky color to read clearly) + a thin highlight/
     // shadow edge on the body for a little depth.

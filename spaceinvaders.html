@@ -66,7 +66,7 @@
       <span class="si-chip balance" id="coinChip" style="display:none;">🪙 <span id="coinBalance">0</span></span>
     </div>
     <canvas id="siCanvas" width="360" height="520"></canvas>
-    <p class="si-hint">Drag anywhere to move, tap to fire (or ← / → and Space). Shoot the mystery ship for a bonus. 2 KellsCoins per point if you're logged in — <span id="loginHint"><a href="games.html">log in</a> to earn coins.</span></p>
+    <p class="si-hint">Hold &amp; drag anywhere to move — it auto-fires while you hold (or ← / → and Space). Shoot the mystery ship for a bonus. 2 KellsCoins per point if you're logged in — <span id="loginHint"><a href="games.html">log in</a> to earn coins.</span></p>
     <div class="si-error" id="siError"></div>
     <button class="si-btn" id="restartBtn" style="display:none;">Play Again</button>
   </div>
@@ -149,6 +149,7 @@
   let particles, shake;
   let score, best, wave, lives, invuln;
   let fireCd, leftHeld, rightHeld, dragX;
+  let pointerActive = false, firing = false;   // hold the screen to move + auto-fire (mobile-friendly)
   let frame, running, gameOver;
   let acc = 0, lastTs = 0;
 
@@ -247,6 +248,7 @@
     if (!running || gameOver) return;
     frame++;
     if (fireCd > 0) fireCd--;
+    if (firing) fire();                 // auto-fire while the screen is held (cooldown-gated)
     if (invuln > 0) invuln--;
     shake = Math.max(0, shake - 0.6);
 
@@ -397,7 +399,9 @@
   function draw(alpha) {
     ctx.save();
     if (shake > 0) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
-    ctx.clearRect(-20, -20, W + 40, H + 40);
+    // Opaque space bg painted on the canvas (was a transparent clear letting
+    // the CSS bg show through — flashes on mobile). Alex, 2026-09-06.
+    ctx.fillStyle = "#05010a"; ctx.fillRect(-20, -20, W + 40, H + 40);
 
     // Starfield
     ctx.fillStyle = "rgba(255,255,255,0.35)";
@@ -507,17 +511,23 @@
     return (clientX - rect.left) * (W / rect.width);
   }
 
+  // Hold anywhere on the canvas to move the ship there AND auto-fire — so on
+  // a phone, dragging to dodge doesn't also require a separate "tap to shoot"
+  // gesture that used to fight the drag (Alex, 2026-09-06).
   canvas.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     if (gameOver) { reset(); return; }
+    canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+    pointerActive = true; firing = true;
     dragX = localX(e.clientX);
-    fire();
   });
   canvas.addEventListener("pointermove", (e) => {
-    if (e.buttons & 1) dragX = localX(e.clientX);
+    if (pointerActive) { e.preventDefault(); dragX = localX(e.clientX); }
   });
-  window.addEventListener("pointerup", () => { dragX = null; });
-  window.addEventListener("pointercancel", () => { dragX = null; });
+  const endPointer = () => { pointerActive = false; firing = false; dragX = null; };
+  window.addEventListener("pointerup", endPointer);
+  window.addEventListener("pointercancel", endPointer);
+  window.addEventListener("blur", endPointer);
 
   document.addEventListener("keydown", (e) => {
     if (e.code === "ArrowLeft" || e.code === "KeyA") leftHeld = true;

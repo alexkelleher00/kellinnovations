@@ -272,7 +272,9 @@
 
     ctx.save();
     if (shake > 0) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
-    ctx.clearRect(-20, -20, W + 40, H + 40);
+    // Opaque bg on the canvas itself (not the CSS gradient through a
+    // transparent clear — flashes on mobile). Alex, 2026-09-06.
+    { const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#2b1f4a"); bg.addColorStop(0.55, "#6b3f6b"); bg.addColorStop(0.8, "#d97a5a"); bg.addColorStop(1, "#d97a5a"); ctx.fillStyle = bg; ctx.fillRect(-20, -20, W + 40, H + 40); }
 
     // Distant skyline (parallax, cheap sine-based silhouette)
     ctx.fillStyle = "rgba(20,15,35,0.55)";

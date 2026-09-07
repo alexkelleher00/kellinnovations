@@ -262,7 +262,9 @@
   }
 
   function draw() {
-    ctx.clearRect(0, 0, W, H);
+    // Opaque bg on the canvas itself (not the CSS gradient through a
+    // transparent clear — flashes on mobile). Alex, 2026-09-06.
+    { const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#2a1f14"); bg.addColorStop(1, "#1a130b"); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H); }
 
     // Concentric rings viewed head-on at the top of the lane, tightest
     // (highest value) ring innermost, centered on the real physics bullseye.
