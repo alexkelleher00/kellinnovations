@@ -1268,6 +1268,128 @@ function drawTownHall(g, bx, by, night, t) {
   g.fillStyle = GOLD; g.beginPath(); g.arc(bx, topY - 26, 1.6, 0, 7); g.fill();
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   The Tavern & The Casino — two more landmark buildings flanking Town Hall
+   (Alex, 2026-09-12: "shops and stores... like a bar... also a building for
+   the casino similar"). Same pixel-art style as drawHouse/drawTownHall.
+   ═══════════════════════════════════════════════════════════════════════ */
+function drawTavern(g, bx, by, night, t) {
+  const wall = "#6b4326", roof = "#3a2416", trim = "#caa24a";
+  const bw = 62, bh = 36, rh = 20, over = 7;
+  const x0 = bx - bw / 2, y0 = by - bh;
+  ovShadow(g, bx, by, bw / 2 + 6, 8, 0.28);
+
+  g.fillStyle = "#1c1310"; g.fillRect(x0 - 1, y0 - 1, bw + 2, bh + 2);
+  g.fillStyle = lgrad(g, x0, y0, x0, by, shade(wall, 0.15), shade(wall, -0.12));
+  g.fillRect(x0, y0, bw, bh);
+  g.strokeStyle = rgba(shade(wall, -0.4), 0.55); g.lineWidth = 2;
+  g.beginPath(); g.moveTo(x0 + 6, y0 + 6); g.lineTo(x0 + bw - 6, by - 6); g.stroke();
+  g.beginPath(); g.moveTo(x0 + bw - 6, y0 + 6); g.lineTo(x0 + 6, by - 6); g.stroke();
+  g.fillStyle = shade(wall, -0.36); g.fillRect(x0, by - 3, bw, 3);
+
+  // two ALWAYS-warm windows — a tavern is lively day or night
+  const winY = y0 + 11;
+  for (const wx of [x0 + 7, x0 + bw - 19]) {
+    g.fillStyle = "#1c1310"; g.fillRect(wx - 2, winY - 2, 16, 13);
+    g.fillStyle = "#ffce6b"; g.fillRect(wx, winY, 12, 9);
+    g.fillStyle = "#fff2cf"; g.fillRect(wx + 1, winY + 1, 5, 4);
+    GLOWS.push({ x: wx + 6, y: winY + 5, r: 30, col: "#ffb454", i: 0.55 + night * 0.35 });
+    g.strokeStyle = shade(wall, -0.45); g.lineWidth = 1;
+    g.strokeRect(wx + 0.5, winY + 0.5, 11, 8);
+    g.beginPath(); g.moveTo(wx + 6, winY); g.lineTo(wx + 6, winY + 9); g.stroke();
+  }
+
+  // door, always lit
+  const dw = 13, dx = bx - dw / 2, dh = 16;
+  g.fillStyle = "#1c1310"; g.fillRect(dx - 1, by - dh - 1, dw + 2, dh + 1);
+  g.fillStyle = "#ffce6b"; roundRect(g, dx, by - dh, dw, dh, 3); g.fill();
+  g.fillStyle = "#3a2416"; g.fillRect(dx + dw / 2 - 1, by - dh, 2, dh);
+  GLOWS.push({ x: bx, y: by - dh / 2, r: 26, col: "#ffb454", i: 0.6 + night * 0.3 });
+
+  // gabled roof
+  g.fillStyle = "#100c0a";
+  g.beginPath();
+  g.moveTo(x0 - over - 1, y0 + 1); g.lineTo(x0 + bw + over + 1, y0 + 1); g.lineTo(bx, y0 - rh - 1); g.closePath(); g.fill();
+  g.fillStyle = lgrad(g, bx, y0 - rh, bx, y0, shade(roof, 0.2), shade(roof, -0.14));
+  g.beginPath();
+  g.moveTo(x0 - over, y0); g.lineTo(x0 + bw + over, y0); g.lineTo(bx, y0 - rh); g.closePath(); g.fill();
+  g.strokeStyle = rgba(shade(roof, -0.3), 0.6); g.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const fr = i / 4, yy = y0 - rh * fr, inset = over * (1 - fr);
+    g.beginPath(); g.moveTo(x0 - over + inset, yy + 0.5); g.lineTo(x0 + bw + over - inset, yy + 0.5); g.stroke();
+  }
+
+  // a swinging hanging sign — post + board + mug icon
+  const signX = x0 - 3, signY = by - dh - 3, sway = Math.sin((t || 0) * 1.4) * 3;
+  g.strokeStyle = "#2a1c12"; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(signX, signY); g.lineTo(signX - 10, signY - 2); g.stroke();
+  g.save(); g.translate(signX - 10, signY - 2);
+  g.fillStyle = "#3a2416"; roundRect(g, -9 + sway * 0.2, -1, 18, 13, 2); g.fill();
+  g.strokeStyle = trim; g.lineWidth = 1; g.strokeRect(-8 + sway * 0.2, 0, 16, 11);
+  g.font = "10px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText("🍺", sway * 0.2, 6);
+  g.restore();
+
+  // a couple of barrels out front
+  for (const bxo of [-bw * 0.42, bw * 0.44]) {
+    const px = bx + bxo, py = by - 2;
+    volBox(g, px - 5, py - 10, 10, 10, "#6b4a2b", 3);
+    g.strokeStyle = "#caa24a"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(px - 5, py - 7); g.lineTo(px + 5, py - 7); g.stroke();
+    g.beginPath(); g.moveTo(px - 5, py - 3); g.lineTo(px + 5, py - 3); g.stroke();
+  }
+}
+
+function drawCasino(g, bx, by, night, t) {
+  const wall = "#3d2a52", roof = "#1a1226", neon1 = "#ff3ea5", neon2 = "#3ecbff";
+  const bw = 70, bh = 40, over = 8;
+  const x0 = bx - bw / 2, y0 = by - bh;
+  ovShadow(g, bx, by, bw / 2 + 8, 9, 0.3);
+
+  g.fillStyle = "#0e0916"; g.fillRect(x0 - 1, y0 - 1, bw + 2, bh + 2);
+  g.fillStyle = lgrad(g, x0, y0, x0, by, shade(wall, 0.18), shade(wall, -0.14));
+  g.fillRect(x0, y0, bw, bh);
+  g.fillStyle = shade(wall, -0.3); g.fillRect(x0, by - 3, bw, 3);
+
+  for (const cx of [x0 + 8, x0 + bw - 12]) {
+    g.fillStyle = lgrad(g, cx, y0, cx + 4, y0, "#8a7aa8", "#5c4d7d");
+    g.fillRect(cx, y0 + 6, 4, bh - 9);
+  }
+
+  // neon-lit windows, always on
+  const winY = y0 + 12;
+  for (const wc of [[x0 + 14, neon1], [x0 + bw - 26, neon2]]) {
+    const [wx, col] = wc;
+    g.fillStyle = "#0e0916"; g.fillRect(wx - 2, winY - 2, 16, 13);
+    g.fillStyle = col; g.fillRect(wx, winY, 12, 9);
+    GLOWS.push({ x: wx + 6, y: winY + 5, r: 30, col, i: 0.6 });
+  }
+
+  // grand pulsing entrance
+  const dw = 15, dx = bx - dw / 2, dh = 17;
+  g.fillStyle = "#0e0916"; g.fillRect(dx - 1, by - dh - 1, dw + 2, dh + 1);
+  g.fillStyle = "#1a1226"; roundRect(g, dx, by - dh, dw, dh, 2); g.fill();
+  g.fillStyle = rgba(neon1, 0.5 + Math.sin((t || 0) * 2) * 0.15);
+  g.fillRect(dx + 1, by - dh + 1, dw - 2, dh - 2);
+  GLOWS.push({ x: bx, y: by - dh / 2, r: 30, col: neon1, i: 0.5 });
+
+  // flat roof + marquee sign band with chasing lights
+  g.fillStyle = shade(roof, -0.1); g.fillRect(x0 - over, y0 - 8, bw + over * 2, 8);
+  g.fillStyle = "#100a1a"; g.fillRect(x0 - over - 1, y0 - 20, bw + over * 2 + 2, 13);
+  g.fillStyle = lgrad(g, bx, y0 - 20, bx, y0 - 7, "#4a3670", "#241a38");
+  g.fillRect(x0 - over, y0 - 19, bw + over * 2, 12);
+  g.font = "700 8px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#f4c65a"; g.fillText("🎰 CASINO", bx, y0 - 13);
+  const nBulbs = 10;
+  for (let i = 0; i < nBulbs; i++) {
+    const bxp = x0 - over + 4 + (bw + over * 2 - 8) * i / (nBulbs - 1);
+    const on = Math.floor((t || 0) * 4 + i) % 3 === 0;
+    g.fillStyle = on ? "#fff2cf" : "rgba(255,242,207,0.25)";
+    g.beginPath(); g.arc(bxp, y0 - 8.5, 1.3, 0, 7); g.fill();
+    if (on) GLOWS.push({ x: bxp, y: y0 - 8.5, r: 10, col: "#fff2cf", i: 0.5 });
+  }
+}
+
 function stepSmoke(arr, dt, ox, oy) {
   if (REDUCED) return;
   arr._acc = (arr._acc || 0) + dt;
@@ -1974,7 +2096,21 @@ function mkPet(type, rgn, i) {
    player's own account avatar_emoji so it's unmistakably "you" among the
    ambient strollers (who show their name instead).
    ═══════════════════════════════════════════════════════════════════════ */
-const PLAYER = { x: 0, y: 0, dir: "S", phase: 0, moving: false, speed: 70, lastEnter: 0, moveTarget: null };
+const PLAYER = { x: 0, y: 0, dir: "S", phase: 0, moving: false, speed: 70, lastEnter: 0, moveTarget: null,
+                  drunk: 0, smokeUntil: 0 };
+// How wobbly/slow movement gets as PLAYER.drunk climbs — applied wherever dx/dy
+// is computed just before moveEntity (map + interior + hall + venue), so
+// "the more you drink the drunker you get, so walking is hard" shows up
+// everywhere you walk, not just inside the Tavern (Alex, 2026-09-12).
+function drunkWobble(dx, dy) {
+  const d = PLAYER.drunk || 0;
+  if (!d) return { dx, dy, speedMul: 1 };
+  const maxD = (catalogData && catalogData.bar && catalogData.bar.max_drunk) || 10;
+  const amt = clamp(d / maxD, 0, 1);
+  const wob = (Math.random() - 0.5) * amt * 2.6;   // radians of random veer
+  const cos = Math.cos(wob), sin = Math.sin(wob);
+  return { dx: dx * cos - dy * sin, dy: dx * sin + dy * cos, speedMul: 1 - amt * 0.35 };
+}
 const PLAYER_PAL = { h: HAIR[0], s: "#f0c8a4", 1: "#241a1e", t: "#00c8c8", p: PANTS[0], 6: "#3b2b2b" };
 function hashStr(s) { let h = 0; s = String(s || ""); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
 function personPal(seed) {
@@ -2034,6 +2170,14 @@ function solidRects() {
     const th = MAP.townHall;
     rects.push({ x0: th.bx - 44, x1: th.bx + 44, y0: th.by - 80, y1: th.by + 10, kind: "townhall" });
   }
+  if (MAP.tavern) {
+    const v = MAP.tavern;
+    rects.push({ x0: v.bx - 40, x1: v.bx + 40, y0: v.by - 72, y1: v.by + 10, kind: "tavern" });
+  }
+  if (MAP.casino) {
+    const v = MAP.casino;
+    rects.push({ x0: v.bx - 44, x1: v.bx + 44, y0: v.by - 78, y1: v.by + 10, kind: "casino" });
+  }
   // Backyard fences block the map player too (Alex, 2026-09-06) — a closed
   // box around the backyard band for any house that's bought the room.
   for (const h of MAP.houses) {
@@ -2075,7 +2219,8 @@ function stepPlayer(dt) {
   }
   if (!dx && !dy) { PLAYER.moving = false; return; }
   const rects = solidRects();
-  const r = moveEntity(PLAYER, { x: dx, y: dy }, PLAYER.speed, dt, rects, {
+  const w = drunkWobble(dx, dy);
+  const r = moveEntity(PLAYER, { x: w.dx, y: w.dy }, PLAYER.speed * w.speedMul, dt, rects, {
     x0: WORLD_PAD_X + 6, y0: WORLD_PAD_Y + 6,
     x1: MAP.worldW - WORLD_PAD_X - 6, y1: MAP.worldH - WORLD_PAD_Y - 6,
   });
@@ -2092,10 +2237,12 @@ function stepPlayer(dt) {
   if (now - PLAYER.lastEnter > 1200) {
     const pad = 12;
     for (const r of rects) {
-      if (r.kind !== "house" && r.kind !== "townhall") continue;   // fences etc. are just walls
+      if (r.kind === "fence") continue;   // fences etc. are just walls, not entrances
       if (PLAYER.x > r.x0 - pad && PLAYER.x < r.x1 + pad && PLAYER.y > r.y0 - pad && PLAYER.y < r.y1 + pad) {
         PLAYER.lastEnter = now;
-        if (r.kind === "house") enterHouse(r.ref.user_id); else openTownHall();
+        if (r.kind === "house") enterHouse(r.ref.user_id);
+        else if (r.kind === "townhall") openTownHall();
+        else if (r.kind === "tavern" || r.kind === "casino") openVenue(r.kind);
         break;
       }
     }
@@ -2323,7 +2470,7 @@ function layoutMap() {
   // the houses lay out around it (that one plot is skipped when placing).
   let cols = Math.max(3, Math.ceil(Math.sqrt(n)));
   if (cols % 2 === 0) cols++;
-  let rows = Math.max(3, Math.ceil((n + 1) / cols));
+  let rows = Math.max(3, Math.ceil((n + 3) / cols));   // +3: Town Hall, Tavern, Casino
   if (rows % 2 === 0) rows++;
   WORLD_PAD_X = MARGIN + ROW_STAGGER + JITTER_X + 10;
   WORLD_PAD_Y = MARGIN + COL_STAGGER + JITTER_Y + 10;
@@ -2334,17 +2481,27 @@ function layoutMap() {
   const plotX0 = (col, row) => WORLD_PAD_X + col * CELL_W + cellPad.x + rowStagger(row);
   const plotY0 = (col, row) => WORLD_PAD_Y + row * CELL_H + cellPad.y + colStagger(col);
 
+  // Town Hall keeps the true centre; Tavern and Casino take the two cells
+  // immediately either side of it (same row) — always in-bounds since cols
+  // is odd and >=3, so the centre column is never the first/last column.
   const centerPlot = ((rows - 1) / 2) * cols + (cols - 1) / 2;
-  const plotForHouse = i => (i < centerPlot ? i : i + 1);   // shift past the reserved centre
+  const reservedPlots = [centerPlot - 1, centerPlot, centerPlot + 1];
+  const plotForHouse = i => {
+    let p = i;
+    for (const r of reservedPlots) if (p >= r) p++;
+    return p;
+  };
 
   {
     const cCol = (cols - 1) / 2, cRow = (rows - 1) / 2;
-    const px = plotX0(cCol, cRow), py = plotY0(cCol, cRow);
-    const gx0 = px + ROAD_W, gy0 = py + ROAD_W, gw = PLOT_W - ROAD_W, gh = PLOT_H - ROAD_W;
-    MAP.townHall = {
-      bx: gx0 + gw * 0.5, by: gy0 + gh * 0.60, smoke: [],
-      plotX: px, plotY: py, gx0, gy0, gw, gh,
+    const mkLandmark = (col, row) => {
+      const px = plotX0(col, row), py = plotY0(col, row);
+      const gx0 = px + ROAD_W, gy0 = py + ROAD_W, gw = PLOT_W - ROAD_W, gh = PLOT_H - ROAD_W;
+      return { bx: gx0 + gw * 0.5, by: gy0 + gh * 0.60, smoke: [], plotX: px, plotY: py, gx0, gy0, gw, gh };
     };
+    MAP.townHall = mkLandmark(cCol, cRow);
+    MAP.tavern = mkLandmark(cCol - 1, cRow);
+    MAP.casino = mkLandmark(cCol + 1, cRow);
   }
   MAP.pathSegs = [];
   MAP.decor = [];
@@ -2359,6 +2516,9 @@ function layoutMap() {
     ];
     MAP.pond = MAP.ponds[0];   // back-compat for anything still reading .pond
   }
+  // Short straight paths connecting Town Hall to its two neighbours.
+  MAP.pathSegs.push({ ax: MAP.townHall.bx, ay: MAP.townHall.by, bx: MAP.tavern.bx, by: MAP.tavern.by });
+  MAP.pathSegs.push({ ax: MAP.townHall.bx, ay: MAP.townHall.by, bx: MAP.casino.bx, by: MAP.casino.by });
 
   MAP.walkers = []; MAP.mapPets = [];
   MAP.houses = houses.map((entry, i) => {
@@ -2473,7 +2633,9 @@ function layoutMap() {
 function plotAvoidRects(pad) {
   pad = pad == null ? 22 : pad;
   const r = MAP.houses.map(h => ({ x0: h.plotX - pad, y0: h.plotY - pad, x1: h.plotX + PLOT_W + pad, y1: h.plotY + PLOT_H + pad }));
-  if (MAP.townHall) { const t = MAP.townHall; r.push({ x0: t.plotX - pad, y0: t.plotY - pad, x1: t.plotX + PLOT_W + pad, y1: t.plotY + PLOT_H + pad }); }
+  for (const b of [MAP.townHall, MAP.tavern, MAP.casino]) {
+    if (b) r.push({ x0: b.plotX - pad, y0: b.plotY - pad, x1: b.plotX + PLOT_W + pad, y1: b.plotY + PLOT_H + pad });
+  }
   return r;
 }
 // Cool landscape landmarks (Alex, 2026-09-06: "add gazebos and cool stuff to
@@ -2545,11 +2707,15 @@ function onPath(x, y) {
   for (const s of MAP.pathSegs) if (distToSeg(x, y, s.ax, s.ay, s.bx, s.by) < PATH_HALF_W) return true;
   return false;
 }
-function onPlaza(x, y) {
-  const th = MAP.townHall;
-  if (!th) return false;
-  return x >= th.gx0 + 2 && x <= th.gx0 + th.gw - 2 && y >= th.gy0 + 2 && y <= th.gy0 + th.gh - 2;
+// Which landmark building's paved plot a point sits on, if any — Town Hall,
+// the Tavern, or the Casino all get the same civic-square paving treatment.
+function plazaAt(x, y) {
+  for (const b of [MAP.townHall, MAP.tavern, MAP.casino]) {
+    if (b && x >= b.gx0 + 2 && x <= b.gx0 + b.gw - 2 && y >= b.gy0 + 2 && y <= b.gy0 + b.gh - 2) return b;
+  }
+  return null;
 }
+function onPlaza(x, y) { return !!plazaAt(x, y); }
 // 0 = dry land, 1 = water, 2 = the sandy/muddy shore ring around it.
 // Checks every water body in MAP.ponds and returns the strongest zone.
 function pondZone(x, y) {
@@ -2574,9 +2740,9 @@ function buildMapGround() {
       const path = (plaza || pond) ? false : onPath(xx, yy);
       let col;
       if (plaza) {
-        // paved civic square under the Town Hall, with a border ring
-        const th = MAP.townHall;
-        const edge = xx < th.gx0 + 8 || xx > th.gx0 + th.gw - 8 || yy < th.gy0 + 8 || yy > th.gy0 + th.gh - 8;
+        // paved civic square under Town Hall / Tavern / Casino, with a border ring
+        const b = plazaAt(xx, yy);
+        const edge = xx < b.gx0 + 8 || xx > b.gx0 + b.gw - 8 || yy < b.gy0 + 8 || yy > b.gy0 + b.gh - 8;
         col = edge ? "#a9a29a" : nz < 0.15 ? "#c9c3ba" : nz > 0.86 ? "#ded9d0" : "#d4cfc6";
       } else if (pond === 1) col = nz < 0.2 ? "#3f7fa8" : nz > 0.85 ? "#5aa3c9" : "#4a90b8";
       else if (pond === 2) col = nz < 0.3 ? "#c9b183" : "#d8c298";
@@ -2686,6 +2852,8 @@ function drawMapScene(now, dt) {
 
   const ents = [];
   if (MAP.townHall) ents.push({ y: MAP.townHall.by, d: () => drawTownHall(g, MAP.townHall.bx, MAP.townHall.by, night, now / 1000) });
+  if (MAP.tavern) ents.push({ y: MAP.tavern.by, d: () => drawTavern(g, MAP.tavern.bx, MAP.tavern.by, night, now / 1000) });
+  if (MAP.casino) ents.push({ y: MAP.casino.by, d: () => drawCasino(g, MAP.casino.bx, MAP.casino.by, night, now / 1000) });
   MAP.houses.forEach(h => {
     if (h.room_keys && h.room_keys.includes("backyard")) {
       ents.push({ y: h.gy0 + 1, d: () => drawBackyardFence(g, h) });
@@ -2750,6 +2918,14 @@ function drawMapScene(now, dt) {
       const x = sx(MAP.townHall.bx), y = sy(MAP.townHall.by - 92);
       if (x > -110 && x < W + 110 && y > -20 && y < H + 20) tag("🏛 Town Hall", x, y, true);
     }
+    if (MAP.tavern) {
+      const x = sx(MAP.tavern.bx), y = sy(MAP.tavern.by - 76);
+      if (x > -100 && x < W + 100 && y > -20 && y < H + 20) tag("🍺 The Tavern", x, y, true);
+    }
+    if (MAP.casino) {
+      const x = sx(MAP.casino.bx), y = sy(MAP.casino.by - 96);
+      if (x > -100 && x < W + 100 && y > -20 && y < H + 20) tag("🎰 The Casino", x, y, true);
+    }
     for (const h of MAP.houses) {
       const x = sx(h.bx), y = sy(h.by - 66);
       if (x > -90 && x < W + 90 && y > -20 && y < H + 20)
@@ -2789,6 +2965,10 @@ function mapScreenToWorld(sx, sy) {
     const w = mapScreenToWorld(e.clientX - r.left, e.clientY - r.top);
     const th = MAP.townHall;
     if (th && w.x > th.bx - 44 && w.x < th.bx + 44 && w.y > th.by - 80 && w.y < th.by + 10) { openTownHall(); return; }
+    const tv = MAP.tavern;
+    if (tv && w.x > tv.bx - 40 && w.x < tv.bx + 40 && w.y > tv.by - 72 && w.y < tv.by + 10) { openVenue("tavern"); return; }
+    const cs = MAP.casino;
+    if (cs && w.x > cs.bx - 44 && w.x < cs.bx + 44 && w.y > cs.by - 78 && w.y < cs.by + 10) { openVenue("casino"); return; }
     for (const h of MAP.houses) {
       const b = houseHitBox(h);
       if (w.x > b.x0 && w.x < b.x1 && w.y > b.y0 && w.y < b.y1) { enterHouse(h.user_id); return; }
@@ -3201,7 +3381,8 @@ function stepHall(dt) {
     if (Math.hypot(tx, ty) < 5) PLAYER.moveTarget = null; else { dx = tx; dy = ty; }
   }
   if (dx || dy) {
-    const r = moveEntity(PLAYER, { x: dx, y: dy }, INTERIOR_SPEED, dt, solidRectsHall(), hallBounds());
+    const w = drunkWobble(dx, dy);
+    const r = moveEntity(PLAYER, { x: w.dx, y: w.dy }, INTERIOR_SPEED * w.speedMul, dt, solidRectsHall(), hallBounds());
     if (r.bx && r.by && PLAYER.moveTarget) PLAYER.moveTarget = null;
     PLAYER.phase += INTERIOR_SPEED * dt;
     PLAYER.moving = true;
@@ -3323,6 +3504,7 @@ function openTrophyPanel() {
 // One entry point for the E button / Enter / E key / tapping the HUD prompt.
 function sceneActivate() {
   if (SCENE === "hall") { hallActivate(); return; }
+  if (SCENE === "venue") { venueActivate(); return; }
   if (SCENE !== "interior" || !INTERIOR || INTERIOR.panel || sceneFade.active) return;
   const p = INTERIOR.prompt;
   if (!p) return;
@@ -3348,6 +3530,7 @@ function closeHallPanel() {
   el.classList.remove("open"); el.innerHTML = "";
   if (HALL) HALL.panel = null;
   if (INTERIOR) INTERIOR.panel = null;
+  if (VENUE) VENUE.panel = null;
 }
 
 function leaveHall() {
@@ -3432,6 +3615,419 @@ function drawHallInterior(now, dt) {
 
   g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
   paintGlows(g, cw, ch, { x: cw / 2, y: ch / 2 }, 1, cw / 2, ch / 2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   The Tavern & The Casino (Alex, 2026-09-12) — two more walkable buildings
+   next to Town Hall. Reuses the exact multi-room door/spawn machinery the
+   house INTERIOR uses (interiorDoorZones/interiorSpawn/OPP/INTERIOR_SPEED,
+   defined further down with buildInterior — plain top-level consts/fns, so
+   referencing them here from code that only ever RUNS after the whole
+   script has loaded is fine) against a fixed VENUE_DEFS layout instead of a
+   member's real rooms. The Tavern has two rooms — the bar, and a smoking
+   lounge you walk into through its own doorway; the Casino is one room of
+   pedestals that hand off to the real casino-*.html games.
+   ═══════════════════════════════════════════════════════════════════════ */
+let VENUE = null;   // { kind, def, roomKey, rsCache, rs, doorZones, graph, fixtures, prompt, panel }
+
+const VENUE_DEFS = {
+  tavern: {
+    label: "🍺 The Tavern",
+    house: { wall_color: "#5c3a26", roof_color: "#3a2416", yard_color: "#5c9c5f", floor_color: "#8a6642" },
+    rooms: {
+      main:    { name: "Bar Room",   cols: 15, rows: 9, doors: { E: "smoking" } },
+      smoking: { name: "Smoke Room", cols: 10, rows: 8, doors: { W: "main" } },
+    },
+  },
+  casino: {
+    label: "🎰 The Casino",
+    house: { wall_color: "#2a1e3a", roof_color: "#1a1226", yard_color: "#5c9c5f", floor_color: "#3d2a52" },
+    rooms: {
+      main: { name: "Casino Floor", cols: 17, rows: 10, doors: {} },
+    },
+  },
+};
+
+function openVenue(kind) {
+  beginFade(() => {
+    SCENE = "venue"; activeTab = "mine";
+    document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "mine"));
+    document.getElementById("mapView").style.display = "none";
+    document.getElementById("mineView").style.display = "block";
+    document.getElementById("loginHint").style.display = "none";
+    document.getElementById("editorWrap").style.display = "none";
+    document.getElementById("interiorStage").style.display = "flex";
+    document.getElementById("placeModeBtn").style.display = "none";
+    buildVenue(kind);
+  });
+}
+
+function buildVenue(kind) {
+  const def = VENUE_DEFS[kind];
+  const firstKey = Object.keys(def.rooms)[0];
+  VENUE = { kind, def, roomKey: firstKey, rsCache: {}, rs: null, doorZones: [], graph: null, fixtures: [], prompt: null, panel: null };
+  venueEnterRoom(firstKey, "S");
+}
+
+function venueEnterRoom(key, fromSide) {
+  const V = VENUE;
+  if (!V) return;
+  const rc = V.def.rooms[key];
+  if (!rc) return;
+  V.roomKey = key;
+  let tries = 0;
+  const build = () => {
+    if (VENUE !== V) return;
+    const cv = document.getElementById("interiorCanvas");
+    let rs = V.rsCache[key];
+    if (!rs) {
+      if ((!cv.parentElement || !cv.parentElement.clientWidth) && tries++ < 40) { setTimeout(build, 16); return; }
+      const room = { key: "__venue_" + V.kind + "_" + key, kind: "indoor", grid_cols: rc.cols, grid_rows: rc.rows };
+      rs = buildRoomState(cv, V.def.house, room, [], [], false, Math.round(window.innerHeight * 0.56));
+      cv.style.width = ""; cv.style.height = "";
+      cv.style.position = "relative"; cv.style.inset = "auto";
+      V.rsCache[key] = rs;
+    }
+    V.rs = rs;
+    const isEntry = key === Object.keys(V.def.rooms)[0];
+    const gph = { N: rc.doors.N || null, E: rc.doors.E || null, S: rc.doors.S || null, W: rc.doors.W || null, exit: isEntry };
+    V.graph = gph;
+    V.doorZones = interiorDoorZones(rs, gph);
+    V.fixtures = buildVenueFixtures(V.kind, key, rs);
+    interiorSpawn(rs, fromSide);
+    PLAYER.sitting = false;
+    PLAYER.lastEnter = performance.now();
+    renderVenueBanner();
+  };
+  build();
+}
+
+function venueBounds() {
+  const rs = VENUE.rs;
+  return { x0: 7, y0: rs.padTop + 7, x1: rs.cw - 7, y1: rs.ch - 7 };
+}
+function solidRectsVenue() {
+  const rs = VENUE.rs, { cw, ch, padTop, TP } = rs;
+  const g = VENUE.graph, T = 6, gap = TP, midY = (padTop + ch) / 2, out = [];
+  const door = s => (s === "S" ? (g.exit || g.S) : g[s]);
+  if (door("N")) { out.push({ x0: 0, y0: padTop, x1: cw / 2 - gap, y1: padTop + T }); out.push({ x0: cw / 2 + gap, y0: padTop, x1: cw, y1: padTop + T }); }
+  else out.push({ x0: 0, y0: padTop, x1: cw, y1: padTop + T });
+  if (door("S")) { out.push({ x0: 0, y0: ch - T, x1: cw / 2 - gap, y1: ch }); out.push({ x0: cw / 2 + gap, y0: ch - T, x1: cw, y1: ch }); }
+  else out.push({ x0: 0, y0: ch - T, x1: cw, y1: ch });
+  if (door("W")) { out.push({ x0: 0, y0: padTop, x1: T, y1: midY - gap }); out.push({ x0: 0, y0: midY + gap, x1: T, y1: ch }); }
+  else out.push({ x0: 0, y0: padTop, x1: T, y1: ch });
+  if (door("E")) { out.push({ x0: cw - T, y0: padTop, x1: cw, y1: midY - gap }); out.push({ x0: cw - T, y0: midY + gap, x1: cw, y1: ch }); }
+  else out.push({ x0: cw - T, y0: padTop, x1: cw, y1: ch });
+  for (const f of VENUE.fixtures) if (f.solid) out.push(f.solid);
+  return out;
+}
+function venuePrompt(V) {
+  const reach = V.rs.TP * 1.3;
+  for (const f of V.fixtures) {
+    if (!f.prompt) continue;
+    const z = f.zone;
+    if (PLAYER.x > z.x0 - reach && PLAYER.x < z.x1 + reach && PLAYER.y > z.y0 - reach && PLAYER.y < z.y1 + reach) return f.prompt;
+  }
+  return null;
+}
+
+// Per-room hand-drawn fixtures — a bar counter + barkeep, a smoking table,
+// or (Casino) one pedestal per real casino-*.html game.
+function buildVenueFixtures(kind, roomKey, rs) {
+  const { cw, ch, padTop, TP } = rs;
+  if (kind === "tavern" && roomKey === "main") {
+    const counter = { x0: cw * 0.22, y0: padTop + TP * 1.0, x1: cw * 0.78, y1: padTop + TP * 2.0 };
+    const drinkZone = { x0: counter.x0, y0: counter.y1, x1: counter.x1, y1: counter.y1 + TP * 1.1 };
+    const price = (catalogData.bar && catalogData.bar.drink_price) || 20;
+    const barkeep = { x: (counter.x0 + counter.x1) / 2, y: counter.y0 - TP * 0.3 };
+    return [
+      { zone: drinkZone, solid: counter, sortY: counter.y1,
+        prompt: { kind: "drink", label: `🍺 Order a drink — 🪙 ${price}` },
+        draw: (g) => {
+          volBox(g, counter.x0, counter.y0, counter.x1 - counter.x0, counter.y1 - counter.y0, "#8a5a2b", 5);
+          g.fillStyle = "rgba(0,0,0,0.14)"; g.fillRect(counter.x0, counter.y1 - 3, counter.x1 - counter.x0, 3);
+          for (let i = 0; i < 5; i++) {
+            const bx = counter.x0 + (counter.x1 - counter.x0) * (i + 0.5) / 5;
+            g.fillStyle = ["#c0432f", "#2f6dc0", "#3aa657", "#c99a2e", "#7d4fbf"][i % 5];
+            g.fillRect(bx - 2, counter.y0 - 9, 4, 9);
+          }
+          g.font = '700 8px system-ui,sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+          g.fillStyle = "#3a2a18"; g.fillText("BAR", (counter.x0 + counter.x1) / 2, (counter.y0 + counter.y1) / 2 + 4);
+        } },
+      { zone: { x0: barkeep.x - 4, y0: barkeep.y - 4, x1: barkeep.x + 4, y1: barkeep.y + 4 }, sortY: barkeep.y, prompt: null,
+        draw: (g) => { ovShadow(g, barkeep.x, barkeep.y, 6.5, 2.6, 0.28); blit(g, PEOPLE_SPR.S[0], NPC_PAL, Math.round(barkeep.x - 6), Math.round(barkeep.y - 16), false); } },
+    ];
+  }
+  if (kind === "tavern" && roomKey === "smoking") {
+    const table = { x0: cw * 0.40, y0: ch * 0.45, x1: cw * 0.60, y1: ch * 0.45 + TP * 0.9 };
+    const smokeZone = { x0: table.x0 - TP, y0: table.y1, x1: table.x1 + TP, y1: table.y1 + TP * 1.1 };
+    const price = (catalogData.bar && catalogData.bar.smoke_price) || 8;
+    return [
+      { zone: smokeZone, solid: table, sortY: table.y1,
+        prompt: { kind: "smoke", label: `🚬 Light one up — 🪙 ${price}` },
+        draw: (g) => {
+          volBox(g, table.x0, table.y0, table.x1 - table.x0, table.y1 - table.y0, "#4a3a2a", 4);
+          g.fillStyle = "#2a2a2a"; g.beginPath(); g.arc((table.x0 + table.x1) / 2, (table.y0 + table.y1) / 2, 4, 0, 7); g.fill();
+        } },
+    ];
+  }
+  if (kind === "casino" && roomKey === "main") {
+    const games = [
+      { emoji: "🎡", label: "Roulette",  href: "casino-roulette.html" },
+      { emoji: "🃏", label: "Blackjack", href: "casino-blackjack.html" },
+      { emoji: "🎲", label: "Craps",     href: "casino-craps.html" },
+      { emoji: "🔵", label: "Plinko",    href: "casino-plinko.html" },
+      { emoji: "🎰", label: "Slots",     href: "casino-slots.html" },
+    ];
+    return games.map((game, i) => {
+      const x = cw * (i + 1) / (games.length + 1), y = padTop + TP * 1.3;
+      const zone = { x0: x - TP * 0.6, y0: y - TP * 0.6, x1: x + TP * 0.6, y1: y + TP * 0.9 };
+      return { zone, solid: { x0: x - TP * 0.42, y0: y + TP * 0.1, x1: x + TP * 0.42, y1: y + TP * 0.6 }, sortY: y + TP * 0.6,
+        prompt: { kind: "play", href: game.href, label: `🎮 Play ${game.label}` },
+        draw: (g) => {
+          volBox(g, x - TP * 0.42, y + TP * 0.1, TP * 0.84, TP * 0.5, "#3d2a52", 4);
+          g.font = (TP * 0.7) + 'px system-ui,sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+          g.fillText(game.emoji, x, y - TP * 0.1);
+          g.font = '700 8px system-ui,sans-serif';
+          g.fillStyle = "rgba(10,11,22,0.8)"; roundRect(g, x - 30, y + TP * 0.62, 60, 13, 4); g.fill();
+          g.fillStyle = "#e9e9f4"; g.fillText(game.label, x, y + TP * 0.62 + 7);
+        } };
+    });
+  }
+  return [];
+}
+
+function stepVenue(dt) {
+  const V = VENUE;
+  if (!V || !V.rs || anyModalOpen() || V.panel || sceneFade.active) { PLAYER.moving = false; return; }
+  V.prompt = venuePrompt(V);
+  const el = document.getElementById("hudPrompt"), btn = document.getElementById("sceneActionBtn");
+  if (V.prompt) {
+    el.style.display = "block";
+    el.innerHTML = `${V.prompt.label}<span class="sub">tap this · or press E</span>`;
+    btn.style.display = ""; btn.textContent = "E";
+  } else { el.style.display = "none"; btn.style.display = "none"; }
+
+  let dx = 0, dy = 0;
+  for (const k of PLAYER_KEYS) { const d = MOVE_KEYS[k]; if (d) { dx += d[0]; dy += d[1]; } }
+  if (dx || dy) PLAYER.moveTarget = null;
+  else if (PLAYER.moveTarget) {
+    const tx = PLAYER.moveTarget.x - PLAYER.x, ty = PLAYER.moveTarget.y - PLAYER.y;
+    if (Math.hypot(tx, ty) < 5) PLAYER.moveTarget = null; else { dx = tx; dy = ty; }
+  }
+  if (!dx && !dy) { PLAYER.moving = false; return; }
+  const w = drunkWobble(dx, dy);
+  const r = moveEntity(PLAYER, { x: w.dx, y: w.dy }, INTERIOR_SPEED * w.speedMul, dt, solidRectsVenue(), venueBounds());
+  if (r.bx && r.by && PLAYER.moveTarget) PLAYER.moveTarget = null;
+  PLAYER.phase += INTERIOR_SPEED * dt;
+  PLAYER.moving = true;
+  PLAYER.dir = Math.abs(r.dx) >= Math.abs(r.dy) ? (r.dx > 0 ? "E" : "W") : (r.dy > 0 ? "S" : "N");
+
+  const now = performance.now();
+  if (now - PLAYER.lastEnter > 700) {
+    for (const z of V.doorZones) {
+      if (PLAYER.x > z.x0 && PLAYER.x < z.x1 && PLAYER.y > z.y0 && PLAYER.y < z.y1) {
+        PLAYER.lastEnter = now;
+        if (z.exit) beginFade(() => leaveVenue());
+        else beginFade(() => venueEnterRoom(z.target, OPP[z.side]));
+        break;
+      }
+    }
+  }
+}
+
+async function venueActivate() {
+  const V = VENUE, p = V && V.prompt;
+  if (!p || V.panel) return;
+  if (p.kind === "drink") await buyDrink();
+  else if (p.kind === "smoke") await buySmoke();
+  else if (p.kind === "play") window.location.href = p.href;
+}
+// Called from wireInteriorCanvas' pointerup — returns true if it consumed the tap.
+function venueTapActivate() {
+  if (SCENE !== "venue" || !VENUE || !VENUE.prompt || VENUE.panel) return false;
+  venueActivate();
+  return true;
+}
+
+function drawVenueWalls(g, rs, V) {
+  const { cw, ch, padTop, TP } = rs;
+  const base = shade(V.def.house.wall_color || "#5c3a26", -0.2);
+  const gph = V.graph, gap = TP, midY = (padTop + ch) / 2;
+  g.fillStyle = base;
+  const doorS = gph.exit || gph.S;
+  if (doorS) { g.fillRect(0, ch - 5, cw / 2 - gap, 5); g.fillRect(cw / 2 + gap, ch - 5, cw - (cw / 2 + gap), 5); }
+  else g.fillRect(0, ch - 5, cw, 5);
+  if (gph.W) { g.fillRect(0, padTop, 5, midY - gap - padTop); g.fillRect(0, midY + gap, 5, ch - (midY + gap)); }
+  else g.fillRect(0, padTop, 5, ch - padTop);
+  if (gph.E) { g.fillRect(cw - 5, padTop, 5, midY - gap - padTop); g.fillRect(cw - 5, midY + gap, 5, ch - (midY + gap)); }
+  else g.fillRect(cw - 5, padTop, 5, ch - padTop);
+  g.fillRect(0, padTop, cw, 5);   // N wall — every venue room is fully enclosed up top
+
+  const nameFor = k => k === null ? "Exit" : ((V.def.rooms[k] || {}).name || k);
+  for (const z of V.doorZones) {
+    const cx = (z.x0 + z.x1) / 2, cy = (z.y0 + z.y1) / 2;
+    g.fillStyle = "rgba(255,214,140,0.16)";
+    roundRect(g, z.x0, cy - TP * 0.7, z.x1 - z.x0, TP * 1.4, 6); g.fill();
+    const txt = z.exit ? "↓ Exit" : nameFor(z.target);
+    g.font = '600 10px system-ui, sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+    const w = g.measureText(txt).width + 10;
+    const ly = z.side === "N" ? padTop + 13 : z.side === "S" ? ch - 13 : cy;
+    g.fillStyle = "rgba(10,11,22,0.74)"; roundRect(g, cx - w / 2, ly - 8, w, 16, 5); g.fill();
+    g.fillStyle = "#e9e9f4"; g.fillText(txt, cx, ly);
+  }
+}
+
+// A few slow drifting haze puffs, always faintly present in the smoking
+// lounge for atmosphere (independent of whether you personally just lit
+// one — it's meant to read as a "lively room").
+function drawSmokingHaze(g, rs, now) {
+  const { cw, ch } = rs;
+  for (let i = 0; i < 3; i++) {
+    const t = now / 1000 + i * 2.4;
+    const cx = cw * (0.25 + 0.25 * i) + Math.sin(t * 0.35) * cw * 0.1;
+    const cy = ch * (0.4 + 0.12 * i) + Math.cos(t * 0.28) * ch * 0.1;
+    const gr = g.createRadialGradient(cx, cy, 0, cx, cy, cw * 0.22);
+    gr.addColorStop(0, "rgba(214,208,192,0.16)"); gr.addColorStop(1, "rgba(214,208,192,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, cw, ch);
+  }
+}
+
+function drawVenueScene(now, dt) {
+  const V = VENUE;
+  if (!V || !V.rs) return;
+  stepVenue(dt);
+  const rs = V.rs, g = rs.g, { cw, ch } = rs;
+  if (rs.cv.width !== Math.round(cw * DPR) || rs.cv.height !== Math.round(ch * DPR)) fitCanvas(rs.cv, cw, ch);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
+  g.clearRect(0, 0, cw, ch);
+  g.drawImage(rs.groundCv, 0, 0);
+  GLOWS = [];
+  drawVenueWalls(g, rs, V);
+  if (V.kind === "tavern" && V.roomKey === "smoking") drawSmokingHaze(g, rs, now);
+  const ents = [];
+  for (const f of V.fixtures) ents.push({ y: (f.sortY != null ? f.sortY : f.zone.y1), d: () => f.draw(g, now) });
+  ents.push({ y: PLAYER.y, d: () => { drawPlayer(g, 1.9); drawAvatarTag(g, PLAYER.x, PLAYER.y - 30); } });
+  ents.sort((a, b) => a.y - b.y);
+  ents.forEach(e => e.d());
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
+  paintGlows(g, cw, ch, { x: cw / 2, y: ch / 2 }, 1, cw / 2, ch / 2);
+}
+
+function renderVenueBanner() {
+  const V = VENUE;
+  if (!V) return;
+  const rc = V.def.rooms[V.roomKey];
+  document.getElementById("interiorBanner").textContent = V.def.label + " · " + (rc ? rc.name : "");
+}
+
+function leaveVenue() {
+  const kind = VENUE && VENUE.kind;
+  VENUE = null; SCENE = "map"; activeTab = "map";
+  closeHallPanel();
+  document.getElementById("hudPrompt").style.display = "none";
+  document.getElementById("sceneActionBtn").style.display = "none";
+  document.getElementById("placeModeBtn").style.display = "";
+  document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "map"));
+  document.getElementById("mapView").style.display = "block";
+  document.getElementById("mineView").style.display = "none";
+  document.getElementById("interiorStage").style.display = "none";
+  document.getElementById("editorWrap").style.display = currentUser ? "block" : "none";
+  const b = kind === "tavern" ? MAP.tavern : kind === "casino" ? MAP.casino : MAP.townHall;
+  if (b && Number.isFinite(b.bx)) { PLAYER.x = b.bx; PLAYER.y = b.by + 50; PLAYER.dir = "S"; }
+  else spawnPlayer();
+  PLAYER.moveTarget = null; PLAYER.lastEnter = performance.now();
+  MAP.follow = true;
+  fitMapView();
+}
+
+/* ── Drinking / smoking / blackout (Alex, 2026-09-12) ─────────────────── */
+async function buyDrink() {
+  if (!currentUser) { toast("Log in on the Games hub to drink."); return; }
+  try {
+    const res = await api("/bar/drink", { method: "POST" });
+    currentUser.kellscoins = res.balance; updateCoinChip();
+    const maxD = (catalogData.bar && catalogData.bar.max_drunk) || 10;
+    PLAYER.drunk = Math.min(maxD, (PLAYER.drunk || 0) + 1);
+    if (PLAYER.drunk >= maxD) { triggerBlackout(); return; }
+    toast(`🍺 Cheers! (${PLAYER.drunk}/${maxD} drinks — getting wobbly)`);
+  } catch (e) { toast(e.message); }
+}
+const SMOKE_TOASTS = [
+  "😮‍💨 You look so cool.", "🚬 Definitely not great for your KellsCoins.",
+  "💭 You blow a smoke ring shaped like a 2048 tile.", "😌 Very relaxing. Very smelly.",
+  "🌬️ Someone coughs from across the room.",
+];
+async function buySmoke() {
+  if (!currentUser) { toast("Log in on the Games hub to smoke."); return; }
+  try {
+    const res = await api("/bar/smoke", { method: "POST" });
+    currentUser.kellscoins = res.balance; updateCoinChip();
+    PLAYER.smokeUntil = performance.now() + 9000;
+    toast(SMOKE_TOASTS[Math.floor(Math.random() * SMOKE_TOASTS.length)]);
+  } catch (e) { toast(e.message); }
+}
+// Random walkable point on the map, avoiding water and every solid rect —
+// where you "wake up" after a blackout.
+function randomTeleport() {
+  const rects = solidRects();
+  for (let tries = 0; tries < 60; tries++) {
+    const x = WORLD_PAD_X + 20 + Math.random() * (MAP.worldW - 2 * (WORLD_PAD_X + 20));
+    const y = WORLD_PAD_Y + 20 + Math.random() * (MAP.worldH - 2 * (WORLD_PAD_Y + 20));
+    if (pondZone(x, y) !== 0) continue;
+    if (rects.some(r => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1)) continue;
+    PLAYER.x = x; PLAYER.y = y; PLAYER.dir = "S"; PLAYER.moveTarget = null; PLAYER.sitting = false;
+    return;
+  }
+  spawnPlayer();
+}
+async function triggerBlackout() {
+  let lost = 0;
+  try {
+    const res = await api("/bar/blackout", { method: "POST" });
+    currentUser.kellscoins = res.balance; updateCoinChip();
+    lost = res.lost || 0;
+  } catch (e) { /* still black out even if the charge itself failed */ }
+  PLAYER.drunk = 0;
+  beginFade(() => {
+    VENUE = null; HALL = null; INTERIOR = null;
+    SCENE = "map"; activeTab = "map";
+    closeHallPanel();
+    document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "map"));
+    document.getElementById("mapView").style.display = "block";
+    document.getElementById("mineView").style.display = "none";
+    document.getElementById("interiorStage").style.display = "none";
+    document.getElementById("editorWrap").style.display = currentUser ? "block" : "none";
+    document.getElementById("hudPrompt").style.display = "none";
+    document.getElementById("sceneActionBtn").style.display = "none";
+    randomTeleport();
+    MAP.follow = true; fitMapView();
+  });
+  toast(`🥴 You blacked out and woke up somewhere random...${lost ? ` and lost 🪙 ${lost.toLocaleString()}` : ""}`);
+}
+// Cosmetic screen haze while PLAYER.smokeUntil hasn't elapsed — whatever
+// canvas is currently showing (map or an interior), same convention as
+// paintFade.
+function paintSmokeHaze(now) {
+  if (!PLAYER.smokeUntil || now > PLAYER.smokeUntil) return;
+  const cv = activeTab === "map" ? mapCv : document.getElementById("interiorCanvas");
+  if (!cv || !cv.width) return;
+  const g = cv.getContext("2d");
+  const remain = clamp((PLAYER.smokeUntil - now) / 9000, 0, 1);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalAlpha = remain * 0.2;
+  g.fillStyle = "#cfc9b8";
+  g.fillRect(0, 0, cv.width, cv.height);
+  g.globalAlpha = remain * 0.12;
+  for (let i = 0; i < 3; i++) {
+    const t = now / 1000 + i * 2;
+    const cx = cv.width * (0.2 + 0.3 * i) + Math.sin(t * 0.4) * cv.width * 0.08;
+    const cy = cv.height * 0.4 + Math.cos(t * 0.3) * cv.height * 0.15;
+    const gr = g.createRadialGradient(cx, cy, 0, cx, cy, cv.width * 0.35);
+    gr.addColorStop(0, "#e8e4d8"); gr.addColorStop(1, "rgba(232,228,216,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, cv.width, cv.height);
+  }
+  g.globalAlpha = 1;
 }
 
 function confirmVisit(h) {
@@ -3685,7 +4281,8 @@ function stepInterior(dt) {
     if (Math.hypot(tx, ty) < 5) PLAYER.moveTarget = null; else { dx = tx; dy = ty; }
   }
   if (!dx && !dy) { PLAYER.moving = false; return; }
-  const r = moveEntity(PLAYER, { x: dx, y: dy }, INTERIOR_SPEED, dt, solidRectsInterior(), interiorBounds());
+  const w = drunkWobble(dx, dy);
+  const r = moveEntity(PLAYER, { x: w.dx, y: w.dy }, INTERIOR_SPEED * w.speedMul, dt, solidRectsInterior(), interiorBounds());
   if (r.bx && r.by && PLAYER.moveTarget) PLAYER.moveTarget = null;
   PLAYER.phase += INTERIOR_SPEED * dt;
   PLAYER.moving = true;
@@ -3850,6 +4447,7 @@ async function togglePlaceMode() {
     down = false;
     if (moved) return;
     if (SCENE === "hall" && typeof hallTapActivate === "function" && hallTapActivate()) return;
+    if (SCENE === "venue" && typeof venueTapActivate === "function" && venueTapActivate()) return;
     // Tapping the canvas activates a sit / stand / trophy prompt; the
     // "place items" prompt is the E key / top-right button only, so a tap
     // in your own house still walks you around.
@@ -3857,8 +4455,8 @@ async function togglePlaceMode() {
         (INTERIOR.prompt.kind === "sit" || INTERIOR.prompt.kind === "stand" || INTERIOR.prompt.kind === "trophy")) {
       sceneActivate(); return;
     }
-    const rs = SCENE === "hall" ? (HALL && HALL.rs) : (INTERIOR && INTERIOR.rs);
-    if (!rs || (INTERIOR && INTERIOR.placeMode) || (HALL && HALL.panel) || (INTERIOR && INTERIOR.panel)) return;
+    const rs = SCENE === "hall" ? (HALL && HALL.rs) : SCENE === "venue" ? (VENUE && VENUE.rs) : (INTERIOR && INTERIOR.rs);
+    if (!rs || (INTERIOR && INTERIOR.placeMode) || (HALL && HALL.panel) || (INTERIOR && INTERIOR.panel) || (VENUE && VENUE.panel)) return;
     // object-fit:contain letterboxes the bitmap inside the element box — undo it.
     const b = cv.getBoundingClientRect();
     const s = Math.min(b.width / rs.cw, b.height / rs.ch);
@@ -3874,6 +4472,7 @@ document.getElementById("placeModeBtn").addEventListener("click", () => togglePl
 document.getElementById("interiorLeaveBtn").addEventListener("click", () => {
   if (SCENE === "interior") beginFade(() => leaveInterior());
   else if (SCENE === "hall") beginFade(() => leaveHall());
+  else if (SCENE === "venue") beginFade(() => leaveVenue());
 });
 document.getElementById("sceneActionBtn").addEventListener("click", () => sceneActivate());
 // The HUD prompt bubble is itself the button — most discoverable ("there's a
@@ -3885,6 +4484,7 @@ window.addEventListener("keydown", e => {
   const eKey = (k === "e" || k === "E");
   if (SCENE === "hall" && HALL && HALL.prompt && !HALL.panel && (k === "Enter" || eKey)) { e.preventDefault(); sceneActivate(); }
   else if (SCENE === "interior" && INTERIOR && INTERIOR.prompt && !INTERIOR.panel && eKey) { e.preventDefault(); sceneActivate(); }
+  else if (SCENE === "venue" && VENUE && VENUE.prompt && !VENUE.panel && (k === "Enter" || eKey)) { e.preventDefault(); sceneActivate(); }
 });
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -4320,15 +4920,24 @@ function tick(now) {
   if (dt > 0.05) dt = 0.05;
   if (autoDayNight && !REDUCED) timeOfDay = (timeOfDay + dt * 0.35) % 24;
 
+  // Sober up slowly over real time, in any scene.
+  if (PLAYER.drunk > 0) {
+    PLAYER._drunkDecayAcc = (PLAYER._drunkDecayAcc || 0) + dt;
+    const DECAY_PERIOD = 22;
+    if (PLAYER._drunkDecayAcc >= DECAY_PERIOD) { PLAYER._drunkDecayAcc -= DECAY_PERIOD; PLAYER.drunk = Math.max(0, PLAYER.drunk - 1); }
+  }
+
   if (activeTab === "map" && mapData) drawMapScene(now, dt);
   else if (activeTab === "mine") {
     if (SCENE === "interior" && INTERIOR && !INTERIOR.placeMode) drawInteriorScene(now, dt);
     else if (SCENE === "hall" && typeof HALL !== "undefined" && HALL) drawHallInterior(now, dt);
+    else if (SCENE === "venue" && VENUE) drawVenueScene(now, dt);
     else if (ROOM) drawRoomInto(ROOM, now, dt);
   }
   if (document.getElementById("detailModal").classList.contains("open") && DETAIL) drawRoomInto(DETAIL, now, dt);
 
   if (sceneFade.active) { stepFade(dt); paintFade(); }
+  paintSmokeHaze(now);
   requestAnimationFrame(tick);
 }
 
@@ -4339,8 +4948,10 @@ async function switchTab(key) {
   // The tab bar is Map vs. My-House-editor. The walkable interior / Town Hall
   // are modes you walk into — clicking a tab exits them cleanly first.
   if (SCENE !== "map") {
-    if (key === "map") { beginFade(() => (SCENE === "hall" ? leaveHall() : leaveInterior())); return; }
-    if (SCENE === "hall") leaveHall(); else { INTERIOR = null; SCENE = "map"; }
+    if (key === "map") { beginFade(() => (SCENE === "hall" ? leaveHall() : SCENE === "venue" ? leaveVenue() : leaveInterior())); return; }
+    if (SCENE === "hall") leaveHall();
+    else if (SCENE === "venue") leaveVenue();
+    else { INTERIOR = null; SCENE = "map"; }
   }
   document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === key));
   activeTab = key;
@@ -4416,8 +5027,11 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
     houseFootprint, houseHitBox, drawHouse, renderEditor,
     buildHall, openTownHall, stepHall, drawHallInterior, hallActivate, leaveHall, openHallPanel, closeHallPanel,
     sceneActivate, openTrophyPanel, syncPlayerPal, trophiesFor, sitOnSeat, standUp, togglePlaceMode,
+    openVenue, buildVenue, venueEnterRoom, stepVenue, drawVenueScene, venueActivate, leaveVenue,
+    solidRectsVenue, venueBounds, buyDrink, buySmoke, triggerBlackout, randomTeleport, drunkWobble,
     set LEADERBOARD(v) { LEADERBOARD = v; },
     get HALL() { return HALL; },
+    get VENUE() { return VENUE; },
     get PLAYER_PAL() { return PLAYER_PAL; },
     setExterior(userId, level) {
       const mh = ((mapData && mapData.houses) || []).find(x => x.user_id === userId);
