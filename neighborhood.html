@@ -3276,7 +3276,11 @@ function drawMapScene(now, dt) {
     const p = OTHER_PLAYERS[uid];
     if (p.scene === "map") ents.push({ y: p.y, d: () => drawOtherPlayer(g, p) });
   }
-  ents.push({ y: PLAYER.y, d: () => drawPlayer(g) });
+  // Sitting on a bench moves PLAYER.y up onto the seat plank, which would
+  // otherwise sort the player *behind* the bench's own (lower) anchor and
+  // let the seat/legs paint over them — force the sort key to sit just in
+  // front of the whole bench instead (Alex, 2026-09-14).
+  ents.push({ y: (PLAYER.sitting && PLAYER.sitAnchorY != null) ? PLAYER.sitAnchorY + 2 : PLAYER.y, d: () => drawPlayer(g) });
   {
     // Only depth-sort + draw decor that's actually on screen — MAP.decor is
     // ~12x the house count now that there's a whole forest.
@@ -3950,8 +3954,16 @@ function sitOnSeat(seat) {
   if (seat.x0 != null) {   // an indoor sofa/bench rect
     PLAYER.x = (seat.x0 + seat.x1) / 2;
     PLAYER.y = seat.y0 + (seat.y1 - seat.y0) * 0.5;
+    PLAYER.sitAnchorY = seat.y1;
   } else {                 // a map bench (a point, drawn front-on)
-    PLAYER.x = seat.x; PLAYER.y = seat.y - 5;
+    // The bench's seat plank sits ~9-10px above its own ground anchor (see
+    // drawMapDecor's "bench" case), and drawPlayer's sit pose then nudges
+    // the sprite down another 5px — so PLAYER.y needs to land well above
+    // the anchor for the seated sprite to actually land on the plank
+    // instead of at the bench's feet (Alex, 2026-09-14: "puts me like
+    // standing up almost behind the rendering").
+    PLAYER.x = seat.x; PLAYER.y = seat.y - 14;
+    PLAYER.sitAnchorY = seat.y;   // sort key only — draws the player in front of the whole bench, not just its top
   }
   PLAYER.dir = "S"; PLAYER.moving = false; PLAYER.moveTarget = null;
 }
@@ -3993,7 +4005,7 @@ function diveInPool(pool) {
 function standUp() {
   const wasLying = PLAYER.lying, wasJumping = PLAYER.jumping, wasSwimming = PLAYER.swimming;
   PLAYER.sitting = false; PLAYER.lying = false; PLAYER.soaking = false; PLAYER.jumping = false; PLAYER.swimming = false;
-  PLAYER.poolBounds = null;
+  PLAYER.poolBounds = null; PLAYER.sitAnchorY = null;
   PLAYER.moveTarget = null;
   if (wasJumping || wasSwimming) return;   // already clear of the trampoline/pool footprint, no step-off needed
   const I = INTERIOR;
