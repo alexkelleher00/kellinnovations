@@ -2316,6 +2316,106 @@ function syncPlayerPal() {
   PLAYER_PAL.t = pick(hs.avatar_shirt, SHIRT, "#00c8c8");
   PLAYER_PAL.p = pick(hs.avatar_pants, PANTS, auto.p);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Live presence (Alex, 2026-09-16: "if 2 people are playing in the world
+   that they can see each other walking around and interacting"). Every
+   logged-in client POSTs its own position ~every 1.5s to /presence/ping
+   and gets everyone else's last-known position back in the same response.
+   Only broadcast from shared/public scenes — map, Town Hall, the Tavern/
+   Casino — never from inside someone's private house interior. Coordinates
+   are room/world-local and directly comparable across viewers since the
+   map and every venue layout are fully deterministic (same for everyone).
+   ═══════════════════════════════════════════════════════════════════════ */
+let OTHER_PLAYERS = {};   // user_id -> {x,y,tx,ty,dir,moving,scene,room,name,avatar_emoji,phase}
+let _presenceInFlight = false;
+function presenceScene() {
+  if (SCENE === "map" && activeTab === "map") return { scene: "map", room: "" };
+  if (activeTab === "mine" && SCENE === "hall" && HALL) return { scene: "hall", room: "" };
+  if (activeTab === "mine" && SCENE === "venue" && VENUE) return { scene: "venue", room: VENUE.kind + ":" + VENUE.roomKey };
+  return null;   // private house interior, place-mode, a modal open, etc. — stay invisible
+}
+async function pingPresence() {
+  if (!currentUser || _presenceInFlight) return;
+  const where = presenceScene();
+  if (!where) return;
+  _presenceInFlight = true;
+  try {
+    const res = await api("/presence/ping", { method: "POST", body: {
+      x: PLAYER.x, y: PLAYER.y, dir: PLAYER.dir, moving: !!PLAYER.moving,
+      scene: where.scene, room: where.room,
+    } });
+    const seen = new Set();
+    (res.players || []).forEach(p => {
+      seen.add(p.user_id);
+      const cur = OTHER_PLAYERS[p.user_id];
+      if (cur) { cur.tx = p.x; cur.ty = p.y; cur.dir = p.dir; cur.moving = p.moving; cur.scene = p.scene; cur.room = p.room; cur.name = p.name; cur.avatar_emoji = p.avatar_emoji; }
+      else OTHER_PLAYERS[p.user_id] = { ...p, x: p.x, y: p.y, tx: p.x, ty: p.y, phase: 0 };
+    });
+    for (const uid in OTHER_PLAYERS) if (!seen.has(uid)) delete OTHER_PLAYERS[uid];
+    (res.invites || []).forEach(inv => {
+      const gameLabel = inv.game === "3man" ? "3 Man" : inv.game;
+      toast(`🎲 ${String(inv.from_name || "Someone").split(" ")[0]} invited you to play ${gameLabel}!`, { href: "3man.html", linkText: "Open 3 Man" });
+    });
+  } catch (e) { /* offline / logged out / transient — just skip this tick */ }
+  _presenceInFlight = false;
+}
+// Smoothly slide everyone else toward their last-reported position between
+// polls, and advance a local walk-cycle phase while the server says they're
+// moving — same treatment as the ambient NPC walkers.
+function stepOtherPlayers(dt) {
+  for (const uid in OTHER_PLAYERS) {
+    const p = OTHER_PLAYERS[uid];
+    const t = Math.min(1, dt * 6);
+    p.x += (p.tx - p.x) * t; p.y += (p.ty - p.y) * t;
+    if (p.moving) p.phase = (p.phase || 0) + 90 * dt;
+  }
+}
+// A real member's actual customised look (if they've set one) instead of
+// just the account-hash default — reads the same colours their own house
+// editor writes, via the map's already-loaded house data.
+function otherPlayerPal(p) {
+  const auto = personPal(p.user_id);
+  const h = ((mapData && mapData.houses) || []).find(x => x.user_id === p.user_id);
+  const hs = (h && h.house) || {};
+  const pick = (idx, arr, dflt) => (Number.isInteger(idx) && idx >= 0 ? arr[idx % arr.length] : dflt);
+  return { h: pick(hs.avatar_hair, HAIR, auto.h), s: "#f0c8a4", 1: "#241a1e",
+           t: pick(hs.avatar_shirt, SHIRT, auto.t), p: pick(hs.avatar_pants, PANTS, auto.p), 6: "#3b2b2b" };
+}
+function drawOtherPlayer(g, p) {
+  const pal = otherPlayerPal(p);
+  const dir = p.dir === "W" ? "E" : (p.dir || "S"), flip = p.dir === "W";
+  const frame = !p.moving ? PEOPLE_SPR[dir][0] : PEOPLE_SPR[dir][Math.floor((p.phase || 0) / 5) % 2 ? 1 : 2];
+  ovShadow(g, p.x, p.y, 7.5, 3, 0.3); ovShadow(g, p.x, p.y, 4, 1.7, 0.22);
+  blit(g, frame, pal, Math.round(p.x - 6), Math.round(p.y - 16), flip);
+  const nm = String(p.name || "").split(" ")[0];
+  if (nm) {
+    g.font = '600 9px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif';
+    g.textAlign = "center"; g.textBaseline = "alphabetic";
+    const w = g.measureText(nm).width + 10;
+    g.fillStyle = "rgba(10,11,22,0.78)"; g.fillRect(p.x - w / 2, p.y - 26, w, 13);
+    g.fillStyle = "#a6d1e6"; g.fillText(nm, p.x, p.y - 16);
+  }
+}
+// Nearest other real player sharing your exact scene+room, for the
+// "invite to play" prompt — same reach convention the sit/fixture prompts use.
+function nearbyOtherPlayer(scene, room, reach) {
+  let best = null, bestD = reach;
+  for (const uid in OTHER_PLAYERS) {
+    const p = OTHER_PLAYERS[uid];
+    if (p.scene !== scene || (room != null && p.room !== room)) continue;
+    const d = Math.hypot(PLAYER.x - p.x, PLAYER.y - p.y);
+    if (d < bestD) { best = p; bestD = d; }
+  }
+  return best;
+}
+async function sendInvite(other) {
+  try {
+    await api("/presence/invite", { method: "POST", body: { to_user_id: other.user_id, game: "3man" } });
+    toast(`🎲 Invited ${String(other.name || "them").split(" ")[0]} to 3 Man!`);
+  } catch (e) { toast(e.message); }
+}
+
 const PLAYER_KEYS = new Set();
 const MOVE_KEYS = {
   KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1],
@@ -2345,7 +2445,8 @@ function spawnPlayer() {
     PLAYER.y = th ? th.by + 50 : MAP.worldH / 2;
     PLAYER.dir = "S";
   }
-  PLAYER.moveTarget = null; PLAYER.sitting = false;
+  PLAYER.moveTarget = null; PLAYER.sitting = false; PLAYER.lying = false;
+  PLAYER.soaking = false; PLAYER.jumping = false; PLAYER.swimming = false; PLAYER.poolBounds = null;
 }
 // Same footprints the click-to-enter hit-tests use (see wireMap's pointerup)
 // so "solid to walk into" always matches "clickable to enter".
@@ -2390,8 +2491,49 @@ function moveEntity(pos, dir, speed, dt, rects, bounds) {
   if (!by) pos.y = ny;
   return { bx, by, dx, dy };
 }
+// A bench out in the world to sit on (Alex, 2026-09-16) — the same HUD
+// prompt chip the hall/venue/house scenes use, just driven from the open
+// map instead of a room.
+function mapPrompt() {
+  if (PLAYER.sitting) return { kind: "stand", label: "🪑 Stand up" };
+  const reach = 26;
+  const bench = (MAP.benches || []).find(b => Math.hypot(PLAYER.x - b.x, PLAYER.y - b.y) < reach);
+  if (bench) return { kind: "sit", seat: bench, label: "🪑 Sit down" };
+  const other = nearbyOtherPlayer("map", "", 30);
+  if (other) return { kind: "invite", other, label: `🎲 Invite ${String(other.name || "them").split(" ")[0]} to 3 Man` };
+  return null;
+}
+function mapActivate() {
+  const p = MAP.prompt;
+  if (!p) return;
+  if (p.kind === "sit") sitOnSeat(p.seat);
+  else if (p.kind === "stand") standUp();
+  else if (p.kind === "invite") sendInvite(p.other);
+}
+// Called from wireMap's pointerup — returns true if it consumed the tap.
+function mapTapActivate() {
+  if (SCENE !== "map" || !MAP.prompt) return false;
+  mapActivate();
+  return true;
+}
 function stepPlayer(dt) {
   if (anyModalOpen() || activeTab !== "map" || sceneFade.active) { PLAYER.moving = false; return; }
+
+  MAP.prompt = mapPrompt();
+  const el = document.getElementById("hudPrompt"), btn = document.getElementById("sceneActionBtn");
+  if (MAP.prompt) {
+    el.style.display = "block";
+    el.innerHTML = `${MAP.prompt.label}<span class="sub">tap this · or press E</span>`;
+    btn.style.display = ""; btn.textContent = "E";
+  } else { el.style.display = "none"; btn.style.display = "none"; }
+
+  if (PLAYER.sitting) {   // frozen on the bench until a move input or Stand up
+    let held = false;
+    for (const k of PLAYER_KEYS) if (MOVE_KEYS[k]) held = true;
+    if (!held && !PLAYER.moveTarget) { PLAYER.moving = false; return; }
+    standUp();
+  }
+
   let dx = 0, dy = 0;
   for (const k of PLAYER_KEYS) { const d = MOVE_KEYS[k]; if (d) { dx += d[0]; dy += d[1]; } }
   if (dx || dy) {
@@ -2435,19 +2577,52 @@ function stepPlayer(dt) {
 }
 function drawPlayer(g, sc) {
   sc = sc || 1;
-  const sit = !!PLAYER.sitting;
-  const dir = PLAYER.dir === "W" ? "E" : PLAYER.dir, flip = PLAYER.dir === "W";
-  const frame = (sit || !PLAYER.moving) ? PEOPLE_SPR[dir][0] : PEOPLE_SPR[dir][Math.floor(PLAYER.phase / 5) % 2 ? 1 : 2];
-  const yoff = sit ? 5 * sc : 0;   // sunk into the seat
-  ovShadow(g, PLAYER.x, PLAYER.y, 7.5 * sc, 3 * sc, 0.32);
-  ovShadow(g, PLAYER.x, PLAYER.y, 4 * sc, 1.7 * sc, 0.24);
-  if (!sit) {
+  const sit = !!PLAYER.sitting, lying = !!PLAYER.lying;
+  // Hot tub/trampoline/pool (Alex, 2026-09-14) reuse this same draw path —
+  // soaking is a deeper sit + rising bubbles, swimming reuses lying's
+  // "rotated flat" pose (floating) plus a ripple ring, jumping gets its own
+  // bounce/squash-stretch since a trampoline has no equivalent existing pose.
+  const soaking = !!PLAYER.soaking, jumping = !!PLAYER.jumping, swimming = !!PLAYER.swimming;
+  const resting = sit || lying || soaking || jumping || swimming;
+  // Lying down (and swimming, floating) reuses the E-facing walk sprite,
+  // rotated on its side, so it reads as "flat" instead of just a shorter sit
+  // (Alex, 2026-09-16).
+  const flat = lying || swimming;
+  const dir = flat ? "E" : (PLAYER.dir === "W" ? "E" : PLAYER.dir);
+  const flip = flat ? false : (PLAYER.dir === "W");
+  const frame = (resting || !PLAYER.moving) ? PEOPLE_SPR[dir][0] : PEOPLE_SPR[dir][Math.floor(PLAYER.phase / 5) % 2 ? 1 : 2];
+  let yoff = sit ? 5 * sc : lying ? 2 * sc : soaking ? 7 * sc : swimming ? 3 * sc : 0;
+  let scaleX = 1, scaleY = 1, shadowMul = 1;
+  if (jumping) {
+    const b = Math.abs(Math.sin((PLAYER.jumpPhase || 0) * 6));   // 0 (grounded) .. 1 (peak)
+    yoff = -b * 15 * sc;
+    scaleY = 1 + b * 0.16; scaleX = 1 - b * 0.09;                // stretch up top, squash on landing
+    shadowMul = 1 - b * 0.55;                                    // shadow shrinks/fades as the jumper rises
+  }
+  ovShadow(g, PLAYER.x, PLAYER.y, (flat ? 10 : 7.5) * sc * shadowMul, (flat ? 4 : 3) * sc * shadowMul, 0.32 * shadowMul);
+  ovShadow(g, PLAYER.x, PLAYER.y, (flat ? 6 : 4) * sc * shadowMul, (flat ? 2.4 : 1.7) * sc * shadowMul, 0.24 * shadowMul);
+  if (!resting) {
     g.strokeStyle = "rgba(0,200,200,0.9)"; g.lineWidth = 1.4;
     g.beginPath(); g.ellipse(PLAYER.x, PLAYER.y + 1, 8 * sc, 3 * sc, 0, 0, 7); g.stroke();
+  } else if (swimming) {
+    // A fading ripple ring instead of the walking indicator — reads as
+    // "in the water" rather than "standing still".
+    const rp = (performance.now() / 700) % 1;
+    g.strokeStyle = "rgba(255,255,255,0.55)"; g.lineWidth = 1.2; g.globalAlpha = 1 - rp;
+    g.beginPath(); g.ellipse(PLAYER.x, PLAYER.y + 2, (6 + rp * 10) * sc, (2 + rp * 3) * sc, 0, 0, 7); g.stroke();
+    g.globalAlpha = 1;
+  } else if (soaking) {
+    // Small bubbles rising past the waterline — cheap, no bespoke sprite needed.
+    g.fillStyle = "rgba(255,255,255,0.6)";
+    for (let i = 0; i < 3; i++) {
+      const bp = ((performance.now() / 500) + i / 3) % 1;
+      g.beginPath(); g.arc(PLAYER.x + (i - 1) * 5 * sc, PLAYER.y + 5 * sc - bp * 15 * sc, (1.6 - bp) * sc, 0, 7); g.fill();
+    }
   }
-  if (sc === 1) { blit(g, frame, PLAYER_PAL, Math.round(PLAYER.x - 6), Math.round(PLAYER.y - 16 + yoff), flip); return; }
-  g.save(); g.translate(Math.round(PLAYER.x), Math.round(PLAYER.y + yoff)); g.scale(sc, sc);
-  blit(g, frame, PLAYER_PAL, -6, -16, flip); g.restore();
+  g.save(); g.translate(Math.round(PLAYER.x), Math.round(PLAYER.y + yoff)); g.scale(sc * scaleX, sc * scaleY);
+  if (flat) g.rotate(-Math.PI / 2);
+  blit(g, frame, PLAYER_PAL, -6, flat ? -13 : -16, flip);   // swimming/lying: draw a bit lower, "in" the water/bed rather than floating above it
+  g.restore();
 }
 
 // Scenery scattered in each plot's margin (MAP.decor, built in layoutMap) —
@@ -2548,6 +2723,24 @@ function drawMapDecor(g, d, t) {
     }
     return;
   }
+  if (d.kind === "bench") {
+    const w = 22 * s;
+    ovShadow(g, x, y, w * 0.55, 4 * s, 0.24);
+    g.fillStyle = "#241a12";
+    g.fillRect(x - w / 2 + 2 * s, y - 8 * s, 2.6 * s, 8 * s);
+    g.fillRect(x + w / 2 - 4.6 * s, y - 8 * s, 2.6 * s, 8 * s);
+    g.fillStyle = lgrad(g, x, y - 11 * s, x, y - 7.8 * s, "#9c7448", "#6b4a2e");
+    g.fillRect(x - w / 2, y - 11 * s, w, 3.2 * s);
+    g.fillStyle = "rgba(0,0,0,0.22)";
+    for (let i = 1; i < 4; i++) g.fillRect(x - w / 2 + (w / 4) * i, y - 11 * s, 1, 3.2 * s);
+    g.fillStyle = "#241a12";
+    g.fillRect(x - w / 2 + 1 * s, y - 22 * s, 2 * s, 11 * s);
+    g.fillRect(x + w / 2 - 3 * s, y - 22 * s, 2 * s, 11 * s);
+    g.fillStyle = lgrad(g, x, y - 22 * s, x, y - 15 * s, "#9c7448", "#6b4a2e");
+    g.fillRect(x - w / 2 + 1 * s, y - 22 * s, w - 2 * s, 3 * s);
+    g.fillRect(x - w / 2 + 1 * s, y - 17.5 * s, w - 2 * s, 3 * s);
+    return;
+  }
   if (d.kind === "tree") {
     // gentle per-instance sway of the canopy only (trunk stays planted)
     const sway = Math.sin(t * 1.1 + hash2(x, y) * 6.28) * 2.2 * s * (REDUCED ? 0 : 1);
@@ -2615,7 +2808,7 @@ const MAP = {
   houses: [], walkers: [], mapPets: [], townHall: null, groundCv: document.createElement("canvas"),
   worldW: 800, worldH: 600, cam: { x: 400, y: 300, zoom: 3 }, userZoomed: false, ready: false,
   follow: true,  // camera tracks PLAYER while true; a manual drag turns it off until the next keypress
-  pathSegs: [], decor: [], pond: null,
+  pathSegs: [], decor: [], pond: null, benches: [],
 };
 // PLOT_H grew from 210 (2026-09-04) to make room for a backyard band behind
 // the house — BACK_H tall, opposite the road — since Backyard items (a Pool,
@@ -2808,6 +3001,7 @@ function layoutMap() {
 
   scatterForest();
   scatterLandmarks();
+  scatterBenches();
   syncPlayerPal();
   spawnPlayer();
   buildMapGround();
@@ -2843,6 +3037,34 @@ function scatterLandmarks() {
     const kind = kinds[placed.length % kinds.length];
     const d = { kind, x, y, scale: kind === "gazebo" ? 1.5 : kind === "fountain" ? 1.3 : 1.15, landmark: true };
     placed.push(d); MAP.decor.push(d);
+  }
+}
+// A park bench along most of the winding paths (Alex, 2026-09-16: "add
+// benches around the world... sit on benches") — one just off to the side
+// of a path segment so it doesn't block walking, easy to stumble on while
+// exploring rather than hidden deep in the forest. MAP.benches holds them
+// separately (not just MAP.decor) so stepPlayer can proximity-check without
+// scanning every tree.
+function scatterBenches() {
+  MAP.benches = [];
+  const rects = plotAvoidRects(20);
+  const segs = MAP.pathSegs || [];
+  const want = Math.max(3, Math.round(MAP.houses.length * 0.9));
+  const placed = [];
+  for (let k = 0; k < segs.length && placed.length < want; k++) {
+    const seg = segs[k];
+    const mx = (seg.ax + seg.bx) / 2, my = (seg.ay + seg.by) / 2;
+    const dx = seg.bx - seg.ax, dy = seg.by - seg.ay, len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    const side = hash2(k, 611) < 0.5 ? 1 : -1;
+    const off = PATH_HALF_W + 15;
+    const x = mx + nx * off * side, y = my + ny * off * side;
+    if (onPlaza(x, y) || pondZone(x, y) !== 0 || onPath(x, y)) continue;
+    if (rects.some(p => x > p.x0 && x < p.x1 && y > p.y0 && y < p.y1)) continue;
+    if (placed.some(d => Math.hypot(d.x - x, d.y - y) < 90)) continue;
+    if ((MAP.decor || []).some(d => d.landmark && Math.hypot(d.x - x, d.y - y) < 40)) continue;
+    const d = { kind: "bench", x, y, scale: 1.05, landmark: true };
+    placed.push(d); MAP.decor.push(d); MAP.benches.push(d);
   }
 }
 // A real forest around the neighborhood (2026-09-05, "add some trees or
@@ -3050,6 +3272,10 @@ function drawMapScene(now, dt) {
   });
   MAP.walkers.forEach(a => ents.push({ y: a.y, d: () => drawWalker(g, a) }));
   MAP.mapPets.forEach(p => ents.push({ y: p.y, d: () => drawPetActor(g, p, now / 1000, 1.35) }));
+  for (const uid in OTHER_PLAYERS) {
+    const p = OTHER_PLAYERS[uid];
+    if (p.scene === "map") ents.push({ y: p.y, d: () => drawOtherPlayer(g, p) });
+  }
   ents.push({ y: PLAYER.y, d: () => drawPlayer(g) });
   {
     // Only depth-sort + draw decor that's actually on screen — MAP.decor is
@@ -3147,6 +3373,7 @@ function mapScreenToWorld(sx, sy) {
   mapCv.addEventListener("pointerup", e => {
     down = false; mapCv.classList.remove("dragging");
     if (moved) return;
+    if (mapTapActivate()) return;
     const r = mapCv.getBoundingClientRect();
     const w = mapScreenToWorld(e.clientX - r.left, e.clientY - r.top);
     const th = MAP.townHall;
@@ -3588,6 +3815,10 @@ function stepHall(dt) {
   }
   if (!prompt && inZone(H.counterZone)) prompt = { kind: "counter" };
   if (!prompt && inZone(H.boardZone)) prompt = { kind: "board" };
+  if (!prompt) {
+    const other = nearbyOtherPlayer("hall", "", reach);
+    if (other) prompt = { kind: "invite", other, label: `🎲 Invite ${String(other.name || "them").split(" ")[0]} to 3 Man` };
+  }
   H.prompt = prompt;
   const el = document.getElementById("hudPrompt"), btn = document.getElementById("sceneActionBtn");
   if (prompt && !H.panel) {
@@ -3595,9 +3826,10 @@ function stepHall(dt) {
     el.innerHTML = (prompt.kind === "buy"
       ? `🛒 Buy ${escHtml(prompt.name)} — 🪙 ${prompt.price.toLocaleString()}`
       : prompt.kind === "counter" ? "🛒 Open the shop"
+      : prompt.kind === "invite" ? escHtml(prompt.label)
       : "📋 Resident directory") + `<span class="sub">tap this · or press E</span>`;
     btn.style.display = "";
-    btn.textContent = prompt.kind === "buy" ? "Buy" : prompt.kind === "counter" ? "Shop" : "Read";
+    btn.textContent = prompt.kind === "buy" ? "Buy" : prompt.kind === "counter" ? "Shop" : prompt.kind === "invite" ? "E" : "Read";
   } else { el.style.display = "none"; btn.style.display = "none"; }
 
   if (performance.now() - PLAYER.lastEnter > 700 &&
@@ -3620,6 +3852,7 @@ async function hallActivate() {
     } catch (e) { toast(e.message); }
   } else if (p.kind === "counter") { openHallPanel("shop"); }
   else if (p.kind === "board") { openHallPanel("board"); }
+  else if (p.kind === "invite") { await sendInvite(p.other); }
 }
 // Called from wireInteriorCanvas' pointerup — returns true if it consumed the tap.
 function hallTapActivate() {
@@ -3691,25 +3924,72 @@ function openTrophyPanel() {
 function sceneActivate() {
   if (SCENE === "hall") { hallActivate(); return; }
   if (SCENE === "venue") { venueActivate(); return; }
+  if (SCENE === "map") { mapActivate(); return; }
   if (SCENE !== "interior" || !INTERIOR || INTERIOR.panel || sceneFade.active) return;
   const p = INTERIOR.prompt;
   if (!p) return;
   if (p.kind === "trophy") openTrophyPanel();
   else if (p.kind === "place") togglePlaceMode();
   else if (p.kind === "sit") sitOnSeat(p.seat);
+  else if (p.kind === "lie") lieOnBed(p.bed);
+  else if (p.kind === "soak") soakInTub(p.tub);
+  else if (p.kind === "jump") jumpOnTrampoline(p.tramp);
+  else if (p.kind === "swim") diveInPool(p.pool);
   else if (p.kind === "stand") standUp();
 }
 function sitOnSeat(seat) {
-  PLAYER.sitting = true;
-  PLAYER.x = (seat.x0 + seat.x1) / 2;
-  PLAYER.y = seat.y0 + (seat.y1 - seat.y0) * 0.5;
+  PLAYER.sitting = true; PLAYER.lying = false;
+  if (seat.x0 != null) {   // an indoor sofa/bench rect
+    PLAYER.x = (seat.x0 + seat.x1) / 2;
+    PLAYER.y = seat.y0 + (seat.y1 - seat.y0) * 0.5;
+  } else {                 // a map bench (a point, drawn front-on)
+    PLAYER.x = seat.x; PLAYER.y = seat.y - 5;
+  }
   PLAYER.dir = "S"; PLAYER.moving = false; PLAYER.moveTarget = null;
 }
+// A bed works like a seat but you lie down instead (Alex, 2026-09-16: "make
+// it so you can lie down on beds").
+function lieOnBed(bed) {
+  PLAYER.lying = true; PLAYER.sitting = false; PLAYER.soaking = false; PLAYER.jumping = false; PLAYER.swimming = false;
+  PLAYER.x = (bed.x0 + bed.x1) / 2;
+  PLAYER.y = (bed.y0 + bed.y1) / 2;
+  PLAYER.dir = "S"; PLAYER.moving = false; PLAYER.moveTarget = null;
+}
+// Hot tub, trampoline, and pool (Alex, 2026-09-14) — same "walk up, press E,
+// snap into place" pattern as sitOnSeat/lieOnBed above. Soaking reuses the
+// sitting pose (sunk a bit deeper + bubbles, see drawPlayer); jumping gets
+// its own bounce animation; swimming is the one that stays interactive —
+// the player can actually paddle around inside the pool's own bounds
+// instead of freezing in place, see stepInterior's swimming branch.
+function soakInTub(tub) {
+  PLAYER.soaking = true; PLAYER.sitting = false; PLAYER.lying = false; PLAYER.jumping = false; PLAYER.swimming = false;
+  PLAYER.x = (tub.x0 + tub.x1) / 2;
+  PLAYER.y = tub.y0 + (tub.y1 - tub.y0) * 0.5;
+  PLAYER.dir = "S"; PLAYER.moving = false; PLAYER.moveTarget = null;
+}
+function jumpOnTrampoline(tramp) {
+  PLAYER.jumping = true; PLAYER.sitting = false; PLAYER.lying = false; PLAYER.soaking = false; PLAYER.swimming = false;
+  PLAYER.x = (tramp.x0 + tramp.x1) / 2;
+  PLAYER.y = (tramp.y0 + tramp.y1) / 2;
+  PLAYER.dir = "S"; PLAYER.moving = false; PLAYER.moveTarget = null;
+  PLAYER.jumpPhase = 0;
+}
+function diveInPool(pool) {
+  PLAYER.swimming = true; PLAYER.sitting = false; PLAYER.lying = false; PLAYER.soaking = false; PLAYER.jumping = false;
+  PLAYER.x = (pool.x0 + pool.x1) / 2;
+  PLAYER.y = (pool.y0 + pool.y1) / 2;
+  PLAYER.dir = "S"; PLAYER.moving = false; PLAYER.moveTarget = null;
+  const inset = (INTERIOR && INTERIOR.rs ? INTERIOR.rs.TP : 20) * 0.35;   // stay off the tiled rim
+  PLAYER.poolBounds = { x0: pool.x0 + inset, y0: pool.y0 + inset, x1: pool.x1 - inset, y1: pool.y1 - inset };
+}
 function standUp() {
-  const I = INTERIOR;
-  PLAYER.sitting = false;
+  const wasLying = PLAYER.lying, wasJumping = PLAYER.jumping, wasSwimming = PLAYER.swimming;
+  PLAYER.sitting = false; PLAYER.lying = false; PLAYER.soaking = false; PLAYER.jumping = false; PLAYER.swimming = false;
+  PLAYER.poolBounds = null;
   PLAYER.moveTarget = null;
-  if (I && I.rs) PLAYER.y = Math.min(PLAYER.y + I.rs.TP * 0.9, I.rs.ch - 12);   // step off the front of the seat
+  if (wasJumping || wasSwimming) return;   // already clear of the trampoline/pool footprint, no step-off needed
+  const I = INTERIOR;
+  if (I && I.rs) PLAYER.y = Math.min(PLAYER.y + I.rs.TP * (wasLying ? 0.5 : 0.9), I.rs.ch - 12);   // step off the front
 }
 function closeHallPanel() {
   const el = document.getElementById("hallPanel");
@@ -3794,6 +4074,10 @@ function drawHallInterior(now, dt) {
       g.fillStyle = "rgba(10,11,22,0.8)"; roundRect(g, p.x - 22, p.y + TP * 0.62, 44, 13, 4); g.fill();
       g.fillStyle = "#ffd166"; g.fillText("🪙 " + (cat.price || 0).toLocaleString(), p.x, p.y + TP * 0.62 + 7);
     } });
+  }
+  for (const uid in OTHER_PLAYERS) {
+    const p = OTHER_PLAYERS[uid];
+    if (p.scene === "hall") ents.push({ y: p.y, d: () => drawOtherPlayer(g, p) });
   }
   ents.push({ y: PLAYER.y, d: () => { drawPlayer(g, 1.9); drawAvatarTag(g, PLAYER.x, PLAYER.y - 30); } });
   ents.sort((a, b) => a.y - b.y);
@@ -3881,7 +4165,7 @@ function venueEnterRoom(key, fromSide) {
     V.doorZones = interiorDoorZones(rs, gph);
     V.fixtures = buildVenueFixtures(V.kind, key, rs);
     interiorSpawn(rs, fromSide);
-    PLAYER.sitting = false;
+    PLAYER.sitting = false; PLAYER.lying = false; PLAYER.soaking = false; PLAYER.jumping = false; PLAYER.swimming = false; PLAYER.poolBounds = null;
     PLAYER.lastEnter = performance.now();
     renderVenueBanner();
   };
@@ -3914,6 +4198,8 @@ function venuePrompt(V) {
     const z = f.zone;
     if (PLAYER.x > z.x0 - reach && PLAYER.x < z.x1 + reach && PLAYER.y > z.y0 - reach && PLAYER.y < z.y1 + reach) return f.prompt;
   }
+  const other = nearbyOtherPlayer("venue", V.kind + ":" + V.roomKey, reach);
+  if (other) return { kind: "invite", other, label: `🎲 Invite ${String(other.name || "them").split(" ")[0]} to 3 Man` };
   return null;
 }
 
@@ -3926,7 +4212,10 @@ function buildVenueFixtures(kind, roomKey, rs) {
     const drinkZone = { x0: counter.x0, y0: counter.y1, x1: counter.x1, y1: counter.y1 + TP * 1.1 };
     const price = (catalogData.bar && catalogData.bar.drink_price) || 20;
     const barkeep = { x: (counter.x0 + counter.x1) / 2, y: counter.y0 - TP * 0.3 };
-    return [
+    const fire = { x0: cw * 0.05, y0: padTop + TP * 0.3, x1: cw * 0.05 + TP * 1.7, y1: padTop + TP * 2.4 };
+    const dart = { x: cw * 0.93, y: padTop + TP * 1.6 };
+    const tables = [{ x: cw * 0.30, y: ch * 0.62 }, { x: cw * 0.62, y: ch * 0.68 }];
+    const out = [
       { zone: drinkZone, solid: counter, sortY: counter.y1,
         prompt: { kind: "drink", label: `🍺 Order a drink — 🪙 ${price}` },
         draw: (g) => {
@@ -3942,20 +4231,89 @@ function buildVenueFixtures(kind, roomKey, rs) {
         } },
       { zone: { x0: barkeep.x - 4, y0: barkeep.y - 4, x1: barkeep.x + 4, y1: barkeep.y + 4 }, sortY: barkeep.y, prompt: null,
         draw: (g) => { ovShadow(g, barkeep.x, barkeep.y, 6.5, 2.6, 0.28); blit(g, PEOPLE_SPR.S[0], NPC_PAL, Math.round(barkeep.x - 6), Math.round(barkeep.y - 16), false); } },
+      // a crackling stone fireplace — the tavern's cosy centrepiece
+      { zone: fire, solid: { x0: fire.x0, y0: fire.y0, x1: fire.x1, y1: fire.y1 - 6 }, sortY: fire.y1, prompt: null,
+        draw: (g, now) => {
+          const t = (now || 0) / 1000;
+          g.fillStyle = "#2a2420"; g.fillRect(fire.x0 - 2, fire.y0 - 2, (fire.x1 - fire.x0) + 4, (fire.y1 - fire.y0) + 4);
+          g.fillStyle = lgrad(g, fire.x0, fire.y0, fire.x0, fire.y1, "#8a8478", "#5c564c");
+          g.fillRect(fire.x0, fire.y0, fire.x1 - fire.x0, fire.y1 - fire.y0);
+          const fbx0 = fire.x0 + 4, fby0 = fire.y0 + (fire.y1 - fire.y0) * 0.35, fbx1 = fire.x1 - 4, fby1 = fire.y1 - 4;
+          g.fillStyle = "#100a08"; g.fillRect(fbx0, fby0, fbx1 - fbx0, fby1 - fby0);
+          for (let i = 0; i < 3; i++) {
+            const fx = fbx0 + (fbx1 - fbx0) * (i + 0.5) / 3;
+            const h = 6 + Math.sin(t * 8 + i * 2) * 2 + hash2(i, Math.floor(t * 6)) * 3;
+            g.fillStyle = i % 2 ? "#ff8a3c" : "#ffce6b";
+            g.beginPath(); g.moveTo(fx, fby1); g.lineTo(fx - 3, fby1 - h * 0.5); g.lineTo(fx, fby1 - h); g.lineTo(fx + 3, fby1 - h * 0.5); g.closePath(); g.fill();
+          }
+          GLOWS.push({ x: (fbx0 + fbx1) / 2, y: (fby0 + fby1) / 2, r: 36, col: "#ff8a3c", i: 0.5 + Math.sin(t * 6) * 0.15 });
+          g.fillStyle = "#5c3a20"; g.fillRect(fire.x0 - 3, fby0 - 4, (fire.x1 - fire.x0) + 6, 4);
+        } },
+      // dartboard
+      { zone: { x0: dart.x - 1, y0: dart.y - 1, x1: dart.x + 1, y1: dart.y + 1 }, sortY: dart.y, prompt: null,
+        draw: (g) => {
+          g.fillStyle = "#2a2420"; g.beginPath(); g.arc(dart.x, dart.y, 7, 0, 7); g.fill();
+          g.fillStyle = "#e8dcc4"; g.beginPath(); g.arc(dart.x, dart.y, 6, 0, 7); g.fill();
+          g.strokeStyle = "#c0432f"; g.lineWidth = 1;
+          for (let i = 0; i < 8; i++) { g.beginPath(); g.moveTo(dart.x, dart.y); g.lineTo(dart.x + Math.cos(i * 0.785) * 6, dart.y + Math.sin(i * 0.785) * 6); g.stroke(); }
+          g.fillStyle = "#c0432f"; g.beginPath(); g.arc(dart.x, dart.y, 1.5, 0, 7); g.fill();
+        } },
+      // strand of hanging lantern lights across the ceiling
+      { zone: { x0: 0, y0: padTop, x1: 0, y1: padTop }, sortY: padTop + 1, prompt: null,
+        draw: (g) => {
+          const n = 7;
+          g.strokeStyle = "rgba(0,0,0,0.4)"; g.lineWidth = 1;
+          g.beginPath();
+          for (let i = 0; i <= n; i++) { const x = cw * i / n, y = padTop + 4 + Math.sin(i * 1.4) * 3; if (i === 0) g.moveTo(x, y); else g.lineTo(x, y); }
+          g.stroke();
+          for (let i = 0; i <= n; i++) {
+            const x = cw * i / n, y = padTop + 6 + Math.sin(i * 1.4) * 3;
+            g.fillStyle = "#ffce6b"; g.beginPath(); g.arc(x, y, 1.6, 0, 7); g.fill();
+            GLOWS.push({ x, y, r: 14, col: "#ffce6b", i: 0.35 });
+          }
+        } },
     ];
+    for (const pt of tables) {
+      out.push({ zone: { x0: pt.x - 1, y0: pt.y - 1, x1: pt.x + 1, y1: pt.y + 1 }, solid: { x0: pt.x - 9, y0: pt.y - 12, x1: pt.x + 9, y1: pt.y - 6 }, sortY: pt.y + 2, prompt: null,
+        draw: (g) => {
+          ovShadow(g, pt.x, pt.y, 11, 3.5, 0.2);
+          g.fillStyle = "#2a2420"; g.fillRect(pt.x - 1.5, pt.y - 9, 3, 9);
+          g.fillStyle = lgrad(g, pt.x - 8, pt.y - 11, pt.x + 8, pt.y - 11, "#9c7448", "#6b4a2e");
+          g.beginPath(); g.ellipse(pt.x, pt.y - 10, 8, 4, 0, 0, 7); g.fill();
+          for (const so of [-13, 13]) {
+            g.fillStyle = "#2a2420"; g.fillRect(pt.x + so - 1, pt.y - 5, 2, 5);
+            g.fillStyle = "#6b4a2e"; g.beginPath(); g.ellipse(pt.x + so, pt.y - 6, 4, 2.2, 0, 0, 7); g.fill();
+          }
+        } });
+    }
+    return out;
   }
   if (kind === "tavern" && roomKey === "smoking") {
     const table = { x0: cw * 0.40, y0: ch * 0.45, x1: cw * 0.60, y1: ch * 0.45 + TP * 0.9 };
     const smokeZone = { x0: table.x0 - TP, y0: table.y1, x1: table.x1 + TP, y1: table.y1 + TP * 1.1 };
     const price = (catalogData.bar && catalogData.bar.smoke_price) || 8;
-    return [
+    const chairs = [{ x: table.x0 - TP * 1.1, y: table.y0 + TP * 0.4 }, { x: table.x1 + TP * 1.1, y: table.y0 + TP * 0.4 }];
+    const out = [
       { zone: smokeZone, solid: table, sortY: table.y1,
         prompt: { kind: "smoke", label: `🚬 Light one up — 🪙 ${price}` },
         draw: (g) => {
           volBox(g, table.x0, table.y0, table.x1 - table.x0, table.y1 - table.y0, "#4a3a2a", 4);
           g.fillStyle = "#2a2a2a"; g.beginPath(); g.arc((table.x0 + table.x1) / 2, (table.y0 + table.y1) / 2, 4, 0, 7); g.fill();
         } },
+      { zone: { x0: cw * 0.5 - 1, y0: padTop, x1: cw * 0.5 + 1, y1: padTop }, sortY: padTop + 1, prompt: null,
+        draw: (g, now) => {
+          const t = (now || 0) / 1000, x = cw * 0.5, y = padTop + TP * 0.6;
+          g.strokeStyle = "rgba(0,0,0,0.4)"; g.lineWidth = 1; g.beginPath(); g.moveTo(x, padTop); g.lineTo(x, y - 3); g.stroke();
+          g.fillStyle = "#4a2a1a"; g.beginPath(); g.moveTo(x - 4, y - 3); g.lineTo(x + 4, y - 3); g.lineTo(x, y + 4); g.closePath(); g.fill();
+          g.fillStyle = "#ffce6b"; g.beginPath(); g.arc(x, y + 1, 1.6, 0, 7); g.fill();
+          GLOWS.push({ x, y: y + 1, r: 16, col: "#ffb454", i: 0.4 + Math.sin(t * 2) * 0.1 });
+        } },
     ];
+    for (const c of chairs) {
+      out.push({ zone: { x0: c.x - 1, y0: c.y - 1, x1: c.x + 1, y1: c.y + 1 }, solid: { x0: c.x - 6, y0: c.y - 10, x1: c.x + 6, y1: c.y + 2 }, sortY: c.y + 2, prompt: null,
+        draw: (g) => { ovShadow(g, c.x, c.y, 7, 2.6, 0.22); volBox(g, c.x - 6, c.y - 10, 12, 10, "#3a2a4a", 3); } });
+    }
+    return out;
   }
   if (kind === "casino" && roomKey === "main") {
     const games = [
@@ -3965,7 +4323,7 @@ function buildVenueFixtures(kind, roomKey, rs) {
       { emoji: "🔵", label: "Plinko",    href: "casino-plinko.html" },
       { emoji: "🎰", label: "Slots",     href: "casino-slots.html" },
     ];
-    return games.map((game, i) => {
+    const out = games.map((game, i) => {
       const x = cw * (i + 1) / (games.length + 1), y = padTop + TP * 1.3;
       const zone = { x0: x - TP * 0.6, y0: y - TP * 0.6, x1: x + TP * 0.6, y1: y + TP * 0.9 };
       return { zone, solid: { x0: x - TP * 0.42, y0: y + TP * 0.1, x1: x + TP * 0.42, y1: y + TP * 0.6 }, sortY: y + TP * 0.6,
@@ -3979,8 +4337,68 @@ function buildVenueFixtures(kind, roomKey, rs) {
           g.fillStyle = "#e9e9f4"; g.fillText(game.label, x, y + TP * 0.62 + 7);
         } };
     });
+    // slot-machine banks flanking the floor — decorative, not the pedestal
+    const slotDecor = (x, y) => ({
+      zone: { x0: x - 1, y0: y - 1, x1: x + 1, y1: y + 1 }, solid: { x0: x - 6, y0: y - 16, x1: x + 6, y1: y + 2 }, sortY: y + 2, prompt: null,
+      draw: (g) => {
+        ovShadow(g, x, y, 7, 2.4, 0.26);
+        volBox(g, x - 6, y - 16, 12, 16, "#3d2a52", 3);
+        g.fillStyle = "#1a1226"; g.fillRect(x - 4, y - 13, 8, 6);
+        const cols = ["#ff3ea5", "#3ecbff", "#f4c65a"];
+        for (let i = 0; i < 3; i++) { g.fillStyle = cols[i]; g.beginPath(); g.arc(x - 3 + i * 3, y - 10, 1, 0, 7); g.fill(); }
+        g.strokeStyle = "#e8dcc4"; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x + 6, y - 14); g.lineTo(x + 9, y - 9); g.stroke();
+        g.fillStyle = "#c0432f"; g.beginPath(); g.arc(x + 9, y - 8, 1.6, 0, 7); g.fill();
+      },
+    });
+    out.push(slotDecor(cw * 0.08, ch * 0.55), slotDecor(cw * 0.92, ch * 0.55));
+    // a spinning roulette table, purely for atmosphere
+    const roul = { x: cw * 0.5, y: ch * 0.78 };
+    out.push({ zone: { x0: roul.x - 1, y0: roul.y - 1, x1: roul.x + 1, y1: roul.y + 1 }, solid: { x0: roul.x - 11, y0: roul.y - 9, x1: roul.x + 11, y1: roul.y + 2 }, sortY: roul.y + 2, prompt: null,
+      draw: (g, now) => {
+        const t = (now || 0) / 1000;
+        ovShadow(g, roul.x, roul.y, 14, 5, 0.24);
+        volBox(g, roul.x - 12, roul.y - 8, 24, 8, "#241a30", 3);
+        g.save(); g.translate(roul.x, roul.y - 9);
+        g.fillStyle = "#1a1226"; g.beginPath(); g.arc(0, 0, 9, 0, 7); g.fill();
+        g.rotate(t * 1.5);
+        const cols = ["#c0432f", "#1a1226"];
+        for (let i = 0; i < 10; i++) { g.fillStyle = cols[i % 2]; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, 8, i / 10 * 6.28, (i + 1) / 10 * 6.28); g.closePath(); g.fill(); }
+        g.restore();
+      } });
+    // a small hanging chandelier over the floor
+    out.push({ zone: { x0: cw * 0.5 - 1, y0: padTop, x1: cw * 0.5 + 1, y1: padTop }, sortY: padTop + 1, prompt: null,
+      draw: (g, now) => {
+        const t = (now || 0) / 1000, x = cw * 0.5, y = padTop + TP * 0.5;
+        g.strokeStyle = "rgba(0,0,0,0.5)"; g.lineWidth = 1; g.beginPath(); g.moveTo(x, padTop); g.lineTo(x, y - 4); g.stroke();
+        g.fillStyle = "#c07aff"; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill();
+        for (let i = 0; i < 6; i++) { const a = i / 6 * 6.28 + t; g.fillStyle = i % 2 ? "#ff3ea5" : "#3ecbff"; g.beginPath(); g.arc(x + Math.cos(a) * 6, y + Math.sin(a) * 6 * 0.6, 1.3, 0, 7); g.fill(); }
+        GLOWS.push({ x, y, r: 40, col: "#c07aff", i: 0.5 + Math.sin(t * 3) * 0.15 });
+      } });
+    return out;
   }
   return [];
+}
+// Non-interactive floor decoration under everything else — a diamond neon
+// tile accent for the casino, a cosy rug for the tavern (Alex, 2026-09-16:
+// "make the inside... look way more cool... add some spice").
+function drawVenueFloorSpice(g, kind, roomKey, rs) {
+  const { cw, ch, padTop, TP } = rs;
+  if (kind === "casino" && roomKey === "main") {
+    for (let ty = 0; ty * TP + padTop < ch; ty++) {
+      for (let tx = 0; tx * TP < cw; tx++) {
+        if ((tx + ty) % 2 === 0) continue;
+        g.fillStyle = "rgba(255,255,255,0.035)";
+        g.fillRect(tx * TP, ty * TP + padTop, TP, TP);
+      }
+    }
+    return;
+  }
+  if (kind === "tavern") {
+    const rx = cw / 2, ry = roomKey === "main" ? ch * 0.60 : ch * 0.6;
+    const rw = roomKey === "main" ? cw * 0.42 : cw * 0.5, rh = TP * 2.2;
+    g.fillStyle = "#7a2a2a"; roundRect(g, rx - rw / 2, ry - rh / 2, rw, rh, 6); g.fill();
+    g.strokeStyle = "#caa24a"; g.lineWidth = 1.5; roundRect(g, rx - rw / 2 + 4, ry - rh / 2 + 4, rw - 8, rh - 8, 4); g.stroke();
+  }
 }
 
 function stepVenue(dt) {
@@ -4028,6 +4446,7 @@ async function venueActivate() {
   if (p.kind === "drink") await buyDrink();
   else if (p.kind === "smoke") await buySmoke();
   else if (p.kind === "play") window.location.href = p.href;
+  else if (p.kind === "invite") await sendInvite(p.other);
 }
 // Called from wireInteriorCanvas' pointerup — returns true if it consumed the tap.
 function venueTapActivate() {
@@ -4089,10 +4508,16 @@ function drawVenueScene(now, dt) {
   g.clearRect(0, 0, cw, ch);
   g.drawImage(rs.groundCv, 0, 0);
   GLOWS = [];
+  drawVenueFloorSpice(g, V.kind, V.roomKey, rs);
   drawVenueWalls(g, rs, V);
   if (V.kind === "tavern" && V.roomKey === "smoking") drawSmokingHaze(g, rs, now);
   const ents = [];
   for (const f of V.fixtures) ents.push({ y: (f.sortY != null ? f.sortY : f.zone.y1), d: () => f.draw(g, now) });
+  const roomKey = V.kind + ":" + V.roomKey;
+  for (const uid in OTHER_PLAYERS) {
+    const p = OTHER_PLAYERS[uid];
+    if (p.scene === "venue" && p.room === roomKey) ents.push({ y: p.y, d: () => drawOtherPlayer(g, p) });
+  }
   ents.push({ y: PLAYER.y, d: () => { drawPlayer(g, 1.9); drawAvatarTag(g, PLAYER.x, PLAYER.y - 30); } });
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
@@ -4176,7 +4601,8 @@ function randomTeleport() {
     const y = WORLD_PAD_Y + 20 + Math.random() * (MAP.worldH - 2 * (WORLD_PAD_Y + 20));
     if (pondZone(x, y) !== 0) continue;
     if (rects.some(r => x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1)) continue;
-    PLAYER.x = x; PLAYER.y = y; PLAYER.dir = "S"; PLAYER.moveTarget = null; PLAYER.sitting = false;
+    PLAYER.x = x; PLAYER.y = y; PLAYER.dir = "S"; PLAYER.moveTarget = null;
+    PLAYER.sitting = false; PLAYER.lying = false; PLAYER.soaking = false; PLAYER.jumping = false; PLAYER.swimming = false; PLAYER.poolBounds = null;
     return;
   }
   spawnPlayer();
@@ -4333,7 +4759,7 @@ function buildInterior(data, editable) {
   }
   INTERIOR = {
     owner: data.user_id, editable: !!editable, data, rooms, graph,
-    roomKey: hub, rsCache: {}, rs: null, doorZones: [], trophyRects: [], sitRects: [],
+    roomKey: hub, rsCache: {}, rs: null, doorZones: [], trophyRects: [], sitRects: [], bedRects: [],
     prompt: null, placeMode: false, panel: null,
   };
   // A placed Trophy Vault pulls in the live per-game leaderboards so it can
@@ -4378,12 +4804,19 @@ function interiorEnterRoom(key, fromSide) {
     I.rs = rs;
     I.doorZones = interiorDoorZones(rs, I.graph[key]);
     // Interactable footprint rects in this room (room-space px): trophy cases
-    // to inspect, sofas/benches to sit on.
+    // to inspect, sofas/benches to sit on, beds to lie on.
     const itemRect = p => { const [w, h] = dims(p); return { x0: p.x * rs.TP, y0: p.y * rs.TP + rs.padTop, x1: (p.x + w) * rs.TP, y1: (p.y + h) * rs.TP + rs.padTop, item: p }; };
     const inRoom = I.data.placed.filter(p => p.room_key === key);
     I.trophyRects = inRoom.filter(p => p.key === "vault").map(itemRect);
     I.sitRects = inRoom.filter(p => p.key === "sofa" || p.key === "bench").map(itemRect);
-    PLAYER.sitting = false;
+    I.bedRects = inRoom.filter(p => p.key === "bed").map(itemRect);
+    // Hot tubs/pools/trampolines (Alex, 2026-09-14: "jump on the trampolines,
+    // swim in the pools, sit in the hot tubs") — same interactable-footprint
+    // pattern as sofas/beds/vaults above.
+    I.tubRects = inRoom.filter(p => p.key === "hottub" || p.key === "hot_tub_gold" || p.key === "jacuzzi_room").map(itemRect);
+    I.trampolineRects = inRoom.filter(p => p.key === "trampoline").map(itemRect);
+    I.poolRects = inRoom.filter(p => p.key === "pool").map(itemRect);
+    PLAYER.sitting = false; PLAYER.lying = false; PLAYER.soaking = false; PLAYER.jumping = false; PLAYER.swimming = false; PLAYER.poolBounds = null;
     interiorSpawn(rs, fromSide);
     PLAYER.lastEnter = performance.now();
     renderInteriorBanner();
@@ -4435,7 +4868,8 @@ function solidRectsInterior() {
   return out;
 }
 
-// Prompt priority when standing in a room: sit on a nearby seat > inspect a
+// Prompt priority when standing in a room: lie on a bed > soak in a hot tub >
+// sit on a nearby seat > jump on a trampoline > swim in a pool > inspect a
 // trophy case > (in your own house) open the place-items menu.
 function interiorPrompt(I) {
   const near = list => (list || []).some(r => {
@@ -4443,11 +4877,24 @@ function interiorPrompt(I) {
     return PLAYER.x > r.x0 - reach && PLAYER.x < r.x1 + reach && PLAYER.y > r.y0 - reach && PLAYER.y < r.y1 + reach;
   });
   if (PLAYER.sitting) return { kind: "stand", label: "🪑 Stand up" };
-  const seat = (I.sitRects || []).find(r => {
+  if (PLAYER.lying) return { kind: "stand", label: "🛏️ Get up" };
+  if (PLAYER.soaking) return { kind: "stand", label: "♨️ Get out" };
+  if (PLAYER.jumping) return { kind: "stand", label: "🤸 Hop off" };
+  if (PLAYER.swimming) return { kind: "stand", label: "🏊 Climb out" };
+  const near1 = list => (list || []).find(r => {
     const reach = I.rs.TP * 1.1;
     return PLAYER.x > r.x0 - reach && PLAYER.x < r.x1 + reach && PLAYER.y > r.y0 - reach && PLAYER.y < r.y1 + reach;
   });
+  const bed = near1(I.bedRects);
+  if (bed) return { kind: "lie", bed, label: "🛏️ Lie down" };
+  const tub = near1(I.tubRects);
+  if (tub) return { kind: "soak", tub, label: "♨️ Hop in" };
+  const seat = near1(I.sitRects);
   if (seat) return { kind: "sit", seat, label: "🪑 Sit down" };
+  const tramp = near1(I.trampolineRects);
+  if (tramp) return { kind: "jump", tramp, label: "🤸 Jump on trampoline" };
+  const pool = near1(I.poolRects);
+  if (pool) return { kind: "swim", pool, label: "🏊 Dive in" };
   if (near(I.trophyRects)) return { kind: "trophy", label: "🏆 " + (I.editable ? "Your trophies" : "View trophies") };
   if (I.editable) return { kind: "place", label: "✎ Place items" };
   return null;
@@ -4466,7 +4913,11 @@ function stepInterior(dt) {
     btn.style.display = ""; btn.textContent = "E";
   } else { el.style.display = "none"; btn.style.display = "none"; }
 
-  if (PLAYER.sitting) {   // frozen on the seat until a move input or Stand up
+  // Jumping keeps bouncing every frame it's active, held keys or not — it's
+  // an idle animation, not a frozen pose like sitting/lying/soaking.
+  if (PLAYER.jumping) PLAYER.jumpPhase = (PLAYER.jumpPhase || 0) + dt;
+
+  if (PLAYER.sitting || PLAYER.lying || PLAYER.soaking || PLAYER.jumping) {   // frozen until a move input or Stand up / Get up / Hop off
     let held = false;
     for (const k of PLAYER_KEYS) if (MOVE_KEYS[k]) held = true;
     if (!held && !PLAYER.moveTarget) { PLAYER.moving = false; return; }
@@ -4482,14 +4933,21 @@ function stepInterior(dt) {
   }
   if (!dx && !dy) { PLAYER.moving = false; return; }
   const w = drunkWobble(dx, dy);
-  const r = moveEntity(PLAYER, { x: w.dx, y: w.dy }, INTERIOR_SPEED * w.speedMul, dt, solidRectsInterior(), interiorBounds());
+  // Swimming: paddle around freely, but clamped to the pool's own footprint
+  // instead of the room's walls/furniture — you can't walk out of a pool,
+  // only climb out via the "Climb out" prompt (standUp()).
+  const swimming = !!PLAYER.swimming && PLAYER.poolBounds;
+  const bounds = swimming ? PLAYER.poolBounds : interiorBounds();
+  const solids = swimming ? [] : solidRectsInterior();
+  const speed = (swimming ? INTERIOR_SPEED * 0.7 : INTERIOR_SPEED) * w.speedMul;
+  const r = moveEntity(PLAYER, { x: w.dx, y: w.dy }, speed, dt, solids, bounds);
   if (r.bx && r.by && PLAYER.moveTarget) PLAYER.moveTarget = null;
   PLAYER.phase += INTERIOR_SPEED * dt;
   PLAYER.moving = true;
   PLAYER.dir = Math.abs(r.dx) >= Math.abs(r.dy) ? (r.dx > 0 ? "E" : "W") : (r.dy > 0 ? "S" : "N");
 
   const now = performance.now();
-  if (now - PLAYER.lastEnter > 700) {
+  if (!swimming && now - PLAYER.lastEnter > 700) {
     for (const z of I.doorZones) {
       if (PLAYER.x > z.x0 && PLAYER.x < z.x1 && PLAYER.y > z.y0 && PLAYER.y < z.y1) {
         PLAYER.lastEnter = now;
@@ -4652,7 +5110,7 @@ async function togglePlaceMode() {
     // "place items" prompt is the E key / top-right button only, so a tap
     // in your own house still walks you around.
     if (SCENE === "interior" && INTERIOR && INTERIOR.prompt && !INTERIOR.panel &&
-        (INTERIOR.prompt.kind === "sit" || INTERIOR.prompt.kind === "stand" || INTERIOR.prompt.kind === "trophy")) {
+        (INTERIOR.prompt.kind === "sit" || INTERIOR.prompt.kind === "lie" || INTERIOR.prompt.kind === "stand" || INTERIOR.prompt.kind === "trophy")) {
       sceneActivate(); return;
     }
     const rs = SCENE === "hall" ? (HALL && HALL.rs) : SCENE === "venue" ? (VENUE && VENUE.rs) : (INTERIOR && INTERIOR.rs);
@@ -4685,6 +5143,7 @@ window.addEventListener("keydown", e => {
   if (SCENE === "hall" && HALL && HALL.prompt && !HALL.panel && (k === "Enter" || eKey)) { e.preventDefault(); sceneActivate(); }
   else if (SCENE === "interior" && INTERIOR && INTERIOR.prompt && !INTERIOR.panel && eKey) { e.preventDefault(); sceneActivate(); }
   else if (SCENE === "venue" && VENUE && VENUE.prompt && !VENUE.panel && (k === "Enter" || eKey)) { e.preventDefault(); sceneActivate(); }
+  else if (SCENE === "map" && MAP.prompt && (k === "Enter" || eKey)) { e.preventDefault(); sceneActivate(); }
 });
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -5131,6 +5590,7 @@ function tick(now) {
   let dt = (now - lastT) / 1000; lastT = now;
   if (dt > 0.05) dt = 0.05;
   if (autoDayNight && !REDUCED) timeOfDay = (timeOfDay + dt * 0.35) % 24;
+  stepOtherPlayers(dt);
 
   // Sober up slowly over real time, in any scene.
   if (PLAYER.drunk > 0) {
@@ -5229,6 +5689,7 @@ async function boot() {
 
   try { await loadMap(); } catch (e) { console.warn(e); }
   requestAnimationFrame(tick);
+  if (currentUser) setInterval(pingPresence, 1500);
 }
 boot();
 
@@ -5245,6 +5706,7 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
     houseFootprint, houseHitBox, drawHouse, renderEditor,
     buildHall, openTownHall, stepHall, drawHallInterior, hallActivate, leaveHall, openHallPanel, closeHallPanel,
     sceneActivate, openTrophyPanel, syncPlayerPal, trophiesFor, sitOnSeat, standUp, togglePlaceMode,
+    lieOnBed, soakInTub, jumpOnTrampoline, diveInPool, interiorPrompt,
     openVenue, buildVenue, venueEnterRoom, stepVenue, drawVenueScene, venueActivate, leaveVenue,
     solidRectsVenue, venueBounds, buyDrink, buySmoke, triggerBlackout, randomTeleport, drunkWobble,
     loadDrunkState, saveDrunkState, clearDrunkState, rollDrunkThreshold, drunkKey, applyDrunkScreenFX,
