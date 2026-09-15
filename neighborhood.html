@@ -3642,11 +3642,19 @@ function wireRoomCanvas(rs) {
    ═══════════════════════════════════════════════════════════════════════ */
 let INSIDE = null;   // { data, roomKey } for the open house-visit modal
 
-function toast(msg) {
+// opts.href/linkText adds a clickable link into the toast (e.g. a 3 Man
+// invite) — local page names only, never user-provided, so innerHTML is safe
+// as long as the message itself still goes through escHtml.
+function toast(msg, opts) {
   let t = document.getElementById("hnToast");
   if (!t) { t = document.createElement("div"); t.id = "hnToast"; t.className = "hn-toast"; document.body.appendChild(t); }
-  t.textContent = msg; t.classList.add("show");
-  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 2800);
+  if (opts && opts.href) {
+    t.innerHTML = `${escHtml(msg)} <a href="${escHtml(opts.href)}" style="color:var(--accent); text-decoration:underline; font-weight:800;">${escHtml(opts.linkText || "Open")}</a>`;
+  } else {
+    t.textContent = msg;
+  }
+  t.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), opts && opts.href ? 6000 : 2800);
 }
 
 async function enterHouse(userId) {
@@ -5710,10 +5718,13 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
     openVenue, buildVenue, venueEnterRoom, stepVenue, drawVenueScene, venueActivate, leaveVenue,
     solidRectsVenue, venueBounds, buyDrink, buySmoke, triggerBlackout, randomTeleport, drunkWobble,
     loadDrunkState, saveDrunkState, clearDrunkState, rollDrunkThreshold, drunkKey, applyDrunkScreenFX,
-    renderExteriorActions, drinkFlavor,
+    renderExteriorActions, drinkFlavor, lieOnBed, mapPrompt, mapActivate, mapTapActivate, scatterBenches,
+    pingPresence, presenceScene, stepOtherPlayers, sendInvite, nearbyOtherPlayer, drawOtherPlayer, otherPlayerPal,
     set LEADERBOARD(v) { LEADERBOARD = v; },
     get HALL() { return HALL; },
     get VENUE() { return VENUE; },
+    get OTHER_PLAYERS() { return OTHER_PLAYERS; },
+    set OTHER_PLAYERS(v) { OTHER_PLAYERS = v; },
     get PLAYER_PAL() { return PLAYER_PAL; },
     setExterior(userId, level) {
       const mh = ((mapData && mapData.houses) || []).find(x => x.user_id === userId);
