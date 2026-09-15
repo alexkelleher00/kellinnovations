@@ -4220,9 +4220,9 @@ function buildVenueFixtures(kind, roomKey, rs) {
     const drinkZone = { x0: counter.x0, y0: counter.y1, x1: counter.x1, y1: counter.y1 + TP * 1.1 };
     const price = (catalogData.bar && catalogData.bar.drink_price) || 20;
     const barkeep = { x: (counter.x0 + counter.x1) / 2, y: counter.y0 - TP * 0.3 };
-    const fire = { x0: cw * 0.05, y0: padTop + TP * 0.3, x1: cw * 0.05 + TP * 1.7, y1: padTop + TP * 2.4 };
-    const dart = { x: cw * 0.93, y: padTop + TP * 1.6 };
-    const tables = [{ x: cw * 0.30, y: ch * 0.62 }, { x: cw * 0.62, y: ch * 0.68 }];
+    const fire = { x0: cw * 0.04, y0: padTop + TP * 0.1, x1: cw * 0.04 + TP * 2.7, y1: padTop + TP * 3.7 };
+    const dart = { x: cw * 0.93, y: padTop + TP * 1.9 };
+    const tables = [{ x: cw * 0.26, y: ch * 0.58 }, { x: cw * 0.68, y: ch * 0.68 }];
     const out = [
       { zone: drinkZone, solid: counter, sortY: counter.y1,
         prompt: { kind: "drink", label: `🍺 Order a drink — 🪙 ${price}` },
@@ -4246,80 +4246,85 @@ function buildVenueFixtures(kind, roomKey, rs) {
           g.fillStyle = "#2a2420"; g.fillRect(fire.x0 - 2, fire.y0 - 2, (fire.x1 - fire.x0) + 4, (fire.y1 - fire.y0) + 4);
           g.fillStyle = lgrad(g, fire.x0, fire.y0, fire.x0, fire.y1, "#8a8478", "#5c564c");
           g.fillRect(fire.x0, fire.y0, fire.x1 - fire.x0, fire.y1 - fire.y0);
-          const fbx0 = fire.x0 + 4, fby0 = fire.y0 + (fire.y1 - fire.y0) * 0.35, fbx1 = fire.x1 - 4, fby1 = fire.y1 - 4;
+          const fbx0 = fire.x0 + 7, fby0 = fire.y0 + (fire.y1 - fire.y0) * 0.32, fbx1 = fire.x1 - 7, fby1 = fire.y1 - 7;
           g.fillStyle = "#100a08"; g.fillRect(fbx0, fby0, fbx1 - fbx0, fby1 - fby0);
           for (let i = 0; i < 3; i++) {
             const fx = fbx0 + (fbx1 - fbx0) * (i + 0.5) / 3;
-            const h = 6 + Math.sin(t * 8 + i * 2) * 2 + hash2(i, Math.floor(t * 6)) * 3;
+            const h = 15 + Math.sin(t * 8 + i * 2) * 4 + hash2(i, Math.floor(t * 6)) * 6;
             g.fillStyle = i % 2 ? "#ff8a3c" : "#ffce6b";
-            g.beginPath(); g.moveTo(fx, fby1); g.lineTo(fx - 3, fby1 - h * 0.5); g.lineTo(fx, fby1 - h); g.lineTo(fx + 3, fby1 - h * 0.5); g.closePath(); g.fill();
+            g.beginPath(); g.moveTo(fx, fby1); g.lineTo(fx - 7, fby1 - h * 0.5); g.lineTo(fx, fby1 - h); g.lineTo(fx + 7, fby1 - h * 0.5); g.closePath(); g.fill();
           }
-          GLOWS.push({ x: (fbx0 + fbx1) / 2, y: (fby0 + fby1) / 2, r: 36, col: "#ff8a3c", i: 0.5 + Math.sin(t * 6) * 0.15 });
-          g.fillStyle = "#5c3a20"; g.fillRect(fire.x0 - 3, fby0 - 4, (fire.x1 - fire.x0) + 6, 4);
+          GLOWS.push({ x: (fbx0 + fbx1) / 2, y: (fby0 + fby1) / 2, r: 60, col: "#ff8a3c", i: 0.55 + Math.sin(t * 6) * 0.15 });
+          g.fillStyle = "#5c3a20"; g.fillRect(fire.x0 - 5, fby0 - 8, (fire.x1 - fire.x0) + 10, 8);
         } },
       // dartboard
       { zone: { x0: dart.x - 1, y0: dart.y - 1, x1: dart.x + 1, y1: dart.y + 1 }, sortY: dart.y, prompt: null,
         draw: (g) => {
-          g.fillStyle = "#2a2420"; g.beginPath(); g.arc(dart.x, dart.y, 7, 0, 7); g.fill();
-          g.fillStyle = "#e8dcc4"; g.beginPath(); g.arc(dart.x, dart.y, 6, 0, 7); g.fill();
-          g.strokeStyle = "#c0432f"; g.lineWidth = 1;
-          for (let i = 0; i < 8; i++) { g.beginPath(); g.moveTo(dart.x, dart.y); g.lineTo(dart.x + Math.cos(i * 0.785) * 6, dart.y + Math.sin(i * 0.785) * 6); g.stroke(); }
-          g.fillStyle = "#c0432f"; g.beginPath(); g.arc(dart.x, dart.y, 1.5, 0, 7); g.fill();
+          g.fillStyle = "#2a2420"; g.beginPath(); g.arc(dart.x, dart.y, 15, 0, 7); g.fill();
+          g.fillStyle = "#e8dcc4"; g.beginPath(); g.arc(dart.x, dart.y, 13, 0, 7); g.fill();
+          g.strokeStyle = "#c0432f"; g.lineWidth = 1.6;
+          for (let i = 0; i < 8; i++) { g.beginPath(); g.moveTo(dart.x, dart.y); g.lineTo(dart.x + Math.cos(i * 0.785) * 13, dart.y + Math.sin(i * 0.785) * 13); g.stroke(); }
+          g.strokeStyle = "#2a2420"; g.lineWidth = 1;
+          g.beginPath(); g.arc(dart.x, dart.y, 8.5, 0, 7); g.stroke();
+          g.beginPath(); g.arc(dart.x, dart.y, 4, 0, 7); g.stroke();
+          g.fillStyle = "#c0432f"; g.beginPath(); g.arc(dart.x, dart.y, 2.4, 0, 7); g.fill();
         } },
       // strand of hanging lantern lights across the ceiling
       { zone: { x0: 0, y0: padTop, x1: 0, y1: padTop }, sortY: padTop + 1, prompt: null,
         draw: (g) => {
           const n = 7;
-          g.strokeStyle = "rgba(0,0,0,0.4)"; g.lineWidth = 1;
+          g.strokeStyle = "rgba(0,0,0,0.4)"; g.lineWidth = 1.4;
           g.beginPath();
-          for (let i = 0; i <= n; i++) { const x = cw * i / n, y = padTop + 4 + Math.sin(i * 1.4) * 3; if (i === 0) g.moveTo(x, y); else g.lineTo(x, y); }
+          for (let i = 0; i <= n; i++) { const x = cw * i / n, y = padTop + 6 + Math.sin(i * 1.4) * 4; if (i === 0) g.moveTo(x, y); else g.lineTo(x, y); }
           g.stroke();
           for (let i = 0; i <= n; i++) {
-            const x = cw * i / n, y = padTop + 6 + Math.sin(i * 1.4) * 3;
-            g.fillStyle = "#ffce6b"; g.beginPath(); g.arc(x, y, 1.6, 0, 7); g.fill();
-            GLOWS.push({ x, y, r: 14, col: "#ffce6b", i: 0.35 });
+            const x = cw * i / n, y = padTop + 9 + Math.sin(i * 1.4) * 4;
+            g.fillStyle = "#ffce6b"; g.beginPath(); g.arc(x, y, 2.6, 0, 7); g.fill();
+            GLOWS.push({ x, y, r: 22, col: "#ffce6b", i: 0.4 });
           }
         } },
     ];
     for (const pt of tables) {
-      out.push({ zone: { x0: pt.x - 1, y0: pt.y - 1, x1: pt.x + 1, y1: pt.y + 1 }, solid: { x0: pt.x - 9, y0: pt.y - 12, x1: pt.x + 9, y1: pt.y - 6 }, sortY: pt.y + 2, prompt: null,
+      out.push({ zone: { x0: pt.x - 1, y0: pt.y - 1, x1: pt.x + 1, y1: pt.y + 1 }, solid: { x0: pt.x - 17, y0: pt.y - 23, x1: pt.x + 17, y1: pt.y - 10 }, sortY: pt.y + 4, prompt: null,
         draw: (g) => {
-          ovShadow(g, pt.x, pt.y, 11, 3.5, 0.2);
-          g.fillStyle = "#2a2420"; g.fillRect(pt.x - 1.5, pt.y - 9, 3, 9);
-          g.fillStyle = lgrad(g, pt.x - 8, pt.y - 11, pt.x + 8, pt.y - 11, "#9c7448", "#6b4a2e");
-          g.beginPath(); g.ellipse(pt.x, pt.y - 10, 8, 4, 0, 0, 7); g.fill();
-          for (const so of [-13, 13]) {
-            g.fillStyle = "#2a2420"; g.fillRect(pt.x + so - 1, pt.y - 5, 2, 5);
-            g.fillStyle = "#6b4a2e"; g.beginPath(); g.ellipse(pt.x + so, pt.y - 6, 4, 2.2, 0, 0, 7); g.fill();
+          ovShadow(g, pt.x, pt.y, 20, 6.5, 0.22);
+          g.fillStyle = "#2a2420"; g.fillRect(pt.x - 3, pt.y - 17, 6, 17);
+          g.fillStyle = lgrad(g, pt.x - 15, pt.y - 20, pt.x + 15, pt.y - 20, "#9c7448", "#6b4a2e");
+          g.beginPath(); g.ellipse(pt.x, pt.y - 19, 15, 7, 0, 0, 7); g.fill();
+          g.strokeStyle = "rgba(0,0,0,0.25)"; g.lineWidth = 1; g.beginPath(); g.ellipse(pt.x, pt.y - 19, 15, 7, 0, 0, 7); g.stroke();
+          for (const so of [-24, 24]) {
+            g.fillStyle = "#2a2420"; g.fillRect(pt.x + so - 2, pt.y - 9, 4, 9);
+            g.fillStyle = "#6b4a2e"; g.beginPath(); g.ellipse(pt.x + so, pt.y - 11, 7, 4, 0, 0, 7); g.fill();
           }
         } });
     }
     return out;
   }
   if (kind === "tavern" && roomKey === "smoking") {
-    const table = { x0: cw * 0.40, y0: ch * 0.45, x1: cw * 0.60, y1: ch * 0.45 + TP * 0.9 };
+    const table = { x0: cw * 0.36, y0: ch * 0.42, x1: cw * 0.64, y1: ch * 0.42 + TP * 1.2 };
     const smokeZone = { x0: table.x0 - TP, y0: table.y1, x1: table.x1 + TP, y1: table.y1 + TP * 1.1 };
     const price = (catalogData.bar && catalogData.bar.smoke_price) || 8;
-    const chairs = [{ x: table.x0 - TP * 1.1, y: table.y0 + TP * 0.4 }, { x: table.x1 + TP * 1.1, y: table.y0 + TP * 0.4 }];
+    const chairs = [{ x: table.x0 - TP * 1.3, y: table.y0 + TP * 0.5 }, { x: table.x1 + TP * 1.3, y: table.y0 + TP * 0.5 }];
     const out = [
       { zone: smokeZone, solid: table, sortY: table.y1,
         prompt: { kind: "smoke", label: `🚬 Light one up — 🪙 ${price}` },
         draw: (g) => {
-          volBox(g, table.x0, table.y0, table.x1 - table.x0, table.y1 - table.y0, "#4a3a2a", 4);
-          g.fillStyle = "#2a2a2a"; g.beginPath(); g.arc((table.x0 + table.x1) / 2, (table.y0 + table.y1) / 2, 4, 0, 7); g.fill();
+          volBox(g, table.x0, table.y0, table.x1 - table.x0, table.y1 - table.y0, "#4a3a2a", 6);
+          g.fillStyle = "#2a2a2a"; g.beginPath(); g.arc((table.x0 + table.x1) / 2, (table.y0 + table.y1) / 2, 7, 0, 7); g.fill();
+          g.fillStyle = "#c0432f"; g.beginPath(); g.arc((table.x0 + table.x1) / 2 - 8, (table.y0 + table.y1) / 2 - 3, 1.6, 0, 7); g.fill();
         } },
       { zone: { x0: cw * 0.5 - 1, y0: padTop, x1: cw * 0.5 + 1, y1: padTop }, sortY: padTop + 1, prompt: null,
         draw: (g, now) => {
-          const t = (now || 0) / 1000, x = cw * 0.5, y = padTop + TP * 0.6;
-          g.strokeStyle = "rgba(0,0,0,0.4)"; g.lineWidth = 1; g.beginPath(); g.moveTo(x, padTop); g.lineTo(x, y - 3); g.stroke();
-          g.fillStyle = "#4a2a1a"; g.beginPath(); g.moveTo(x - 4, y - 3); g.lineTo(x + 4, y - 3); g.lineTo(x, y + 4); g.closePath(); g.fill();
-          g.fillStyle = "#ffce6b"; g.beginPath(); g.arc(x, y + 1, 1.6, 0, 7); g.fill();
-          GLOWS.push({ x, y: y + 1, r: 16, col: "#ffb454", i: 0.4 + Math.sin(t * 2) * 0.1 });
+          const t = (now || 0) / 1000, x = cw * 0.5, y = padTop + TP * 0.9;
+          g.strokeStyle = "rgba(0,0,0,0.4)"; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x, padTop); g.lineTo(x, y - 6); g.stroke();
+          g.fillStyle = "#4a2a1a"; g.beginPath(); g.moveTo(x - 8, y - 6); g.lineTo(x + 8, y - 6); g.lineTo(x, y + 8); g.closePath(); g.fill();
+          g.fillStyle = "#ffce6b"; g.beginPath(); g.arc(x, y + 2, 2.8, 0, 7); g.fill();
+          GLOWS.push({ x, y: y + 2, r: 28, col: "#ffb454", i: 0.45 + Math.sin(t * 2) * 0.1 });
         } },
     ];
     for (const c of chairs) {
-      out.push({ zone: { x0: c.x - 1, y0: c.y - 1, x1: c.x + 1, y1: c.y + 1 }, solid: { x0: c.x - 6, y0: c.y - 10, x1: c.x + 6, y1: c.y + 2 }, sortY: c.y + 2, prompt: null,
-        draw: (g) => { ovShadow(g, c.x, c.y, 7, 2.6, 0.22); volBox(g, c.x - 6, c.y - 10, 12, 10, "#3a2a4a", 3); } });
+      out.push({ zone: { x0: c.x - 1, y0: c.y - 1, x1: c.x + 1, y1: c.y + 1 }, solid: { x0: c.x - 11, y0: c.y - 18, x1: c.x + 11, y1: c.y + 4 }, sortY: c.y + 4, prompt: null,
+        draw: (g) => { ovShadow(g, c.x, c.y, 12, 4, 0.22); volBox(g, c.x - 11, c.y - 18, 22, 18, "#3a2a4a", 5); } });
     }
     return out;
   }
@@ -4332,55 +4337,58 @@ function buildVenueFixtures(kind, roomKey, rs) {
       { emoji: "🎰", label: "Slots",     href: "casino-slots.html" },
     ];
     const out = games.map((game, i) => {
-      const x = cw * (i + 1) / (games.length + 1), y = padTop + TP * 1.3;
-      const zone = { x0: x - TP * 0.6, y0: y - TP * 0.6, x1: x + TP * 0.6, y1: y + TP * 0.9 };
-      return { zone, solid: { x0: x - TP * 0.42, y0: y + TP * 0.1, x1: x + TP * 0.42, y1: y + TP * 0.6 }, sortY: y + TP * 0.6,
+      const x = cw * (i + 1) / (games.length + 1), y = padTop + TP * 1.5;
+      const zone = { x0: x - TP * 0.75, y0: y - TP * 0.75, x1: x + TP * 0.75, y1: y + TP * 1.05 };
+      return { zone, solid: { x0: x - TP * 0.55, y0: y + TP * 0.05, x1: x + TP * 0.55, y1: y + TP * 0.75 }, sortY: y + TP * 0.75,
         prompt: { kind: "play", href: game.href, label: `🎮 Play ${game.label}` },
         draw: (g) => {
-          volBox(g, x - TP * 0.42, y + TP * 0.1, TP * 0.84, TP * 0.5, "#3d2a52", 4);
-          g.font = (TP * 0.7) + 'px system-ui,sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
-          g.fillText(game.emoji, x, y - TP * 0.1);
-          g.font = '700 8px system-ui,sans-serif';
-          g.fillStyle = "rgba(10,11,22,0.8)"; roundRect(g, x - 30, y + TP * 0.62, 60, 13, 4); g.fill();
-          g.fillStyle = "#e9e9f4"; g.fillText(game.label, x, y + TP * 0.62 + 7);
+          volBox(g, x - TP * 0.55, y + TP * 0.05, TP * 1.1, TP * 0.68, "#3d2a52", 6);
+          g.font = (TP * 0.95) + 'px system-ui,sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+          g.fillText(game.emoji, x, y - TP * 0.15);
+          g.font = '700 10px system-ui,sans-serif';
+          g.fillStyle = "rgba(10,11,22,0.85)"; roundRect(g, x - 34, y + TP * 0.82, 68, 16, 5); g.fill();
+          g.fillStyle = "#e9e9f4"; g.fillText(game.label, x, y + TP * 0.82 + 8);
         } };
     });
     // slot-machine banks flanking the floor — decorative, not the pedestal
     const slotDecor = (x, y) => ({
-      zone: { x0: x - 1, y0: y - 1, x1: x + 1, y1: y + 1 }, solid: { x0: x - 6, y0: y - 16, x1: x + 6, y1: y + 2 }, sortY: y + 2, prompt: null,
+      zone: { x0: x - 2, y0: y - 2, x1: x + 2, y1: y + 2 }, solid: { x0: x - 12, y0: y - 32, x1: x + 12, y1: y + 4 }, sortY: y + 4, prompt: null,
       draw: (g) => {
-        ovShadow(g, x, y, 7, 2.4, 0.26);
-        volBox(g, x - 6, y - 16, 12, 16, "#3d2a52", 3);
-        g.fillStyle = "#1a1226"; g.fillRect(x - 4, y - 13, 8, 6);
+        ovShadow(g, x, y, 14, 4.5, 0.26);
+        volBox(g, x - 12, y - 32, 24, 32, "#3d2a52", 6);
+        g.fillStyle = "#1a1226"; g.fillRect(x - 8, y - 26, 16, 12);
         const cols = ["#ff3ea5", "#3ecbff", "#f4c65a"];
-        for (let i = 0; i < 3; i++) { g.fillStyle = cols[i]; g.beginPath(); g.arc(x - 3 + i * 3, y - 10, 1, 0, 7); g.fill(); }
-        g.strokeStyle = "#e8dcc4"; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x + 6, y - 14); g.lineTo(x + 9, y - 9); g.stroke();
-        g.fillStyle = "#c0432f"; g.beginPath(); g.arc(x + 9, y - 8, 1.6, 0, 7); g.fill();
+        for (let i = 0; i < 3; i++) { g.fillStyle = cols[i]; g.beginPath(); g.arc(x - 5 + i * 5, y - 20, 2, 0, 7); g.fill(); }
+        g.fillStyle = "#e8dcc4"; g.font = '700 7px system-ui,sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+        g.fillText("777", x, y - 10);
+        g.strokeStyle = "#e8dcc4"; g.lineWidth = 2.4; g.beginPath(); g.moveTo(x + 12, y - 28); g.lineTo(x + 19, y - 15); g.stroke();
+        g.fillStyle = "#c0432f"; g.beginPath(); g.arc(x + 19, y - 12, 3, 0, 7); g.fill();
       },
     });
-    out.push(slotDecor(cw * 0.08, ch * 0.55), slotDecor(cw * 0.92, ch * 0.55));
+    out.push(slotDecor(cw * 0.10, ch * 0.55), slotDecor(cw * 0.90, ch * 0.55));
     // a spinning roulette table, purely for atmosphere
-    const roul = { x: cw * 0.5, y: ch * 0.78 };
-    out.push({ zone: { x0: roul.x - 1, y0: roul.y - 1, x1: roul.x + 1, y1: roul.y + 1 }, solid: { x0: roul.x - 11, y0: roul.y - 9, x1: roul.x + 11, y1: roul.y + 2 }, sortY: roul.y + 2, prompt: null,
+    const roul = { x: cw * 0.5, y: ch * 0.82 };
+    out.push({ zone: { x0: roul.x - 2, y0: roul.y - 2, x1: roul.x + 2, y1: roul.y + 2 }, solid: { x0: roul.x - 22, y0: roul.y - 18, x1: roul.x + 22, y1: roul.y + 4 }, sortY: roul.y + 4, prompt: null,
       draw: (g, now) => {
         const t = (now || 0) / 1000;
-        ovShadow(g, roul.x, roul.y, 14, 5, 0.24);
-        volBox(g, roul.x - 12, roul.y - 8, 24, 8, "#241a30", 3);
-        g.save(); g.translate(roul.x, roul.y - 9);
-        g.fillStyle = "#1a1226"; g.beginPath(); g.arc(0, 0, 9, 0, 7); g.fill();
+        ovShadow(g, roul.x, roul.y, 26, 8, 0.24);
+        volBox(g, roul.x - 24, roul.y - 15, 48, 15, "#241a30", 6);
+        g.save(); g.translate(roul.x, roul.y - 17);
+        g.fillStyle = "#1a1226"; g.beginPath(); g.arc(0, 0, 17, 0, 7); g.fill();
         g.rotate(t * 1.5);
         const cols = ["#c0432f", "#1a1226"];
-        for (let i = 0; i < 10; i++) { g.fillStyle = cols[i % 2]; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, 8, i / 10 * 6.28, (i + 1) / 10 * 6.28); g.closePath(); g.fill(); }
+        for (let i = 0; i < 10; i++) { g.fillStyle = cols[i % 2]; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, 16, i / 10 * 6.28, (i + 1) / 10 * 6.28); g.closePath(); g.fill(); }
+        g.fillStyle = "#e8dcc4"; g.beginPath(); g.arc(0, 0, 3, 0, 7); g.fill();
         g.restore();
       } });
-    // a small hanging chandelier over the floor
+    // a big hanging chandelier over the floor
     out.push({ zone: { x0: cw * 0.5 - 1, y0: padTop, x1: cw * 0.5 + 1, y1: padTop }, sortY: padTop + 1, prompt: null,
       draw: (g, now) => {
-        const t = (now || 0) / 1000, x = cw * 0.5, y = padTop + TP * 0.5;
-        g.strokeStyle = "rgba(0,0,0,0.5)"; g.lineWidth = 1; g.beginPath(); g.moveTo(x, padTop); g.lineTo(x, y - 4); g.stroke();
-        g.fillStyle = "#c07aff"; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill();
-        for (let i = 0; i < 6; i++) { const a = i / 6 * 6.28 + t; g.fillStyle = i % 2 ? "#ff3ea5" : "#3ecbff"; g.beginPath(); g.arc(x + Math.cos(a) * 6, y + Math.sin(a) * 6 * 0.6, 1.3, 0, 7); g.fill(); }
-        GLOWS.push({ x, y, r: 40, col: "#c07aff", i: 0.5 + Math.sin(t * 3) * 0.15 });
+        const t = (now || 0) / 1000, x = cw * 0.5, y = padTop + TP * 0.8;
+        g.strokeStyle = "rgba(0,0,0,0.5)"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(x, padTop); g.lineTo(x, y - 9); g.stroke();
+        g.fillStyle = "#c07aff"; g.beginPath(); g.arc(x, y, 10, 0, 7); g.fill();
+        for (let i = 0; i < 8; i++) { const a = i / 8 * 6.28 + t; g.fillStyle = i % 2 ? "#ff3ea5" : "#3ecbff"; g.beginPath(); g.arc(x + Math.cos(a) * 13, y + Math.sin(a) * 13 * 0.6, 2.4, 0, 7); g.fill(); }
+        GLOWS.push({ x, y, r: 70, col: "#c07aff", i: 0.55 + Math.sin(t * 3) * 0.15 });
       } });
     return out;
   }
