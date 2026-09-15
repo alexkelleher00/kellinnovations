@@ -129,6 +129,29 @@
   .hn-hud-prompt:active { transform: translateX(-50%) scale(0.96); }
   .hn-hud-prompt .sub { display: block; font-size: 0.66rem; font-weight: 700; opacity: 0.75; margin-top: 1px; }
   @keyframes hnPromptPulse { 0%,100% { box-shadow: 0 6px 20px rgba(0,0,0,0.45); } 50% { box-shadow: 0 6px 26px rgba(0,200,200,0.55); } }
+  /* Had a few too many at the Tavern (Alex, 2026-09-14) — a subtle colour
+     shift + gentle screen wobble, scaled live by JS via inline style/vars. */
+  .hn-stage { transition: filter 0.5s ease; }
+  @keyframes hnDrunkWobble {
+    0%   { transform: rotate(0deg) scale(1); }
+    25%  { transform: rotate(0.7deg) scale(1.006); }
+    50%  { transform: rotate(0deg) scale(1); }
+    75%  { transform: rotate(-0.7deg) scale(1.006); }
+    100% { transform: rotate(0deg) scale(1); }
+  }
+  .hn-drunk-fx { animation: hnDrunkWobble var(--drunk-dur, 2.6s) ease-in-out infinite; }
+  /* House-upgrade ladder — Cottage -> Cabin -> Manor -> Mansion, so "where's
+     the mansion option" is never a question (Alex, 2026-09-14). */
+  .hn-ext-panel { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(0,200,200,0.14) inset; }
+  .hn-ext-ladder { display: flex; align-items: center; gap: 2px; margin-bottom: 12px; flex-wrap: wrap; }
+  .hn-ext-step { display: flex; flex-direction: column; align-items: center; gap: 2px; opacity: 0.4; min-width: 44px; }
+  .hn-ext-step.done, .hn-ext-step.cur { opacity: 1; }
+  .hn-ext-step .hn-ext-icon { font-size: 1.5rem; line-height: 1; }
+  .hn-ext-step.cur .hn-ext-icon { filter: drop-shadow(0 0 7px var(--accent)); }
+  .hn-ext-step .hn-ext-name { font-size: 0.6rem; font-weight: 700; color: var(--muted); text-align: center; }
+  .hn-ext-step.cur .hn-ext-name { color: var(--accent); }
+  .hn-ext-step.done .hn-ext-name::after { content: " ✓"; color: #6ec25f; }
+  .hn-ext-arrow { color: var(--muted); font-size: 0.85rem; padding-bottom: 14px; }
   .hn-slideup {
     position: absolute; left: 0; right: 0; bottom: 0; max-height: 64%; overflow: auto;
     background: var(--surface); border-top: 1px solid var(--border); border-radius: 16px 16px 0 0;
@@ -951,7 +974,10 @@ const PET_SPRITES = {
    ═══════════════════════════════════════════════════════════════════════ */
 function houseFootprint(level) {
   level = clamp(level | 0, 0, 3);
-  const S = [1, 1.18, 1.42, 1.74][level];
+  // A Mansion should be UNMISTAKABLE from across the map, not a subtle
+  // recolor (Alex, 2026-09-14: "it needs to really upgrade the person's
+  // house") — top tier is now more than double the cottage's footprint.
+  const S = [1, 1.24, 1.58, 2.1][level];
   // base cottage: 50 wide + 7 overhang/side, 34 wall + 22 roof up, 8 below the feet
   return {
     level, S,
@@ -1146,6 +1172,22 @@ function drawHouseTierExtras(g, colors, bx, by, night, lvl, phase, bw, bh, rh, o
     g.beginPath();
     g.moveTo(cx0 - 4, pTop - 4); g.lineTo(cx0 + span + 4, pTop - 4); g.lineTo(bx, pTop - 4 - span * 0.26);
     g.closePath(); g.fill();
+
+    // rooftop cupola + flag — the unmistakable "this is a mansion" topper
+    const cupY = pTop - 4 - span * 0.28;
+    g.fillStyle = "#1c1420"; g.fillRect(bx - 6, cupY - 15, 12, 15);
+    g.fillStyle = lgrad(g, bx - 5, cupY - 14, bx + 5, cupY - 14, shade(wall, 0.22), shade(wall, -0.1));
+    g.fillRect(bx - 5, cupY - 14, 10, 13);
+    g.fillStyle = night > 0.05 ? "#ffce6b" : "#bfe3f2";
+    g.fillRect(bx - 2, cupY - 10, 4, 5);
+    if (night > 0.05) GLOWS.push({ x: bx, y: cupY - 8, r: 16, col: "#ffcf7a", i: night * 0.7 });
+    g.fillStyle = "#f4c65a"; g.fillRect(bx - 6, cupY - 15, 12, 2);
+    g.fillStyle = shade(roof, -0.05);
+    g.beginPath(); g.moveTo(bx - 7, cupY - 15); g.lineTo(bx + 7, cupY - 15); g.lineTo(bx, cupY - 23); g.closePath(); g.fill();
+    g.strokeStyle = "#c8c8d2"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(bx, cupY - 23); g.lineTo(bx, cupY - 31); g.stroke();
+    g.fillStyle = "#00c8c8";
+    g.beginPath(); g.moveTo(bx, cupY - 31); g.lineTo(bx + 9, cupY - 28); g.lineTo(bx, cupY - 25); g.closePath(); g.fill();
   }
 }
 /* ═══════════════════════════════════════════════════════════════════════
@@ -1273,65 +1315,101 @@ function drawTownHall(g, bx, by, night, t) {
    (Alex, 2026-09-12: "shops and stores... like a bar... also a building for
    the casino similar"). Same pixel-art style as drawHouse/drawTownHall.
    ═══════════════════════════════════════════════════════════════════════ */
-function drawTavern(g, bx, by, night, t) {
-  const wall = "#6b4326", roof = "#3a2416", trim = "#caa24a";
-  const bw = 62, bh = 36, rh = 20, over = 7;
+function drawTavern(g, bx, by, night, t, smoke) {
+  const wall = "#c9a876", roof = "#4a2e1a", trim = "#caa24a", timber = "#3a2416";
+  const bw = 64, bh = 36, rh = 22, over = 8;
   const x0 = bx - bw / 2, y0 = by - bh;
-  ovShadow(g, bx, by, bw / 2 + 6, 8, 0.28);
+  ovShadow(g, bx, by, bw / 2 + 7, 8, 0.28);
 
+  // stone foundation
+  g.fillStyle = "#2a2420"; g.fillRect(x0 - 2, by - 5, bw + 4, 6);
+  g.fillStyle = lgrad(g, x0, by - 5, x0, by + 1, "#8a8478", "#5c564c");
+  g.fillRect(x0 - 1, by - 4, bw + 2, 4);
+  for (let i = 0; i < 9; i++) g.fillRect(x0 + i * (bw / 9), by - 4, 1, 4);
+
+  // whitewashed plaster wall (Tudor-inn base coat)
   g.fillStyle = "#1c1310"; g.fillRect(x0 - 1, y0 - 1, bw + 2, bh + 2);
-  g.fillStyle = lgrad(g, x0, y0, x0, by, shade(wall, 0.15), shade(wall, -0.12));
-  g.fillRect(x0, y0, bw, bh);
-  g.strokeStyle = rgba(shade(wall, -0.4), 0.55); g.lineWidth = 2;
-  g.beginPath(); g.moveTo(x0 + 6, y0 + 6); g.lineTo(x0 + bw - 6, by - 6); g.stroke();
-  g.beginPath(); g.moveTo(x0 + bw - 6, y0 + 6); g.lineTo(x0 + 6, by - 6); g.stroke();
-  g.fillStyle = shade(wall, -0.36); g.fillRect(x0, by - 3, bw, 3);
+  g.fillStyle = lgrad(g, x0, y0, x0, by, shade(wall, 0.18), shade(wall, -0.1));
+  g.fillRect(x0, y0, bw, bh - 4);
 
-  // two ALWAYS-warm windows — a tavern is lively day or night
-  const winY = y0 + 11;
-  for (const wx of [x0 + 7, x0 + bw - 19]) {
-    g.fillStyle = "#1c1310"; g.fillRect(wx - 2, winY - 2, 16, 13);
-    g.fillStyle = "#ffce6b"; g.fillRect(wx, winY, 12, 9);
+  // exposed half-timbering — a proper Tudor grid, not just a stray X
+  g.fillStyle = timber;
+  g.fillRect(x0, y0, bw, 3);                              // top rail
+  g.fillRect(x0, by - 8, bw, 3);                           // mid rail
+  for (let i = 1; i < 5; i++) g.fillRect(x0 + (bw / 5) * i - 1, y0, 3, bh - 4);   // vertical studs
+  g.strokeStyle = timber; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(x0 + 3, by - 8); g.lineTo(x0 + bw * 0.32, y0 + 3); g.stroke();
+  g.beginPath(); g.moveTo(x0 + bw - 3, by - 8); g.lineTo(x0 + bw * 0.68, y0 + 3); g.stroke();
+  g.fillStyle = shade(wall, -0.3); g.fillRect(x0, by - 4, bw, 4);
+
+  // two ALWAYS-warm leaded windows, with a little flower box — a tavern is
+  // lively day or night
+  const winY = y0 + 10;
+  for (const wx of [x0 + 6, x0 + bw - 18]) {
+    g.fillStyle = timber; g.fillRect(wx - 2, winY - 2, 16, 14);
+    g.fillStyle = "#ffce6b"; g.fillRect(wx, winY, 12, 10);
     g.fillStyle = "#fff2cf"; g.fillRect(wx + 1, winY + 1, 5, 4);
     GLOWS.push({ x: wx + 6, y: winY + 5, r: 30, col: "#ffb454", i: 0.55 + night * 0.35 });
-    g.strokeStyle = shade(wall, -0.45); g.lineWidth = 1;
-    g.strokeRect(wx + 0.5, winY + 0.5, 11, 8);
-    g.beginPath(); g.moveTo(wx + 6, winY); g.lineTo(wx + 6, winY + 9); g.stroke();
+    g.strokeStyle = timber; g.lineWidth = 1;
+    g.strokeRect(wx + 0.5, winY + 0.5, 11, 9);
+    g.beginPath(); g.moveTo(wx + 6, winY); g.lineTo(wx + 6, winY + 10); g.moveTo(wx, winY + 5); g.lineTo(wx + 12, winY + 5); g.stroke();
+    // flower box
+    volBox(g, wx - 1, winY + 11, 14, 4, "#6b4a2b", 1);
+    g.fillStyle = "#d9455f"; g.fillRect(wx + 1, winY + 9, 2, 3); g.fillRect(wx + 5, winY + 8, 2, 4); g.fillRect(wx + 9, winY + 9, 2, 3);
+    g.fillStyle = "#4c9645"; g.fillRect(wx + 3, winY + 10, 1, 2); g.fillRect(wx + 7, winY + 10, 1, 2);
   }
 
-  // door, always lit
+  // door, always lit, with a proper timber frame
   const dw = 13, dx = bx - dw / 2, dh = 16;
-  g.fillStyle = "#1c1310"; g.fillRect(dx - 1, by - dh - 1, dw + 2, dh + 1);
+  g.fillStyle = timber; g.fillRect(dx - 2, by - dh - 2, dw + 4, dh + 2);
   g.fillStyle = "#ffce6b"; roundRect(g, dx, by - dh, dw, dh, 3); g.fill();
-  g.fillStyle = "#3a2416"; g.fillRect(dx + dw / 2 - 1, by - dh, 2, dh);
+  g.fillStyle = timber; g.fillRect(dx + dw / 2 - 1, by - dh, 2, dh);
   GLOWS.push({ x: bx, y: by - dh / 2, r: 26, col: "#ffb454", i: 0.6 + night * 0.3 });
+  // cobblestone step
+  for (let i = 0; i < 4; i++) { g.fillStyle = i % 2 ? "#8a8478" : "#6a655c"; g.beginPath(); g.arc(bx - 9 + i * 6, by + 3, 2.5, 0, 7); g.fill(); }
 
-  // gabled roof
+  // steep, thatched-look gabled roof
   g.fillStyle = "#100c0a";
   g.beginPath();
   g.moveTo(x0 - over - 1, y0 + 1); g.lineTo(x0 + bw + over + 1, y0 + 1); g.lineTo(bx, y0 - rh - 1); g.closePath(); g.fill();
-  g.fillStyle = lgrad(g, bx, y0 - rh, bx, y0, shade(roof, 0.2), shade(roof, -0.14));
+  g.fillStyle = lgrad(g, bx, y0 - rh, bx, y0, shade(roof, 0.22), shade(roof, -0.14));
   g.beginPath();
   g.moveTo(x0 - over, y0); g.lineTo(x0 + bw + over, y0); g.lineTo(bx, y0 - rh); g.closePath(); g.fill();
-  g.strokeStyle = rgba(shade(roof, -0.3), 0.6); g.lineWidth = 1;
-  for (let i = 1; i < 4; i++) {
-    const fr = i / 4, yy = y0 - rh * fr, inset = over * (1 - fr);
-    g.beginPath(); g.moveTo(x0 - over + inset, yy + 0.5); g.lineTo(x0 + bw + over - inset, yy + 0.5); g.stroke();
+  // thatch bundles — rows of short overlapping strokes instead of plain lines
+  g.strokeStyle = rgba(shade(roof, -0.34), 0.7); g.lineWidth = 1.4;
+  for (let row = 0; row < 6; row++) {
+    const fr = row / 6, yy = y0 - rh * fr, inset = over * (1 - fr), span = bw + over * 2 - inset * 2;
+    const n = Math.max(4, Math.round(span / 6));
+    for (let i = 0; i < n; i++) {
+      const sx = x0 - over + inset + (span * i) / n + ((row % 2) * 3);
+      g.beginPath(); g.moveTo(sx, yy + 3); g.lineTo(sx + 2, yy - 1); g.stroke();
+    }
+  }
+  g.fillStyle = trim; g.fillRect(bx - bw / 2 + 6, y0 - rh, bw - 12, 1.5);
+
+  // stone chimney + smoke — a real hearth, not just an inn sign
+  g.fillStyle = "#2a2420"; g.fillRect(bx + 14, y0 - rh, 9, 18);
+  g.fillStyle = lgrad(g, bx + 15, y0 - rh, bx + 22, y0 - rh, "#8a8478", "#5c564c");
+  g.fillRect(bx + 15, y0 - rh + 1, 7, 17);
+  for (const s of (smoke || [])) {
+    g.fillStyle = rgba("#e8e8ef", s.a * (0.4 + night * 0.3));
+    g.beginPath(); g.arc(s.x, s.y, Math.max(1, s.sz * 0.7), 0, 7); g.fill();
   }
 
   // a swinging hanging sign — post + board + mug icon
   const signX = x0 - 3, signY = by - dh - 3, sway = Math.sin((t || 0) * 1.4) * 3;
-  g.strokeStyle = "#2a1c12"; g.lineWidth = 2;
-  g.beginPath(); g.moveTo(signX, signY); g.lineTo(signX - 10, signY - 2); g.stroke();
-  g.save(); g.translate(signX - 10, signY - 2);
-  g.fillStyle = "#3a2416"; roundRect(g, -9 + sway * 0.2, -1, 18, 13, 2); g.fill();
+  g.strokeStyle = timber; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(signX, signY); g.lineTo(signX - 12, signY - 3); g.stroke();
+  g.save(); g.translate(signX - 12, signY - 3);
+  g.fillStyle = timber; roundRect(g, -10 + sway * 0.2, -2, 20, 15, 2); g.fill();
+  g.fillStyle = "#5c3a20"; roundRect(g, -9 + sway * 0.2, -1, 18, 13, 2); g.fill();
   g.strokeStyle = trim; g.lineWidth = 1; g.strokeRect(-8 + sway * 0.2, 0, 16, 11);
-  g.font = "10px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillText("🍺", sway * 0.2, 6);
+  g.font = "11px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText("🍺", sway * 0.2, 6.5);
   g.restore();
 
   // a couple of barrels out front
-  for (const bxo of [-bw * 0.42, bw * 0.44]) {
+  for (const bxo of [-bw * 0.44, bw * 0.46]) {
     const px = bx + bxo, py = by - 2;
     volBox(g, px - 5, py - 10, 10, 10, "#6b4a2b", 3);
     g.strokeStyle = "#caa24a"; g.lineWidth = 1;
@@ -1340,53 +1418,110 @@ function drawTavern(g, bx, by, night, t) {
   }
 }
 
+// A tiny palm silhouette — the classic Vegas-entrance flourish. Feet at (x,y).
+function drawTinyPalm(g, x, y, t) {
+  const sway = Math.sin((t || 0) * 1.2 + x) * 1.5;
+  g.fillStyle = "#241a30"; g.fillRect(x - 1.5, y - 14, 3, 14);
+  g.fillStyle = "#3ecbff";
+  for (const a of [-1.1, -0.45, 0.1, 0.6, 1.15]) {
+    g.beginPath();
+    g.moveTo(x, y - 14);
+    g.quadraticCurveTo(x + Math.cos(a) * 7 + sway, y - 18, x + Math.cos(a) * 11 + sway, y - 14 + Math.sin(a) * 6);
+    g.quadraticCurveTo(x + Math.cos(a) * 6 + sway, y - 15, x, y - 12);
+    g.closePath(); g.fill();
+  }
+}
 function drawCasino(g, bx, by, night, t) {
-  const wall = "#3d2a52", roof = "#1a1226", neon1 = "#ff3ea5", neon2 = "#3ecbff";
-  const bw = 70, bh = 40, over = 8;
+  t = t || 0;
+  const wall = "#3d2a52", roof = "#1a1226", neon1 = "#ff3ea5", neon2 = "#3ecbff", gold = "#f4c65a";
+  const bw = 76, bh = 44, over = 9;
   const x0 = bx - bw / 2, y0 = by - bh;
-  ovShadow(g, bx, by, bw / 2 + 8, 9, 0.3);
+  ovShadow(g, bx, by, bw / 2 + 10, 10, 0.32);
 
-  g.fillStyle = "#0e0916"; g.fillRect(x0 - 1, y0 - 1, bw + 2, bh + 2);
-  g.fillStyle = lgrad(g, x0, y0, x0, by, shade(wall, 0.18), shade(wall, -0.14));
-  g.fillRect(x0, y0, bw, bh);
-  g.fillStyle = shade(wall, -0.3); g.fillRect(x0, by - 3, bw, 3);
-
-  for (const cx of [x0 + 8, x0 + bw - 12]) {
-    g.fillStyle = lgrad(g, cx, y0, cx + 4, y0, "#8a7aa8", "#5c4d7d");
-    g.fillRect(cx, y0 + 6, 4, bh - 9);
+  // sweeping searchlight beams from the roof — the unmistakable Vegas tell
+  for (const dir of [-1, 1]) {
+    const ang = -Math.PI / 2 + dir * (0.35 + Math.sin(t * 0.5 + (dir > 0 ? 1.6 : 0)) * 0.5);
+    const bxp = bx + dir * 10, byp = y0 - 26;
+    const len = 130, spread = 0.11;
+    const gr = g.createLinearGradient(bxp, byp, bxp + Math.cos(ang) * len, byp + Math.sin(ang) * len);
+    gr.addColorStop(0, dir > 0 ? "rgba(255,62,165,0.28)" : "rgba(62,203,255,0.28)");
+    gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr;
+    g.beginPath();
+    g.moveTo(bxp, byp);
+    g.lineTo(bxp + Math.cos(ang - spread) * len, byp + Math.sin(ang - spread) * len);
+    g.lineTo(bxp + Math.cos(ang + spread) * len, byp + Math.sin(ang + spread) * len);
+    g.closePath(); g.fill();
   }
 
-  // neon-lit windows, always on
-  const winY = y0 + 12;
-  for (const wc of [[x0 + 14, neon1], [x0 + bw - 26, neon2]]) {
-    const [wx, col] = wc;
-    g.fillStyle = "#0e0916"; g.fillRect(wx - 2, winY - 2, 16, 13);
-    g.fillStyle = col; g.fillRect(wx, winY, 12, 9);
-    GLOWS.push({ x: wx + 6, y: winY + 5, r: 30, col, i: 0.6 });
+  // red carpet to the door + flanking palms
+  g.fillStyle = "#8a1030"; g.beginPath();
+  g.moveTo(bx - 5, by + 2); g.lineTo(bx + 5, by + 2); g.lineTo(bx + 9, by + 14); g.lineTo(bx - 9, by + 14); g.closePath(); g.fill();
+  g.strokeStyle = gold; g.lineWidth = 0.6;
+  g.beginPath(); g.moveTo(bx - 5, by + 2); g.lineTo(bx - 9, by + 14); g.moveTo(bx + 5, by + 2); g.lineTo(bx + 9, by + 14); g.stroke();
+  drawTinyPalm(g, bx - bw * 0.56, by + 2, t);
+  drawTinyPalm(g, bx + bw * 0.58, by + 2, t);
+
+  // main wall with a vertical gradient + neon corner pylons (full-height tubes)
+  g.fillStyle = "#0e0916"; g.fillRect(x0 - 1, y0 - 1, bw + 2, bh + 2);
+  g.fillStyle = lgrad(g, x0, y0, x0, by, shade(wall, 0.2), shade(wall, -0.16));
+  g.fillRect(x0, y0, bw, bh);
+  g.fillStyle = shade(wall, -0.3); g.fillRect(x0, by - 3, bw, 3);
+  for (const pc of [[x0 + 3, neon1], [x0 + bw - 6, neon2]]) {
+    const [px, col] = pc;
+    g.fillStyle = rgba(col, 0.85); g.fillRect(px, y0 + 2, 3, bh - 4);
+    GLOWS.push({ x: px + 1.5, y: y0 + bh * 0.5, r: 26, col, i: 0.55 });
+  }
+  for (const cx of [x0 + 12, x0 + bw - 16]) {
+    g.fillStyle = lgrad(g, cx, y0, cx + 4, y0, "#8a7aa8", "#5c4d7d");
+    g.fillRect(cx, y0 + 8, 4, bh - 11);
+  }
+
+  // two rows of neon-lit windows, always on
+  for (const wy of [y0 + 10, y0 + bh * 0.55]) {
+    for (const wc of [[x0 + 18, neon1], [x0 + bw - 30, neon2]]) {
+      const [wx, col] = wc;
+      g.fillStyle = "#0e0916"; g.fillRect(wx - 2, wy - 2, 14, 11);
+      g.fillStyle = col; g.fillRect(wx, wy, 10, 7);
+      GLOWS.push({ x: wx + 5, y: wy + 3.5, r: 24, col, i: 0.55 });
+    }
   }
 
   // grand pulsing entrance
-  const dw = 15, dx = bx - dw / 2, dh = 17;
+  const dw = 16, dx = bx - dw / 2, dh = 18;
   g.fillStyle = "#0e0916"; g.fillRect(dx - 1, by - dh - 1, dw + 2, dh + 1);
   g.fillStyle = "#1a1226"; roundRect(g, dx, by - dh, dw, dh, 2); g.fill();
-  g.fillStyle = rgba(neon1, 0.5 + Math.sin((t || 0) * 2) * 0.15);
+  g.fillStyle = rgba(neon1, 0.55 + Math.sin(t * 2) * 0.2);
   g.fillRect(dx + 1, by - dh + 1, dw - 2, dh - 2);
-  GLOWS.push({ x: bx, y: by - dh / 2, r: 30, col: neon1, i: 0.5 });
+  GLOWS.push({ x: bx, y: by - dh / 2, r: 34, col: neon1, i: 0.55 });
 
-  // flat roof + marquee sign band with chasing lights
-  g.fillStyle = shade(roof, -0.1); g.fillRect(x0 - over, y0 - 8, bw + over * 2, 8);
-  g.fillStyle = "#100a1a"; g.fillRect(x0 - over - 1, y0 - 20, bw + over * 2 + 2, 13);
-  g.fillStyle = lgrad(g, bx, y0 - 20, bx, y0 - 7, "#4a3670", "#241a38");
-  g.fillRect(x0 - over, y0 - 19, bw + over * 2, 12);
-  g.font = "700 8px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillStyle = "#f4c65a"; g.fillText("🎰 CASINO", bx, y0 - 13);
-  const nBulbs = 10;
-  for (let i = 0; i < nBulbs; i++) {
-    const bxp = x0 - over + 4 + (bw + over * 2 - 8) * i / (nBulbs - 1);
-    const on = Math.floor((t || 0) * 4 + i) % 3 === 0;
-    g.fillStyle = on ? "#fff2cf" : "rgba(255,242,207,0.25)";
-    g.beginPath(); g.arc(bxp, y0 - 8.5, 1.3, 0, 7); g.fill();
-    if (on) GLOWS.push({ x: bxp, y: y0 - 8.5, r: 10, col: "#fff2cf", i: 0.5 });
+  // stepped pinnacle roofline
+  g.fillStyle = shade(roof, -0.1); g.fillRect(x0 - over, y0 - 9, bw + over * 2, 9);
+  g.fillStyle = shade(roof, -0.25); g.fillRect(bx - bw * 0.32, y0 - 15, bw * 0.64, 7);
+
+  // big marquee — stepped pinnacle sign, two rows of chasing bulbs, bigger name
+  const mx0 = bx - bw * 0.42, mw = bw * 0.84, mTop = y0 - 34;
+  g.fillStyle = "#100a1a"; g.fillRect(mx0 - 1, mTop - 1, mw + 2, 21);
+  g.fillStyle = lgrad(g, bx, mTop, bx, mTop + 20, "#5a3f8a", "#241a38");
+  g.fillRect(mx0, mTop, mw, 19);
+  // pinnacle cap
+  g.fillStyle = "#100a1a";
+  g.beginPath(); g.moveTo(mx0 - 3, mTop); g.lineTo(mx0 + mw + 3, mTop); g.lineTo(bx, mTop - 12); g.closePath(); g.fill();
+  g.fillStyle = lgrad(g, bx, mTop - 12, bx, mTop, "#7d5ab0", "#4a3670");
+  g.beginPath(); g.moveTo(mx0 - 1, mTop); g.lineTo(mx0 + mw + 1, mTop); g.lineTo(bx, mTop - 10); g.closePath(); g.fill();
+  g.fillStyle = gold; g.beginPath(); g.arc(bx, mTop - 12, 1.6, 0, 7); g.fill();
+  GLOWS.push({ x: bx, y: mTop - 6, r: 40, col: "#c07aff", i: 0.4 + Math.sin(t * 1.3) * 0.15 });
+  g.font = "700 9px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = gold; g.fillText("🎰 CASINO", bx, mTop + 9);
+  for (const row of [mTop - 2, mTop + 18]) {
+    const nBulbs = 12;
+    for (let i = 0; i < nBulbs; i++) {
+      const bxp = mx0 + 3 + (mw - 6) * i / (nBulbs - 1);
+      const on = Math.floor(t * 5 + i + (row > mTop ? 3 : 0)) % 3 === 0;
+      g.fillStyle = on ? "#fff2cf" : "rgba(255,242,207,0.25)";
+      g.beginPath(); g.arc(bxp, row, 1.3, 0, 7); g.fill();
+      if (on) GLOWS.push({ x: bxp, y: row, r: 9, col: "#fff2cf", i: 0.45 });
+    }
   }
 }
 
@@ -2097,7 +2232,7 @@ function mkPet(type, rgn, i) {
    ambient strollers (who show their name instead).
    ═══════════════════════════════════════════════════════════════════════ */
 const PLAYER = { x: 0, y: 0, dir: "S", phase: 0, moving: false, speed: 70, lastEnter: 0, moveTarget: null,
-                  drunk: 0, smokeUntil: 0 };
+                  drunk: 0, drunkThreshold: 0, smokeUntil: 0 };
 // How wobbly/slow movement gets as PLAYER.drunk climbs — applied wherever dx/dy
 // is computed just before moveEntity (map + interior + hall + venue), so
 // "the more you drink the drunker you get, so walking is hard" shows up
@@ -2105,11 +2240,61 @@ const PLAYER = { x: 0, y: 0, dir: "S", phase: 0, moving: false, speed: 70, lastE
 function drunkWobble(dx, dy) {
   const d = PLAYER.drunk || 0;
   if (!d) return { dx, dy, speedMul: 1 };
-  const maxD = (catalogData && catalogData.bar && catalogData.bar.max_drunk) || 10;
+  const maxD = PLAYER.drunkThreshold || 9;
   const amt = clamp(d / maxD, 0, 1);
   const wob = (Math.random() - 0.5) * amt * 2.6;   // radians of random veer
   const cos = Math.cos(wob), sin = Math.sin(wob);
   return { dx: dx * cos - dy * sin, dy: dx * sin + dy * cos, speedMul: 1 - amt * 0.35 };
+}
+// Colour shift + gentle wobble on the whole stage, worse the closer you are
+// to blacking out — no numbers shown, just vibes (Alex, 2026-09-14: "make
+// their screen wobbly or colors if they drink some amount before 10").
+function applyDrunkScreenFX() {
+  const maxD = PLAYER.drunkThreshold || 9;
+  const amt = clamp((PLAYER.drunk || 0) / maxD, 0, 1);
+  for (const el of [mapStage, document.getElementById("interiorStage")]) {
+    if (!el) continue;
+    if (amt <= 0.001) {
+      if (el.style.filter) el.style.filter = "";
+      el.classList.remove("hn-drunk-fx");
+    } else {
+      el.style.filter = `hue-rotate(${(amt * 32).toFixed(1)}deg) saturate(${(1 + amt * 0.9).toFixed(2)}) contrast(${(1 + amt * 0.15).toFixed(2)})`;
+      el.classList.add("hn-drunk-fx");
+      el.style.setProperty("--drunk-dur", (3.2 - amt * 1.9).toFixed(2) + "s");
+    }
+  }
+}
+// ── Drunk state persists 24h in localStorage (Alex, 2026-09-14: "a random
+// number of drinks that persists for 24 hours... so they can leave and come
+// back") — per-account key so a shared computer doesn't mix people up.
+// Nothing here is the real economy; it's purely a movement/screen gag, so
+// browser storage (not a server round-trip) is the right amount of durable.
+function drunkKey() { return "nb_drunk_" + (currentUser ? currentUser.id : "anon"); }
+function rollDrunkThreshold() {
+  const bar = catalogData && catalogData.bar;
+  const lo = (bar && bar.drunk_threshold_min) || 4, hi = (bar && bar.drunk_threshold_max) || 9;
+  return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+function loadDrunkState() {
+  try {
+    const raw = localStorage.getItem(drunkKey());
+    if (!raw) return;
+    const st = JSON.parse(raw);
+    if (!st || !(st.expiresAt > Date.now()) || !(st.drunk > 0)) { localStorage.removeItem(drunkKey()); return; }
+    PLAYER.drunk = st.drunk; PLAYER.drunkThreshold = st.threshold || rollDrunkThreshold();
+  } catch (e) { /* private browsing / storage disabled — just start sober */ }
+}
+function saveDrunkState() {
+  try {
+    if (!PLAYER.drunk) { localStorage.removeItem(drunkKey()); return; }
+    localStorage.setItem(drunkKey(), JSON.stringify({
+      drunk: PLAYER.drunk, threshold: PLAYER.drunkThreshold, expiresAt: Date.now() + 24 * 3600 * 1000,
+    }));
+  } catch (e) { /* ignore — worst case it just doesn't persist */ }
+}
+function clearDrunkState() {
+  PLAYER.drunk = 0; PLAYER.drunkThreshold = 0;
+  try { localStorage.removeItem(drunkKey()); } catch (e) {}
 }
 const PLAYER_PAL = { h: HAIR[0], s: "#f0c8a4", 1: "#241a1e", t: "#00c8c8", p: PANTS[0], 6: "#3b2b2b" };
 function hashStr(s) { let h = 0; s = String(s || ""); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
@@ -2831,6 +3016,7 @@ function drawMapScene(now, dt) {
   MAP.walkers.forEach(a => stepWalker(a, dt));
   MAP.mapPets.forEach(p => stepPet(p, dt));
   MAP.houses.forEach(h => stepSmoke(h.smoke, dt, h.bx + 15.5, h.by - 55));
+  if (MAP.tavern) stepSmoke(MAP.tavern.smoke, dt, MAP.tavern.bx + 18.5, MAP.tavern.by - 58);
   stepPlayer(dt);
   if (!Number.isFinite(PLAYER.x) || !Number.isFinite(PLAYER.y)) spawnPlayer();   // never let a bad coord NaN the camera
   if (MAP.follow) {
@@ -2852,7 +3038,7 @@ function drawMapScene(now, dt) {
 
   const ents = [];
   if (MAP.townHall) ents.push({ y: MAP.townHall.by, d: () => drawTownHall(g, MAP.townHall.bx, MAP.townHall.by, night, now / 1000) });
-  if (MAP.tavern) ents.push({ y: MAP.tavern.by, d: () => drawTavern(g, MAP.tavern.bx, MAP.tavern.by, night, now / 1000) });
+  if (MAP.tavern) ents.push({ y: MAP.tavern.by, d: () => drawTavern(g, MAP.tavern.bx, MAP.tavern.by, night, now / 1000, MAP.tavern.smoke) });
   if (MAP.casino) ents.push({ y: MAP.casino.by, d: () => drawCasino(g, MAP.casino.bx, MAP.casino.by, night, now / 1000) });
   MAP.houses.forEach(h => {
     if (h.room_keys && h.room_keys.includes("backyard")) {
@@ -3941,16 +4127,30 @@ function leaveVenue() {
   fitMapView();
 }
 
-/* ── Drinking / smoking / blackout (Alex, 2026-09-12) ─────────────────── */
+/* ── Drinking / smoking / blackout (Alex, 2026-09-12; funnier + less
+   punishing + a hidden random threshold that persists 24h, 2026-09-14) ── */
+// Escalating flavor text by how close you are to your (hidden, random)
+// threshold — never shows a count, just vibes, so blacking out is a real
+// surprise rather than a countdown.
+const DRINK_TOASTS = [
+  "🍺 Cheers!", "🍻 That hit the spot.", "😄 Feeling pretty good.",
+  "🥴 Whoa, the room's a little wobbly...", "🫠 Everything's kinda swimmy right now.",
+  "🌀 You're not totally sure which way is home.",
+];
+function drinkFlavor(drunk, threshold) {
+  const ratio = clamp(drunk / (threshold || 9), 0, 1);
+  return DRINK_TOASTS[Math.min(DRINK_TOASTS.length - 1, Math.floor(ratio * DRINK_TOASTS.length))];
+}
 async function buyDrink() {
   if (!currentUser) { toast("Log in on the Games hub to drink."); return; }
   try {
     const res = await api("/bar/drink", { method: "POST" });
     currentUser.kellscoins = res.balance; updateCoinChip();
-    const maxD = (catalogData.bar && catalogData.bar.max_drunk) || 10;
-    PLAYER.drunk = Math.min(maxD, (PLAYER.drunk || 0) + 1);
-    if (PLAYER.drunk >= maxD) { triggerBlackout(); return; }
-    toast(`🍺 Cheers! (${PLAYER.drunk}/${maxD} drinks — getting wobbly)`);
+    if (!PLAYER.drunkThreshold) PLAYER.drunkThreshold = rollDrunkThreshold();
+    PLAYER.drunk = (PLAYER.drunk || 0) + 1;
+    if (PLAYER.drunk >= PLAYER.drunkThreshold) { triggerBlackout(); return; }
+    saveDrunkState();
+    toast(drinkFlavor(PLAYER.drunk, PLAYER.drunkThreshold));
   } catch (e) { toast(e.message); }
 }
 const SMOKE_TOASTS = [
@@ -3988,7 +4188,7 @@ async function triggerBlackout() {
     currentUser.kellscoins = res.balance; updateCoinChip();
     lost = res.lost || 0;
   } catch (e) { /* still black out even if the charge itself failed */ }
-  PLAYER.drunk = 0;
+  clearDrunkState();
   beginFade(() => {
     VENUE = null; HALL = null; INTERIOR = null;
     SCENE = "map"; activeTab = "map";
@@ -4513,8 +4713,8 @@ function renderEditor() {
           <div class="hn-error" id="hnError"></div>
           <p class="hn-hint" id="roomHint"></p>
         </div>
-        <div class="hn-panel">
-          <div class="hn-panel-title">Exterior</div>
+        <div class="hn-panel hn-ext-panel">
+          <div class="hn-panel-title">🏠 House Upgrade</div>
           <div id="exteriorActions"></div>
         </div>
         <div class="hn-panel">
@@ -4638,25 +4838,37 @@ function renderRoomActions() {
     } catch (e) { showError(e.message); }
   });
 }
+const EXTERIOR_ICONS = { cottage: "🏠", cabin: "🏡", manor: "🏘️", mansion: "🏰" };
 function renderExteriorActions() {
   const host = document.getElementById("exteriorActions");
   if (!host) return;
   const ex = (catalogData && catalogData.exteriors) || { tiers: [], max_level: 0 };
+  if (!ex.tiers.length) { host.innerHTML = `<span class="hn-empty-note">Exterior tiers unavailable.</span>`; return; }
   const lvl = (mine.house && mine.house.exterior_level) || 0;
   const cur = ex.tiers.find(t => t.level === lvl) || { name: "Cottage" };
-  if (!ex.tiers.length) { host.innerHTML = `<span class="hn-empty-note">Exterior tiers unavailable.</span>`; return; }
+
+  const ladder = ex.tiers.map(t =>
+    `<div class="hn-ext-step ${t.level < lvl ? "done" : t.level === lvl ? "cur" : ""}">
+       <div class="hn-ext-icon">${EXTERIOR_ICONS[t.key] || "🏠"}</div>
+       <div class="hn-ext-name">${escHtml(t.name)}</div>
+     </div>`
+  ).join(`<div class="hn-ext-arrow">→</div>`);
+
+  let footer;
   if (lvl >= ex.max_level) {
-    host.innerHTML = `<p class="hn-hint" style="margin:0;">Your house is a <b>${escHtml(cur.name)}</b> — the top tier. 🏰</p>`;
-    return;
+    footer = `<p class="hn-hint" style="margin:0;">You've maxed out at a <b>${escHtml(cur.name)}</b> — the top tier. 🎉</p>`;
+  } else {
+    const nxt = ex.tiers.find(t => t.level === lvl + 1);
+    const afford = currentUser && currentUser.kellscoins >= nxt.price;
+    footer = `
+      <button class="hn-mini-btn" id="exUpBtn" ${afford ? "" : "disabled"}>⬆ Upgrade to ${escHtml(nxt.name)} — 🪙 ${nxt.price.toLocaleString()}</button>
+      ${afford ? "" : `<p class="hn-hint" style="margin:6px 0 0; color:var(--muted);">Need 🪙 ${(nxt.price - (currentUser ? currentUser.kellscoins : 0)).toLocaleString()} more.</p>`}`;
   }
-  const nxt = ex.tiers.find(t => t.level === lvl + 1);
-  const afford = currentUser && currentUser.kellscoins >= nxt.price;
-  host.innerHTML = `
-    <p class="hn-hint" style="margin:0 0 8px;">Current: <b>${escHtml(cur.name)}</b></p>
-    <button class="hn-mini-btn" id="exUpBtn" ${afford ? "" : "disabled"}>⬆ Upgrade to ${escHtml(nxt.name)} — 🪙 ${nxt.price.toLocaleString()}</button>
-    ${afford ? "" : `<p class="hn-hint" style="margin:6px 0 0; color:var(--muted);">Need 🪙 ${(nxt.price - (currentUser ? currentUser.kellscoins : 0)).toLocaleString()} more.</p>`}`;
+  host.innerHTML = `<div class="hn-ext-ladder">${ladder}</div>${footer}`;
+
   const btn = document.getElementById("exUpBtn");
   if (btn) btn.addEventListener("click", async () => {
+    const nxt = ex.tiers.find(t => t.level === lvl + 1);
     if (!window.confirm(`Upgrade your house to ${nxt.name} for ${nxt.price.toLocaleString()} KellsCoins?`)) return;
     try {
       const res = await api("/exterior/upgrade", { method: "POST", body: {} });
@@ -4924,8 +5136,13 @@ function tick(now) {
   if (PLAYER.drunk > 0) {
     PLAYER._drunkDecayAcc = (PLAYER._drunkDecayAcc || 0) + dt;
     const DECAY_PERIOD = 22;
-    if (PLAYER._drunkDecayAcc >= DECAY_PERIOD) { PLAYER._drunkDecayAcc -= DECAY_PERIOD; PLAYER.drunk = Math.max(0, PLAYER.drunk - 1); }
+    if (PLAYER._drunkDecayAcc >= DECAY_PERIOD) {
+      PLAYER._drunkDecayAcc -= DECAY_PERIOD;
+      PLAYER.drunk = Math.max(0, PLAYER.drunk - 1);
+      if (PLAYER.drunk === 0) clearDrunkState(); else saveDrunkState();
+    }
   }
+  applyDrunkScreenFX();
 
   if (activeTab === "map" && mapData) drawMapScene(now, dt);
   else if (activeTab === "mine") {
@@ -5008,6 +5225,7 @@ async function boot() {
   updateCoinChip();
   if (!currentUser) document.getElementById("loginHint").style.display = "block";
   else document.getElementById("editorWrap").style.display = "block";
+  loadDrunkState();   // pick up an in-progress binge from earlier today, if any
 
   try { await loadMap(); } catch (e) { console.warn(e); }
   requestAnimationFrame(tick);
@@ -5029,6 +5247,8 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
     sceneActivate, openTrophyPanel, syncPlayerPal, trophiesFor, sitOnSeat, standUp, togglePlaceMode,
     openVenue, buildVenue, venueEnterRoom, stepVenue, drawVenueScene, venueActivate, leaveVenue,
     solidRectsVenue, venueBounds, buyDrink, buySmoke, triggerBlackout, randomTeleport, drunkWobble,
+    loadDrunkState, saveDrunkState, clearDrunkState, rollDrunkThreshold, drunkKey, applyDrunkScreenFX,
+    renderExteriorActions, drinkFlavor,
     set LEADERBOARD(v) { LEADERBOARD = v; },
     get HALL() { return HALL; },
     get VENUE() { return VENUE; },
