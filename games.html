@@ -117,6 +117,29 @@
   .gm-avatar-choice.selected { border-color: var(--accent); background: rgba(0,200,200,0.14); }
   .gm-modal-close { float: right; background: none; border: none; color: var(--muted); font-size: 1.3rem; cursor: pointer; }
 
+  /* ── RF/EE/Antenna fact popup ── */
+  .gm-adfact-modal { max-width: 440px; text-align: center; }
+  .gm-adfact-icon { font-size: 2.4rem; margin-bottom: 4px; }
+  .gm-adfact-level {
+    display: inline-block; font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.08em; padding: 3px 10px; border-radius: 999px; margin-bottom: 12px;
+    background: rgba(0,200,200,0.14); color: var(--accent); border: 1px solid var(--accent);
+  }
+  .gm-adfact-text { font-size: 1rem; line-height: 1.5; margin-bottom: 18px; text-align: left; }
+  .gm-adfact-reward {
+    font-size: 1.05rem; font-weight: 800; color: #ffd166; margin-bottom: 14px;
+  }
+  .gm-adfact-sub { font-size: 0.75rem; color: var(--muted); margin-top: 10px; }
+  .gm-adfact-actions { display: flex; gap: 10px; justify-content: center; }
+  .gm-adfact-card {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    justify-content: center; cursor: pointer; gap: 6px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 14px;
+    transition: border-color 0.2s, transform 0.15s;
+  }
+  .gm-adfact-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .gm-adfact-card .project-card-icon { margin-bottom: 4px; }
+
   /* ── Trophy case ── */
   .gm-trophy-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;
@@ -271,6 +294,14 @@
       <span class="section-hdr-label">Play</span>
     </div>
     <section class="gm-games">
+      <div class="gm-adfact-card" id="adfactCard">
+        <div class="project-card-icon">📡</div>
+        <div class="project-card-body">
+          <h3>RF Fact Break</h3>
+          <p>Read a quick RF/electrical engineering/antenna fact.</p>
+          <span class="gm-earn-tag">🪙 5000 per fact · up to 5/day</span>
+        </div>
+      </div>
       <a href="propertytrade.html" class="project-card gm-game-card">
         <div class="project-card-icon">🏙️</div>
         <div class="project-card-body">
@@ -434,6 +465,22 @@
       <button class="gm-modal-close" id="closeAvatarModal">&times;</button>
       <h3>Choose an avatar</h3>
       <div class="gm-avatar-grid" id="avatarGrid"></div>
+    </div>
+  </div>
+
+  <div class="gm-modal-overlay" id="adfactModal">
+    <div class="gm-modal gm-adfact-modal">
+      <button class="gm-modal-close" id="closeAdfactModal">&times;</button>
+      <div class="gm-adfact-icon">📡</div>
+      <div class="gm-adfact-level" id="adfactLevel"></div>
+      <div class="gm-adfact-text" id="adfactText"></div>
+      <div class="gm-adfact-reward" id="adfactReward"></div>
+      <div class="gm-error" id="adfactError"></div>
+      <div class="gm-adfact-actions">
+        <button class="gm-btn-outline" id="adfactSkipBtn">Maybe later</button>
+        <button class="cs-btn gm-btn-outline" id="adfactClaimBtn" style="background:var(--accent); color:#000; border:none;">Claim KellsCoins</button>
+      </div>
+      <div class="gm-adfact-sub" id="adfactSub"></div>
     </div>
   </div>
 
@@ -737,6 +784,60 @@
     panel.style.display = "block";
   });
 
+  // ── RF Fact Break ("watch an ad" for coins) ────────────────────────
+  let adfactStatus = null;
+
+  async function loadAdFactStatus(autoOpen) {
+    try {
+      adfactStatus = await api("/adfact/status");
+      if (autoOpen && adfactStatus.available) openAdFactModal();
+    } catch (e) { /* best-effort — the hub card still works on click */ }
+  }
+
+  function openAdFactModal() {
+    if (!adfactStatus) return;
+    document.getElementById("adfactError").textContent = "";
+    document.getElementById("adfactLevel").textContent = adfactStatus.fact.level;
+    document.getElementById("adfactText").textContent = adfactStatus.fact.text;
+    document.getElementById("adfactReward").textContent = `🪙 Earn ${adfactStatus.reward.toLocaleString()} KellsCoins for reading this`;
+    const claimBtn = document.getElementById("adfactClaimBtn");
+    if (adfactStatus.available) {
+      claimBtn.disabled = false;
+      claimBtn.textContent = "Claim KellsCoins";
+      document.getElementById("adfactSub").textContent = `${adfactStatus.remaining} of ${adfactStatus.daily_limit} left today`;
+    } else {
+      claimBtn.disabled = true;
+      claimBtn.textContent = "Come back tomorrow";
+      document.getElementById("adfactSub").textContent = `You've read today's ${adfactStatus.daily_limit} — more tomorrow.`;
+    }
+    document.getElementById("adfactModal").classList.add("open");
+  }
+
+  document.getElementById("adfactCard").addEventListener("click", () => {
+    if (!currentUser) return;
+    loadAdFactStatus(false).then(openAdFactModal);
+  });
+  document.getElementById("closeAdfactModal").addEventListener("click", () => {
+    document.getElementById("adfactModal").classList.remove("open");
+  });
+  document.getElementById("adfactSkipBtn").addEventListener("click", () => {
+    document.getElementById("adfactModal").classList.remove("open");
+  });
+  document.getElementById("adfactClaimBtn").addEventListener("click", async () => {
+    const errEl = document.getElementById("adfactError");
+    errEl.textContent = "";
+    try {
+      const res = await api("/adfact/claim", { method: "POST" });
+      currentUser.kellscoins = res.balance;
+      render();
+      adfactStatus = { ...adfactStatus, available: res.remaining > 0, remaining: res.remaining };
+      document.getElementById("adfactModal").classList.remove("open");
+    } catch (e) {
+      errEl.textContent = e.message;
+      loadAdFactStatus(false);
+    }
+  });
+
   function escHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
@@ -754,6 +855,7 @@
     render();
     loadPot();
     loadMembers();
+    if (currentUser) loadAdFactStatus(true);
   }
   boot();
 </script>
