@@ -473,12 +473,15 @@
       <button class="gm-modal-close" id="closeAdfactModal">&times;</button>
       <div class="gm-adfact-icon">📡</div>
       <div class="gm-adfact-level" id="adfactLevel"></div>
-      <div class="gm-adfact-text" id="adfactText"></div>
       <div class="gm-adfact-reward" id="adfactReward"></div>
+      <div class="gm-adfact-text" id="adfactText" style="display:none;"></div>
       <div class="gm-error" id="adfactError"></div>
-      <div class="gm-adfact-actions">
+      <div class="gm-adfact-actions" id="adfactAskActions">
         <button class="gm-btn-outline" id="adfactSkipBtn">Maybe later</button>
-        <button class="cs-btn gm-btn-outline" id="adfactClaimBtn" style="background:var(--accent); color:#000; border:none;">Claim KellsCoins</button>
+        <button class="cs-btn gm-btn-outline" id="adfactClaimBtn" style="background:var(--accent); color:#000; border:none;">Reveal &amp; Claim</button>
+      </div>
+      <div class="gm-adfact-actions" id="adfactDoneActions" style="display:none;">
+        <button class="cs-btn gm-btn-outline" id="adfactDoneBtn" style="background:var(--accent); color:#000; border:none;">Nice!</button>
       </div>
       <div class="gm-adfact-sub" id="adfactSub"></div>
     </div>
@@ -794,21 +797,28 @@
     } catch (e) { /* best-effort — the hub card still works on click */ }
   }
 
+  // Two-stage popup: first just asks "reveal this fact for 5000 coins?"
+  // with no preview of the fact itself, then only shows the text once the
+  // claim actually goes through (Alex, 2026-09-16: don't show the fact and
+  // ask after — ask first, reveal after they say yes).
   function openAdFactModal() {
     if (!adfactStatus) return;
     document.getElementById("adfactError").textContent = "";
-    document.getElementById("adfactLevel").textContent = adfactStatus.fact.level;
-    document.getElementById("adfactText").textContent = adfactStatus.fact.text;
-    document.getElementById("adfactReward").textContent = `🪙 Earn ${adfactStatus.reward.toLocaleString()} KellsCoins for reading this`;
-    const claimBtn = document.getElementById("adfactClaimBtn");
+    document.getElementById("adfactText").style.display = "none";
+    document.getElementById("adfactText").textContent = "";
+    document.getElementById("adfactAskActions").style.display = "flex";
+    document.getElementById("adfactDoneActions").style.display = "none";
     if (adfactStatus.available) {
-      claimBtn.disabled = false;
-      claimBtn.textContent = "Claim KellsCoins";
+      document.getElementById("adfactLevel").textContent = `${adfactStatus.fact.level} fact available`;
+      document.getElementById("adfactReward").textContent =
+        `🪙 Reveal it for ${adfactStatus.reward.toLocaleString()} KellsCoins?`;
+      document.getElementById("adfactClaimBtn").disabled = false;
       document.getElementById("adfactSub").textContent = `${adfactStatus.remaining} of ${adfactStatus.daily_limit} left today`;
     } else {
-      claimBtn.disabled = true;
-      claimBtn.textContent = "Come back tomorrow";
-      document.getElementById("adfactSub").textContent = `You've read today's ${adfactStatus.daily_limit} — more tomorrow.`;
+      document.getElementById("adfactLevel").textContent = "";
+      document.getElementById("adfactReward").textContent = "No facts left to reveal today";
+      document.getElementById("adfactClaimBtn").disabled = true;
+      document.getElementById("adfactSub").textContent = `You've claimed today's ${adfactStatus.daily_limit} — more tomorrow.`;
     }
     document.getElementById("adfactModal").classList.add("open");
   }
@@ -823,6 +833,9 @@
   document.getElementById("adfactSkipBtn").addEventListener("click", () => {
     document.getElementById("adfactModal").classList.remove("open");
   });
+  document.getElementById("adfactDoneBtn").addEventListener("click", () => {
+    document.getElementById("adfactModal").classList.remove("open");
+  });
   document.getElementById("adfactClaimBtn").addEventListener("click", async () => {
     const errEl = document.getElementById("adfactError");
     errEl.textContent = "";
@@ -831,7 +844,18 @@
       currentUser.kellscoins = res.balance;
       render();
       adfactStatus = { ...adfactStatus, available: res.remaining > 0, remaining: res.remaining };
-      document.getElementById("adfactModal").classList.remove("open");
+
+      // Reveal stage — only now does the actual fact text appear.
+      document.getElementById("adfactLevel").textContent = res.fact.level;
+      document.getElementById("adfactReward").textContent = `✅ +${res.awarded.toLocaleString()} KellsCoins!`;
+      const textEl = document.getElementById("adfactText");
+      textEl.textContent = res.fact.text;
+      textEl.style.display = "block";
+      document.getElementById("adfactAskActions").style.display = "none";
+      document.getElementById("adfactDoneActions").style.display = "flex";
+      document.getElementById("adfactSub").textContent = res.remaining > 0
+        ? `${res.remaining} of ${adfactStatus.daily_limit} left today`
+        : `That was today's last one — more tomorrow.`;
     } catch (e) {
       errEl.textContent = e.message;
       loadAdFactStatus(false);
