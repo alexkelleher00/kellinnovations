@@ -514,6 +514,7 @@ const FOOTPRINTS = {
   jacuzzi_room: [3, 2], trampoline: [3, 3], hammock: [3, 1], gazebo: [3, 3], statue: [1, 2],
   pool: [5, 4], court: [6, 4], helipad: [4, 4], ufo: [3, 2], dragon: [3, 3], mansion_gate: [4, 2],
   basketball: [2, 1], palm: [2, 3], sunflower: [2, 2], fireworks: [2, 2],
+  diving_board: [2, 1],
 };
 function fp(itemOrKey) {
   // base (rotation-0) footprint of an item's *key*, ignoring any placed w/h
@@ -1841,6 +1842,17 @@ const ITEM_DRAW = {
     g.moveTo(x + W - TP * 0.28, y - TP * 0.1); g.lineTo(x + W - TP * 0.28, y + TP * 0.7);
     g.stroke();
   },
+  // A diving board off the pool's edge (Alex, 2026-09-19: "add option to buy
+  // diving boards for pool") — a short ladder up to a springy plank.
+  diving_board(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    ovShadow(g, x + W * 0.5, y + H, W * 0.4, TP * 0.14, 0.2);
+    g.fillStyle = "#8a8f9c"; g.fillRect(x + TP * 0.1, y + TP * 0.1, TP * 0.14, H - TP * 0.1);
+    g.fillStyle = "#b6bcc6"; g.fillRect(x + TP * 0.32, y + TP * 0.1, TP * 0.14, H - TP * 0.1);
+    for (let i = 0; i < 3; i++) { g.strokeStyle = "#9aa0a6"; g.lineWidth = 2; g.beginPath(); g.moveTo(x + TP * 0.1, y + TP * (0.3 + i * 0.25)); g.lineTo(x + TP * 0.46, y + TP * (0.3 + i * 0.25)); g.stroke(); }
+    g.fillStyle = "#e8dcc4"; g.fillRect(x + TP * 0.42, y, W - TP * 0.42, TP * 0.22);
+    g.fillStyle = "#c9bd9e"; g.fillRect(x + TP * 0.42, y + TP * 0.18, W - TP * 0.42, TP * 0.05);
+  },
   trampoline(g, x, y, TP, w, h) {
     const cx = x + w * TP / 2, cy = y + h * TP / 2, rx = w * TP * 0.46, ry = h * TP * 0.4;
     g.fillStyle = "#2b2b33"; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, 7); g.fill();
@@ -2024,6 +2036,60 @@ const ITEM_DRAW = {
     g.quadraticCurveTo(cx - TP * 0.04, y + TP * 0.02, cx - TP * 0.02, y - TP * 0.06);
     g.closePath(); g.fill();
     g.fillStyle = "#f0d9b0"; g.beginPath(); g.arc(cx - TP * 0.02, y - TP * 0.08, TP * 0.035, 0, 7); g.fill();
+  },
+  // Trophy case (Alex, 2026-09-19: "make sure the trophy case is visible
+  // with the real trophies") — this is the *yard/room decoration* people
+  // place, a glass cabinet with three trophy silhouettes; the real-data
+  // panel it opens (openTrophyPanel/trophiesFor, pulling actual leaderboard
+  // placements) is unchanged, this just makes the fixture read as a trophy
+  // case instead of a generic emoji box.
+  vault(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP;
+    ovShadow(g, x + W / 2, y + H, W * 0.46, TP * 0.14, 0.22);
+    g.fillStyle = "#241c14"; g.fillRect(x - 1, y - TP * 0.14, W + 2, H + TP * 0.16);
+    g.fillStyle = lgrad(g, x, y, x, y + H, "#6b4a2b", "#4a3320"); g.fillRect(x, y - TP * 0.1, W, H * 0.22);   // wood base
+    const gx0 = x + TP * 0.12, gy0 = y - TP * 0.02, gw = W - TP * 0.24, gh = H * 0.7;
+    g.fillStyle = "#1a2230"; g.fillRect(gx0 - 2, gy0 - 2, gw + 4, gh + 4);
+    const glass = g.createLinearGradient(gx0, gy0, gx0, gy0 + gh);
+    glass.addColorStop(0, "rgba(140,200,230,0.32)"); glass.addColorStop(1, "rgba(60,90,120,0.22)");
+    g.fillStyle = glass; g.fillRect(gx0, gy0, gw, gh);
+    const cups = [{ dx: 0.5, s: 1, col: "#ffd166" }, { dx: 0.22, s: 0.72, col: "#c8ccd6" }, { dx: 0.78, s: 0.72, col: "#c88a4a" }];
+    for (const c of cups) {
+      const cx = gx0 + gw * c.dx, cy = gy0 + gh * (1 - 0.16 * c.s), s = TP * 0.13 * c.s;
+      g.fillStyle = c.col;
+      g.beginPath(); g.arc(cx, cy - s * 1.6, s, Math.PI * 0.15, Math.PI * 0.85); g.fill();
+      g.fillRect(cx - s * 0.5, cy - s * 1.6, s, s * 1.3);
+      g.beginPath(); g.moveTo(cx - s * 0.55, cy - s * 0.35); g.lineTo(cx + s * 0.55, cy - s * 0.35); g.lineTo(cx + s * 0.32, cy + s * 0.1); g.lineTo(cx - s * 0.32, cy + s * 0.1); g.closePath(); g.fill();
+      g.fillRect(cx - s * 0.42, cy + s * 0.1, s * 0.84, s * 0.22);
+      GLOWS.push({ x: cx, y: cy - s, r: 16 * c.s, col: c.col, i: 0.3 });
+    }
+    g.strokeStyle = "rgba(255,255,255,0.25)"; g.lineWidth = 1; g.beginPath(); g.moveTo(gx0 + gw * 0.14, gy0 + 2); g.lineTo(gx0 + gw * 0.28, gy0 + gh - 2); g.stroke();
+    g.fillStyle = "#c9a24a"; g.fillRect(gx0 - 2, gy0 - 2, gw + 4, 2);   // gold trim
+  },
+  // A real playground hoop — backboard, rim, net, pole (Alex, 2026-09-19:
+  // "the basketball hop is real"). Same fixture also anchors the two full
+  // hoops on the neighborhood's basketball court (drawCourtHoop reuses
+  // this same geometry at a bigger scale — see spawnBasketballCourt).
+  basketball(g, x, y, TP, w, h) {
+    const W = w * TP, cx = x + W / 2, baseY = y + (h || 1) * TP;
+    ovShadow(g, cx, baseY, W * 0.32, TP * 0.12, 0.22);
+    const poleH = TP * 2.3, rimY = baseY - poleH * 0.86;
+    g.fillStyle = "#8a8f9c"; g.fillRect(cx - TP * 0.06, baseY - poleH, TP * 0.12, poleH);
+    g.fillStyle = "rgba(255,255,255,0.25)"; g.fillRect(cx - TP * 0.06, baseY - poleH, TP * 0.03, poleH);
+    const bw = TP * 0.62, bh = TP * 0.42, by = baseY - poleH - bh * 0.25, bx = cx - bw / 2 + TP * 0.32;
+    g.fillStyle = "#e8dcc4"; g.fillRect(bx, by, bw, bh);
+    g.strokeStyle = "#c0432f"; g.lineWidth = 1.6; g.strokeRect(bx + bw * 0.24, by + bh * 0.22, bw * 0.52, bh * 0.56);
+    g.strokeStyle = "#9aa0a6"; g.lineWidth = 1; g.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+    const rimX = bx + bw * 0.5;
+    g.strokeStyle = "#e8583a"; g.lineWidth = 2.2;
+    g.beginPath(); g.ellipse(rimX, by + bh + TP * 0.03, TP * 0.16, TP * 0.045, 0, 0, 7); g.stroke();
+    g.strokeStyle = "rgba(255,255,255,0.7)"; g.lineWidth = 0.9;
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI; g.beginPath(); g.moveTo(rimX + Math.cos(a) * TP * 0.15, by + bh + TP * 0.03 + Math.sin(a) * TP * 0.04); g.lineTo(rimX + Math.cos(a) * TP * 0.09, by + bh + TP * 0.22); g.stroke(); }
+    // ball resting at the base of the pole
+    g.fillStyle = "#c9702f"; g.beginPath(); g.arc(cx - TP * 0.3, baseY - TP * 0.13, TP * 0.13, 0, 7); g.fill();
+    g.strokeStyle = "#3a2313"; g.lineWidth = 0.8;
+    g.beginPath(); g.moveTo(cx - TP * 0.43, baseY - TP * 0.13); g.lineTo(cx - TP * 0.17, baseY - TP * 0.13); g.stroke();
+    g.beginPath(); g.arc(cx - TP * 0.3, baseY - TP * 0.13, TP * 0.13, 0, 7); g.stroke();
   },
 };
 // The ~20 items with no bespoke sprite above all render through one of
@@ -2464,6 +2530,9 @@ function solidRects() {
     const v = MAP.casino;
     rects.push({ x0: v.bx - 44, x1: v.bx + 44, y0: v.by - 78, y1: v.by + 10, kind: "casino" });
   }
+  if (MAP.court) {
+    for (const h of MAP.court.hoops) rects.push({ x0: h.x - 4, x1: h.x + 4, y0: h.y - 3, y1: h.y + 8, kind: "hoop" });
+  }
   // Backyard fences block the map player too (Alex, 2026-09-06) — a closed
   // box around the backyard band for any house that's bought the room.
   for (const h of MAP.houses) {
@@ -2496,9 +2565,15 @@ function moveEntity(pos, dir, speed, dt, rects, bounds) {
 // map instead of a room.
 function mapPrompt() {
   if (PLAYER.sitting) return { kind: "stand", label: "🪑 Stand up" };
+  if (SHOT) return null;   // charging a shot — the canvas meter is up, DOM hud prompt stays hidden
   const reach = 26;
   const bench = (MAP.benches || []).find(b => Math.hypot(PLAYER.x - b.x, PLAYER.y - b.y) < reach);
   if (bench) return { kind: "sit", seat: bench, label: "🪑 Sit down" };
+  const nh = nearestHoop(PLAYER.x, PLAYER.y);
+  if (nh && nh.dist < SHOOT_REACH) {
+    const dunk = nh.dist < DUNK_RANGE;
+    return { kind: "shoot", hoop: nh.hoop, dunk, label: dunk ? "🏀 Tap to dunk!" : "🏀 Hold to shoot" };
+  }
   const other = nearbyOtherPlayer("map", "", 30);
   if (other) return { kind: "invite", other, label: `🎲 Invite ${String(other.name || "them").split(" ")[0]} to 3 Man` };
   return null;
@@ -2509,6 +2584,46 @@ function mapActivate() {
   if (p.kind === "sit") sitOnSeat(p.seat);
   else if (p.kind === "stand") standUp();
   else if (p.kind === "invite") sendInvite(p.other);
+  // "shoot" is deliberately NOT handled here — it's a hold-to-charge action
+  // wired straight to pointerdown/up + keydown/up (see startShotCharge /
+  // releaseShot), not the tap-once pattern every other prompt kind uses.
+}
+// ── Basketball court (Alex, 2026-09-19: "add a full court to the
+// neighborhood... running as your player... tap and hold release... hold to
+// get it green... if in paint you can dunk") ───────────────────────────────
+const SHOOT_REACH = 62, DUNK_RANGE = 26, CHARGE_MS = 900, GREEN_LO = 0.60, GREEN_HI = 0.76;
+let SHOT = null;      // { hoop, t0 } while a jumpshot meter is charging
+let SHOT_FX = null;   // { hoop, made, dunk, t0 } brief make/miss celebration, ~900ms
+function nearestHoop(x, y) {
+  if (!MAP.court) return null;
+  let best = null, bestD = Infinity;
+  for (const h of MAP.court.hoops) { const d = Math.hypot(x - h.x, y - h.y); if (d < bestD) { bestD = d; best = h; } }
+  return best ? { hoop: best, dist: bestD } : null;
+}
+function inCourtBounds(x, y) {
+  const c = MAP.court;
+  return !!c && x > c.x - c.w / 2 && x < c.x + c.w / 2 && y > c.y - c.h / 2 && y < c.y + c.h / 2;
+}
+function startShotCharge() {
+  const p = MAP.prompt;
+  if (!p || p.kind !== "shoot" || SHOT || sceneFade.active || anyModalOpen()) return;
+  if (p.dunk) { resolveShot(p.hoop, Math.random() < 0.97, true); return; }   // right at the rim — an instant flush, no meter
+  SHOT = { hoop: p.hoop, t0: performance.now() };
+  document.getElementById("hudPrompt").style.display = "none";
+  document.getElementById("sceneActionBtn").style.display = "none";
+}
+function releaseShot() {
+  if (!SHOT) return;
+  const power = clamp((performance.now() - SHOT.t0) / CHARGE_MS, 0, 1);
+  const inBand = power >= GREEN_LO && power <= GREEN_HI;
+  const distOut = inBand ? 0 : Math.min(Math.abs(power - GREEN_LO), Math.abs(power - GREEN_HI));
+  const chance = clamp(0.9 - distOut * 2.6, 0.06, 0.94);
+  resolveShot(SHOT.hoop, Math.random() < chance, false);
+  SHOT = null;
+}
+function resolveShot(hoop, made, dunk) {
+  SHOT_FX = { hoop, made, dunk, t0: performance.now() };
+  toast(made ? (dunk ? "🔥 SLAM DUNK!" : "🏀 Swish!") : (dunk ? "😬 Rimmed out!" : "❌ Brick"));
 }
 // Called from wireMap's pointerup — returns true if it consumed the tap.
 function mapTapActivate() {
@@ -2523,7 +2638,8 @@ function stepPlayer(dt) {
   const el = document.getElementById("hudPrompt"), btn = document.getElementById("sceneActionBtn");
   if (MAP.prompt) {
     el.style.display = "block";
-    el.innerHTML = `${MAP.prompt.label}<span class="sub">tap this · or press E</span>`;
+    const sub = MAP.prompt.kind === "shoot" && !MAP.prompt.dunk ? "hold this · or hold E, release to shoot" : "tap this · or press E";
+    el.innerHTML = `${MAP.prompt.label}<span class="sub">${sub}</span>`;
     btn.style.display = ""; btn.textContent = "E";
   } else { el.style.display = "none"; btn.style.display = "none"; }
 
@@ -2533,6 +2649,7 @@ function stepPlayer(dt) {
     if (!held && !PLAYER.moveTarget) { PLAYER.moving = false; return; }
     standUp();
   }
+  if (SHOT) { PLAYER.moving = false; return; }   // planted for the shot meter — released via pointerup/keyup, not a move key
 
   let dx = 0, dy = 0;
   for (const k of PLAYER_KEYS) { const d = MOVE_KEYS[k]; if (d) { dx += d[0]; dy += d[1]; } }
@@ -2893,7 +3010,28 @@ function layoutMap() {
       { x: WORLD_PAD_X + (MAP.worldW - 2 * WORLD_PAD_X) * 0.32, y: MAP.worldH - LAKE_BAND * 0.5, rx: 230, ry: 125, big: true },
     ];
     MAP.pond = MAP.ponds[0];   // back-compat for anything still reading .pond
+    // A gazebo right on the lake shore, guaranteed every layout (Alex,
+    // 2026-09-19: "npcs... onto the gazebo by the lake") — scatterLandmarks()
+    // below still scatters a few more randomly elsewhere, but this one spot
+    // is fixed so there's always a specific "the gazebo by the lake" to walk to.
+    const lake = MAP.ponds.find(p => p.big);
+    MAP.lakeGazebo = { kind: "gazebo", x: lake.x, y: lake.y - lake.ry - 22, scale: 1.7, landmark: true };
+    MAP.decor.push(MAP.lakeGazebo);
   }
+  // A full basketball court, out in the open land below the neighbourhood
+  // opposite the lake (Alex, 2026-09-19: "add a full court to the
+  // neighborhood... you can play where you are running as your player").
+  // A fixed rect + two hoops, walked on directly from the open map — no
+  // separate room/scene, see stepPlayer's court branch and drawBasketballCourt.
+  MAP.court = {
+    x: WORLD_PAD_X + (MAP.worldW - 2 * WORLD_PAD_X) * 0.74,
+    y: MAP.worldH - LAKE_BAND * 0.5,
+    w: 210, h: 118,
+  };
+  MAP.court.hoops = [
+    { x: MAP.court.x, y: MAP.court.y - MAP.court.h / 2 + 6, side: "N" },
+    { x: MAP.court.x, y: MAP.court.y + MAP.court.h / 2 - 6, side: "S" },
+  ];
   // Short straight paths connecting Town Hall to its two neighbours.
   MAP.pathSegs.push({ ax: MAP.townHall.bx, ay: MAP.townHall.by, bx: MAP.tavern.bx, by: MAP.tavern.by });
   MAP.pathSegs.push({ ax: MAP.townHall.bx, ay: MAP.townHall.by, bx: MAP.casino.bx, by: MAP.casino.by });
@@ -3002,6 +3140,7 @@ function layoutMap() {
   scatterForest();
   scatterLandmarks();
   scatterBenches();
+  spawnAmbientNpcs();
   syncPlayerPal();
   spawnPlayer();
   buildMapGround();
@@ -3014,6 +3153,10 @@ function plotAvoidRects(pad) {
   const r = MAP.houses.map(h => ({ x0: h.plotX - pad, y0: h.plotY - pad, x1: h.plotX + PLOT_W + pad, y1: h.plotY + PLOT_H + pad }));
   for (const b of [MAP.townHall, MAP.tavern, MAP.casino]) {
     if (b) r.push({ x0: b.plotX - pad, y0: b.plotY - pad, x1: b.plotX + PLOT_W + pad, y1: b.plotY + PLOT_H + pad });
+  }
+  if (MAP.court) {
+    const c = MAP.court;
+    r.push({ x0: c.x - c.w / 2 - pad, y0: c.y - c.h / 2 - pad, x1: c.x + c.w / 2 + pad, y1: c.y + c.h / 2 + pad });
   }
   return r;
 }
@@ -3065,6 +3208,37 @@ function scatterBenches() {
     if ((MAP.decor || []).some(d => d.landmark && Math.hypot(d.x - x, d.y - y) < 40)) continue;
     const d = { kind: "bench", x, y, scale: 1.05, landmark: true };
     placed.push(d); MAP.decor.push(d); MAP.benches.push(d);
+  }
+}
+// Ambient NPCs filling the common spaces (Alex, 2026-09-19: "add some npcs
+// that... fill the common spaces and walk around like onto the gazebo by
+// the lake in the shops") — small looping strolls around the lake gazebo
+// and the Town Hall plaza, using the same mkWalker/stepWalker/drawWalker
+// as the per-house residents. MAP.ambientNpcs is separate from MAP.walkers
+// only so they're easy to tell apart in NB_DEBUG; both draw the same way.
+function spawnAmbientNpcs() {
+  MAP.ambientNpcs = [];
+  const loop = (salt, pts) => { const wk = mkWalker(salt, pts); wk.x = pts[0][0]; wk.y = pts[0][1]; return wk; };
+  if (MAP.lakeGazebo) {
+    // The gazebo sits right at the shoreline (its own y is ~22px inland of
+    // the water's edge — see where MAP.lakeGazebo is built) — keep every
+    // waypoint north of that line, never south into the lake itself.
+    const gz = MAP.lakeGazebo;
+    MAP.ambientNpcs.push(loop(5001, [
+      [gz.x - 32, gz.y + 6], [gz.x - 14, gz.y - 22], [gz.x + 32, gz.y + 6], [gz.x + 14, gz.y - 22],
+    ]));
+    MAP.ambientNpcs.push(loop(5002, [
+      [gz.x + 44, gz.y - 4], [gz.x + 10, gz.y + 10], [gz.x - 44, gz.y - 2], [gz.x - 10, gz.y - 18],
+    ]));
+  }
+  const th = MAP.townHall;
+  if (th) {
+    MAP.ambientNpcs.push(loop(5003, [
+      [th.bx - 60, th.by + 20], [th.bx - 20, th.by + 30], [th.bx + 20, th.by + 24], [th.bx + 60, th.by + 18],
+    ]));
+    MAP.ambientNpcs.push(loop(5004, [
+      [th.bx + 40, th.by + 40], [th.bx - 40, th.by + 46],
+    ]));
   }
 }
 // A real forest around the neighborhood (2026-09-05, "add some trees or
@@ -3229,6 +3403,80 @@ function clampMapCam() {
   MAP.cam.x = MAP.worldW <= hw * 2 ? MAP.worldW / 2 : clamp(MAP.cam.x, hw - 40, MAP.worldW - hw + 40);
   MAP.cam.y = MAP.worldH <= hh * 2 ? MAP.worldH / 2 : clamp(MAP.cam.y, hh - 40, MAP.worldH - hh + 40);
 }
+// A full outdoor basketball court, walked straight from the open map (Alex,
+// 2026-09-19: "add a full court to the neighborhood... running as your
+// player"). Surface + markings + both hoops; the hoops are also drawn here
+// (not via drawItem) since they're bigger and face inward toward center court.
+function drawCourtHoop(g, x, y, side, t, fx) {
+  const dir = side === "N" ? 1 : -1;   // backboard sits at the edge, rim points into the court
+  g.strokeStyle = "#9aa0a6"; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 26 * dir); g.stroke();
+  const bw = 30, bh = 18, by = y - bh * 0.3 * dir;
+  g.fillStyle = "#e8dcc4"; g.fillRect(x - bw / 2, by, bw, bh * dir);
+  g.strokeStyle = "#c0432f"; g.lineWidth = 1.6; g.strokeRect(x - bw * 0.3, by + bh * 0.25 * dir, bw * 0.6, bh * 0.5 * dir);
+  const rimY = by + bh * dir + 5 * dir;
+  const glowCol = fx ? (fx.made ? "#5cf27a" : "#ff5c5c") : null;
+  g.strokeStyle = glowCol || "#e8583a"; g.lineWidth = 2.6;
+  g.beginPath(); g.ellipse(x, rimY, 11, 3.4, 0, 0, 7); g.stroke();
+  g.strokeStyle = "rgba(255,255,255,0.7)"; g.lineWidth = 1;
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI; g.beginPath(); g.moveTo(x + Math.cos(a) * 10, rimY + Math.sin(a) * 3), g.lineTo(x + Math.cos(a) * 6, rimY + 13); g.stroke(); }
+  if (fx) GLOWS.push({ x, y: rimY, r: 34, col: glowCol, i: 0.6 * (1 - clamp((performance.now() - fx.t0) / 900, 0, 1)) });
+}
+function drawBasketballCourt(g, court, t) {
+  const { x: cx, y: cy, w, h } = court;
+  const x0 = cx - w / 2, y0 = cy - h / 2;
+  ovShadow(g, cx, cy + h / 2 + 4, w * 0.52, 10, 0.16);
+  g.fillStyle = "#8a5a3a"; g.fillRect(x0 - 5, y0 - 5, w + 10, h + 10);              // dirt border
+  g.fillStyle = lgrad(g, x0, y0, x0, y0 + h, "#c9773f", "#b8622f");
+  g.fillRect(x0, y0, w, h);
+  for (let i = 0; i < h; i += 4) { g.fillStyle = i % 8 ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)"; g.fillRect(x0, y0 + i, w, 4); }
+  g.strokeStyle = "rgba(255,255,255,0.85)"; g.lineWidth = 2;
+  g.strokeRect(x0 + 3, y0 + 3, w - 6, h - 6);
+  g.beginPath(); g.moveTo(x0 + 3, cy); g.lineTo(x0 + w - 3, cy); g.stroke();
+  g.beginPath(); g.arc(cx, cy, 16, 0, 7); g.stroke();
+  for (const hp of court.hoops) {
+    const dir = hp.side === "N" ? 1 : -1;
+    const keyW = 44, keyH = 30;
+    g.strokeRect(hp.x - keyW / 2, hp.y - (dir > 0 ? 0 : keyH), keyW, keyH);
+    g.beginPath(); g.arc(hp.x, hp.y + keyH * dir, 15, 0, Math.PI * 2); g.stroke();
+    // a simplified "three point" arc bulging toward center court
+    const r3 = Math.min(w, h) * 0.42;
+    g.beginPath();
+    if (dir > 0) g.arc(hp.x, hp.y, r3, 0, Math.PI);
+    else g.arc(hp.x, hp.y, r3, Math.PI, Math.PI * 2);
+    g.stroke();
+  }
+  const fx = SHOT_FX && (performance.now() - SHOT_FX.t0 < 900) ? SHOT_FX : null;
+  for (const hp of court.hoops) drawCourtHoop(g, hp.x, hp.y, hp.side, t, fx && fx.hoop === hp ? fx : null);
+}
+// A basketball auto-bouncing near the player's feet while they're on the
+// court and not mid-shot — no separate pickup/carry control, just "you have
+// the ball while you're on the court" (Alex: "auto dribble").
+function drawDribbleBall(g, x, y, t) {
+  const b = Math.abs(Math.sin(t * 6));
+  const bx = x + 9, by = y - 2 - b * 7;
+  g.fillStyle = "rgba(0,0,0,0.22)"; g.beginPath(); g.ellipse(bx, y + 1, 4 * (1 - b * 0.3), 1.6, 0, 0, 7); g.fill();
+  g.fillStyle = "#c9702f"; g.beginPath(); g.arc(bx, by, 3.4, 0, 7); g.fill();
+  g.strokeStyle = "#3a2313"; g.lineWidth = 0.7;
+  g.beginPath(); g.moveTo(bx - 3.4, by); g.lineTo(bx + 3.4, by); g.stroke();
+  g.beginPath(); g.arc(bx, by, 3.4, 0, 7); g.stroke();
+}
+// The hold-to-shoot charge meter (Alex: "tap and hold release... like NBA
+// 2K where you hold to get it green") — a vertical bar over the player's
+// head, cursor climbing from empty to full over CHARGE_MS, a green band to
+// release inside. Screen-space call site (drawMapScene) already has the
+// world transform active, so this draws straight in world coordinates.
+function drawShotMeter(g, x, y) {
+  if (!SHOT) return;
+  const power = clamp((performance.now() - SHOT.t0) / CHARGE_MS, 0, 1);
+  const w = 6, h = 34, bx = x - w / 2, by = y - 52;
+  g.fillStyle = "rgba(10,11,22,0.75)"; roundRect(g, bx - 1, by - 1, w + 2, h + 2, 3); g.fill();
+  g.fillStyle = "#3a2f52"; roundRect(g, bx, by, w, h, 2); g.fill();
+  const gLoY = by + h * (1 - GREEN_HI), gHiY = by + h * (1 - GREEN_LO);
+  g.fillStyle = "#5cf27a"; g.fillRect(bx, gLoY, w, gHiY - gLoY);
+  const cy = by + h * (1 - power);
+  g.fillStyle = "#fff"; g.fillRect(bx - 1, cy - 1, w + 2, 2.4);
+}
 function drawMapScene(now, dt) {
   const W = mapStage.clientWidth, H = mapStage.clientHeight;
   if (mapCv.width !== Math.round(W * DPR) || mapCv.height !== Math.round(H * DPR)) fitCanvas(mapCv, W, H);
@@ -3236,6 +3484,7 @@ function drawMapScene(now, dt) {
   const night = nightAmount(timeOfDay);
 
   MAP.walkers.forEach(a => stepWalker(a, dt));
+  (MAP.ambientNpcs || []).forEach(a => stepWalker(a, dt));
   MAP.mapPets.forEach(p => stepPet(p, dt));
   MAP.houses.forEach(h => stepSmoke(h.smoke, dt, h.bx + 15.5, h.by - 55));
   if (MAP.tavern) stepSmoke(MAP.tavern.smoke, dt, MAP.tavern.bx + 18.5, MAP.tavern.by - 58);
@@ -3262,6 +3511,7 @@ function drawMapScene(now, dt) {
   if (MAP.townHall) ents.push({ y: MAP.townHall.by, d: () => drawTownHall(g, MAP.townHall.bx, MAP.townHall.by, night, now / 1000) });
   if (MAP.tavern) ents.push({ y: MAP.tavern.by, d: () => drawTavern(g, MAP.tavern.bx, MAP.tavern.by, night, now / 1000, MAP.tavern.smoke) });
   if (MAP.casino) ents.push({ y: MAP.casino.by, d: () => drawCasino(g, MAP.casino.bx, MAP.casino.by, night, now / 1000) });
+  if (MAP.court) ents.push({ y: MAP.court.y - MAP.court.h / 2, d: () => drawBasketballCourt(g, MAP.court, now / 1000) });
   MAP.houses.forEach(h => {
     if (h.room_keys && h.room_keys.includes("backyard")) {
       ents.push({ y: h.gy0 + 1, d: () => drawBackyardFence(g, h) });
@@ -3271,6 +3521,7 @@ function drawMapScene(now, dt) {
     h.backyardItems.forEach(bi => ents.push({ y: bi.sortY, d: () => drawItemRot(g, bi.it, bi.px, bi.py, bi.mtp, now / 1000, bi.it.rot) }));
   });
   MAP.walkers.forEach(a => ents.push({ y: a.y, d: () => drawWalker(g, a) }));
+  (MAP.ambientNpcs || []).forEach(a => ents.push({ y: a.y, d: () => drawWalker(g, a) }));
   MAP.mapPets.forEach(p => ents.push({ y: p.y, d: () => drawPetActor(g, p, now / 1000, 1.35) }));
   for (const uid in OTHER_PLAYERS) {
     const p = OTHER_PLAYERS[uid];
@@ -3281,6 +3532,7 @@ function drawMapScene(now, dt) {
   // let the seat/legs paint over them — force the sort key to sit just in
   // front of the whole bench instead (Alex, 2026-09-14).
   ents.push({ y: (PLAYER.sitting && PLAYER.sitAnchorY != null) ? PLAYER.sitAnchorY + 2 : PLAYER.y, d: () => drawPlayer(g) });
+  if (!SHOT && inCourtBounds(PLAYER.x, PLAYER.y)) ents.push({ y: PLAYER.y + 0.1, d: () => drawDribbleBall(g, PLAYER.x, PLAYER.y, now / 1000) });
   {
     // Only depth-sort + draw decor that's actually on screen — MAP.decor is
     // ~12x the house count now that there's a whole forest.
@@ -3293,6 +3545,7 @@ function drawMapScene(now, dt) {
   }
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
+  drawShotMeter(g, PLAYER.x, PLAYER.y);
 
   g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
   paintAmbient(g, W, H, timeOfDay, false);
@@ -4099,7 +4352,11 @@ function drawHallInterior(now, dt) {
     const p = OTHER_PLAYERS[uid];
     if (p.scene === "hall") ents.push({ y: p.y, d: () => drawOtherPlayer(g, p) });
   }
-  ents.push({ y: PLAYER.y, d: () => { drawPlayer(g, 1.9); drawAvatarTag(g, PLAYER.x, PLAYER.y - 30); } });
+  // Same fix as the map's bench sitting (Alex, 2026-09-14/19): a rect seat's
+  // sitOnSeat lands PLAYER.y at the seat's vertical middle, which can sort
+  // *behind* the seat/chair fixture's own sortY and let it paint over the
+  // player — force the sort key to sit just in front of the whole fixture.
+  ents.push({ y: (PLAYER.sitting && PLAYER.sitAnchorY != null) ? PLAYER.sitAnchorY + 2 : PLAYER.y, d: () => drawPlayer(g, 1.9) });
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
 
@@ -4184,6 +4441,7 @@ function venueEnterRoom(key, fromSide) {
     V.graph = gph;
     V.doorZones = interiorDoorZones(rs, gph);
     V.fixtures = buildVenueFixtures(V.kind, key, rs);
+    V.npcs = buildVenueNpcs(V.kind, key, rs);
     interiorSpawn(rs, fromSide);
     PLAYER.sitting = false; PLAYER.lying = false; PLAYER.soaking = false; PLAYER.jumping = false; PLAYER.swimming = false; PLAYER.poolBounds = null;
     PLAYER.lastEnter = performance.now();
@@ -4212,6 +4470,7 @@ function solidRectsVenue() {
   return out;
 }
 function venuePrompt(V) {
+  if (PLAYER.sitting) return { kind: "stand", label: "🪑 Stand up" };
   const reach = V.rs.TP * 1.3;
   for (const f of V.fixtures) {
     if (!f.prompt) continue;
@@ -4316,14 +4575,40 @@ function buildVenueFixtures(kind, roomKey, rs) {
     const table = { x0: cw * 0.36, y0: ch * 0.42, x1: cw * 0.64, y1: ch * 0.42 + TP * 1.2 };
     const smokeZone = { x0: table.x0 - TP, y0: table.y1, x1: table.x1 + TP, y1: table.y1 + TP * 1.1 };
     const price = (catalogData.bar && catalogData.bar.smoke_price) || 8;
-    const chairs = [{ x: table.x0 - TP * 1.3, y: table.y0 + TP * 0.5 }, { x: table.x1 + TP * 1.3, y: table.y0 + TP * 0.5 }];
+    // Chairs face the table (Alex, 2026-09-19: "add chairs and stuff you can
+    // sit at in the smoke room") — same sitOnSeat rect mechanic as sofas/
+    // benches, just a chair-shaped draw with a facing direction baked in.
+    const chairs = [
+      { x: table.x0 - TP * 1.3, y: table.y0 + TP * 0.5, face: 1 },
+      { x: table.x1 + TP * 1.3, y: table.y0 + TP * 0.5, face: -1 },
+    ];
     const out = [
       { zone: smokeZone, solid: table, sortY: table.y1,
         prompt: { kind: "smoke", label: `🚬 Light one up — 🪙 ${price}` },
-        draw: (g) => {
+        draw: (g, now) => {
+          const t = (now || 0) / 1000, cx = (table.x0 + table.x1) / 2, cy = (table.y0 + table.y1) / 2;
           volBox(g, table.x0, table.y0, table.x1 - table.x0, table.y1 - table.y0, "#4a3a2a", 6);
-          g.fillStyle = "#2a2a2a"; g.beginPath(); g.arc((table.x0 + table.x1) / 2, (table.y0 + table.y1) / 2, 7, 0, 7); g.fill();
-          g.fillStyle = "#c0432f"; g.beginPath(); g.arc((table.x0 + table.x1) / 2 - 8, (table.y0 + table.y1) / 2 - 3, 1.6, 0, 7); g.fill();
+          g.fillStyle = "#1e1e22"; g.beginPath(); g.ellipse(cx, cy, 9, 6.5, 0, 0, 7); g.fill();
+          g.strokeStyle = "#0f0f12"; g.lineWidth = 1; g.beginPath(); g.ellipse(cx, cy, 9, 6.5, 0, 0, 7); g.stroke();
+          // a lit cigar resting in the tray, ember glowing, actually smoking
+          const bx = cx - 7, by = cy - 2;
+          g.save(); g.translate(bx, by); g.rotate(-0.5);
+          g.fillStyle = "#c9a15a"; g.fillRect(0, -1.4, 13, 2.8);
+          g.fillStyle = "#8a6a38"; g.fillRect(11, -1.4, 2.4, 2.8);
+          g.restore();
+          const emberX = bx + Math.cos(-0.5) * 13, emberY = by + Math.sin(-0.5) * 13;
+          g.fillStyle = "#ff9a3c"; g.beginPath(); g.arc(emberX, emberY, 1.8, 0, 7); g.fill();
+          GLOWS.push({ x: emberX, y: emberY, r: 16, col: "#ff9a3c", i: 0.4 + Math.sin(t * 9) * 0.15 });
+          // 3 wisps of smoke curling up off the ember, looping every ~3.5s
+          for (let i = 0; i < 3; i++) {
+            const p = ((t + i * 1.18) % 3.5) / 3.5;
+            const sx = emberX + Math.sin(p * 9 + i) * 4 * p;
+            const sy = emberY - p * 26;
+            g.globalAlpha = (1 - p) * 0.4;
+            g.fillStyle = "#d6d0c0";
+            g.beginPath(); g.arc(sx, sy, 1.2 + p * 3.2, 0, 7); g.fill();
+          }
+          g.globalAlpha = 1;
         } },
       { zone: { x0: cw * 0.5 - 1, y0: padTop, x1: cw * 0.5 + 1, y1: padTop }, sortY: padTop + 1, prompt: null,
         draw: (g, now) => {
@@ -4335,8 +4620,20 @@ function buildVenueFixtures(kind, roomKey, rs) {
         } },
     ];
     for (const c of chairs) {
-      out.push({ zone: { x0: c.x - 1, y0: c.y - 1, x1: c.x + 1, y1: c.y + 1 }, solid: { x0: c.x - 11, y0: c.y - 18, x1: c.x + 11, y1: c.y + 4 }, sortY: c.y + 4, prompt: null,
-        draw: (g) => { ovShadow(g, c.x, c.y, 12, 4, 0.22); volBox(g, c.x - 11, c.y - 18, 22, 18, "#3a2a4a", 5); } });
+      const seat = { x0: c.x - 11, y0: c.y - 18, x1: c.x + 11, y1: c.y + 4 };
+      out.push({ zone: { x0: c.x - 1, y0: c.y - 1, x1: c.x + 1, y1: c.y + 1 }, solid: seat, sortY: c.y + 4,
+        prompt: { kind: "sit", seat, label: "🪑 Sit down" },
+        draw: (g) => {
+          ovShadow(g, c.x, c.y, 13, 4.5, 0.24);
+          // a low lounge armchair, angled toward the table
+          g.fillStyle = lgrad(g, c.x - 11, c.y - 18, c.x + 11, c.y - 18, "#5a3a72", "#3a2452");
+          roundRect(g, c.x - 11, c.y - 17, 22, 15, 4); g.fill();
+          g.fillStyle = shade("#4a2f62", 0.16);
+          roundRect(g, c.x - 12 - c.face * 2, c.y - 22, 6, 20, 3); g.fill();   // backrest, leaning toward the table
+          g.fillStyle = "#3a2452";
+          roundRect(g, c.x - 11, c.y - 8, 8, 10, 3); g.fill();
+          roundRect(g, c.x + 3, c.y - 8, 8, 10, 3); g.fill();
+        } });
     }
     return out;
   }
@@ -4406,6 +4703,27 @@ function buildVenueFixtures(kind, roomKey, rs) {
   }
   return [];
 }
+// Ambient patrons wandering the casino floor / tavern main room (Alex,
+// 2026-09-19: "add some npcs that... fill the common spaces and walk
+// around... maybe in the casino") — reuses the same mkWalker/stepWalker/
+// drawWalker as the map's per-house residents, just looping inside a
+// room's local TP-space instead of world space (those functions never
+// touch anything global, so they work unchanged in either coordinate
+// system). Rebuilt fresh every time the room is entered.
+function buildVenueNpcs(kind, roomKey, rs) {
+  const { cw, ch, padTop } = rs;
+  const loop = (salt, pts) => { const wk = mkWalker(salt, pts); wk.idx = 1; wk.x = pts[0][0]; wk.y = pts[0][1]; return wk; };
+  if (kind === "casino" && roomKey === "main") {
+    return [
+      loop(401, [[cw * 0.22, ch * 0.30], [cw * 0.42, ch * 0.30], [cw * 0.42, ch * 0.42], [cw * 0.22, ch * 0.42]]),
+      loop(402, [[cw * 0.62, ch * 0.34], [cw * 0.80, ch * 0.40], [cw * 0.68, ch * 0.55], [cw * 0.58, ch * 0.44]]),
+    ];
+  }
+  if (kind === "tavern" && roomKey === "main") {
+    return [loop(403, [[cw * 0.14, ch * 0.32], [cw * 0.14, padTop + 20], [cw * 0.86, padTop + 20], [cw * 0.86, ch * 0.32]])];
+  }
+  return [];
+}
 // Non-interactive floor decoration under everything else — a diamond neon
 // tile accent for the casino, a cosy rug for the tavern (Alex, 2026-09-16:
 // "make the inside... look way more cool... add some spice").
@@ -4432,6 +4750,7 @@ function drawVenueFloorSpice(g, kind, roomKey, rs) {
 function stepVenue(dt) {
   const V = VENUE;
   if (!V || !V.rs || anyModalOpen() || V.panel || sceneFade.active) { PLAYER.moving = false; return; }
+  (V.npcs || []).forEach(a => stepWalker(a, dt));
   V.prompt = venuePrompt(V);
   const el = document.getElementById("hudPrompt"), btn = document.getElementById("sceneActionBtn");
   if (V.prompt) {
@@ -4439,6 +4758,13 @@ function stepVenue(dt) {
     el.innerHTML = `${V.prompt.label}<span class="sub">tap this · or press E</span>`;
     btn.style.display = ""; btn.textContent = "E";
   } else { el.style.display = "none"; btn.style.display = "none"; }
+
+  if (PLAYER.sitting) {   // frozen on the chair until a move input or Stand up
+    let held = false;
+    for (const k of PLAYER_KEYS) if (MOVE_KEYS[k]) held = true;
+    if (!held && !PLAYER.moveTarget) { PLAYER.moving = false; return; }
+    standUp();
+  }
 
   let dx = 0, dy = 0;
   for (const k of PLAYER_KEYS) { const d = MOVE_KEYS[k]; if (d) { dx += d[0]; dy += d[1]; } }
@@ -4475,6 +4801,8 @@ async function venueActivate() {
   else if (p.kind === "smoke") await buySmoke();
   else if (p.kind === "play") window.location.href = p.href;
   else if (p.kind === "invite") await sendInvite(p.other);
+  else if (p.kind === "sit") sitOnSeat(p.seat);
+  else if (p.kind === "stand") standUp();
 }
 // Called from wireInteriorCanvas' pointerup — returns true if it consumed the tap.
 function venueTapActivate() {
@@ -4541,12 +4869,17 @@ function drawVenueScene(now, dt) {
   if (V.kind === "tavern" && V.roomKey === "smoking") drawSmokingHaze(g, rs, now);
   const ents = [];
   for (const f of V.fixtures) ents.push({ y: (f.sortY != null ? f.sortY : f.zone.y1), d: () => f.draw(g, now) });
+  (V.npcs || []).forEach(a => ents.push({ y: a.y, d: () => drawWalker(g, a) }));
   const roomKey = V.kind + ":" + V.roomKey;
   for (const uid in OTHER_PLAYERS) {
     const p = OTHER_PLAYERS[uid];
     if (p.scene === "venue" && p.room === roomKey) ents.push({ y: p.y, d: () => drawOtherPlayer(g, p) });
   }
-  ents.push({ y: PLAYER.y, d: () => { drawPlayer(g, 1.9); drawAvatarTag(g, PLAYER.x, PLAYER.y - 30); } });
+  // Same fix as the map's bench sitting (Alex, 2026-09-14/19): a rect seat's
+  // sitOnSeat lands PLAYER.y at the seat's vertical middle, which can sort
+  // *behind* the seat/chair fixture's own sortY and let it paint over the
+  // player — force the sort key to sit just in front of the whole fixture.
+  ents.push({ y: (PLAYER.sitting && PLAYER.sitAnchorY != null) ? PLAYER.sitAnchorY + 2 : PLAYER.y, d: () => drawPlayer(g, 1.9) });
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
   g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
@@ -5046,26 +5379,6 @@ function drawInteriorScene(now, dt) {
   g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
   drawInteriorWalls(g, I.rs, I);
   drawPlayer(g, 1.9);
-  drawAvatarTag(g, PLAYER.x, PLAYER.y - 30);
-}
-// Name label + emoji chip floating over the player — used in the walkable
-// interior and Town Hall so "who am I / what's my name" always shows.
-function drawAvatarTag(g, px, py) {
-  if (!currentUser) return;
-  if (currentUser.name) {
-    const nm = String(currentUser.name).split(" ")[0];
-    g.font = '600 10px system-ui, sans-serif'; g.textAlign = "center"; g.textBaseline = "alphabetic";
-    const w = g.measureText(nm).width + 12;
-    g.fillStyle = "rgba(10,11,22,0.82)"; roundRect(g, px - w / 2, py - 12, w, 15, 5); g.fill();
-    g.fillStyle = "#e9e9f4"; g.fillText(nm, px, py);
-  }
-  if (currentUser.avatar_emoji) {
-    g.fillStyle = "rgba(10,11,22,0.72)";
-    roundRect(g, px - 12, py - 36, 24, 22, 7); g.fill();
-    g.font = '15px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif';
-    g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillText(currentUser.avatar_emoji, px, py - 25);
-  }
 }
 
 function renderInteriorBanner() {
@@ -5164,14 +5477,37 @@ document.getElementById("sceneActionBtn").addEventListener("click", () => sceneA
 // The HUD prompt bubble is itself the button — most discoverable ("there's a
 // thing that says Open the shop, I press it").
 document.getElementById("hudPrompt").addEventListener("click", e => { e.stopPropagation(); sceneActivate(); });
+// Basketball's hold-to-shoot meter needs real press/release, not a tap — a
+// separate pointerdown/up pair on the same two elements, only live while the
+// prompt is actually "shoot" (every other prompt kind still goes through the
+// plain click handlers above untouched).
+["sceneActionBtn", "hudPrompt"].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener("pointerdown", e => {
+    if (SCENE === "map" && MAP.prompt && MAP.prompt.kind === "shoot") { e.preventDefault(); e.stopPropagation(); startShotCharge(); }
+  });
+  el.addEventListener("pointerup", () => { if (SHOT) releaseShot(); });
+  el.addEventListener("pointerleave", () => { if (SHOT) releaseShot(); });
+  el.addEventListener("pointercancel", () => { if (SHOT) releaseShot(); });
+});
 window.addEventListener("keydown", e => {
   if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
   const k = e.key;
   const eKey = (k === "e" || k === "E");
+  const shootKey = eKey || k === "Enter" || k === " " || k === "Spacebar";
+  if (SCENE === "map" && MAP.prompt && MAP.prompt.kind === "shoot" && shootKey) {
+    e.preventDefault();
+    if (!e.repeat) startShotCharge();
+    return;
+  }
   if (SCENE === "hall" && HALL && HALL.prompt && !HALL.panel && (k === "Enter" || eKey)) { e.preventDefault(); sceneActivate(); }
   else if (SCENE === "interior" && INTERIOR && INTERIOR.prompt && !INTERIOR.panel && eKey) { e.preventDefault(); sceneActivate(); }
   else if (SCENE === "venue" && VENUE && VENUE.prompt && !VENUE.panel && (k === "Enter" || eKey)) { e.preventDefault(); sceneActivate(); }
   else if (SCENE === "map" && MAP.prompt && (k === "Enter" || eKey)) { e.preventDefault(); sceneActivate(); }
+});
+window.addEventListener("keyup", e => {
+  const k = e.key;
+  if (SHOT && (k === "e" || k === "E" || k === "Enter" || k === " " || k === "Spacebar")) releaseShot();
 });
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -5740,6 +6076,9 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
     loadDrunkState, saveDrunkState, clearDrunkState, rollDrunkThreshold, drunkKey, applyDrunkScreenFX,
     renderExteriorActions, drinkFlavor, lieOnBed, mapPrompt, mapActivate, mapTapActivate, scatterBenches,
     pingPresence, presenceScene, stepOtherPlayers, sendInvite, nearbyOtherPlayer, drawOtherPlayer, otherPlayerPal,
+    spawnAmbientNpcs, buildVenueNpcs, nearestHoop, inCourtBounds, startShotCharge, releaseShot, resolveShot,
+    get SHOT() { return SHOT; },
+    get SHOT_FX() { return SHOT_FX; },
     set LEADERBOARD(v) { LEADERBOARD = v; },
     get HALL() { return HALL; },
     get VENUE() { return VENUE; },
