@@ -2931,7 +2931,13 @@ const MAP = {
 // the house — BACK_H tall, opposite the road — since Backyard items (a Pool,
 // say) used to be invisible from the map: only the front yard ever rendered
 // outside. See h.backArea/h.backyardItems below and drawMapScene's use of them.
-const PLOT_W = 210, PLOT_H = 300, ROAD_W = 24, MARGIN = 60, BACK_H = 110;
+// Grew again 2026-09-17 (+50/+160, Alex: buying a Mansion made everything
+// placed in the yard "look like it's on top of the house") — a Mansion's
+// footprint (houseFootprint(3): halfW ~88px, topH ~139px) barely fit inside
+// the old 186x166 front-yard box at all, let alone left room for a garden in
+// front of it. CELL_W/H below grew by the same amounts so the stagger/jitter
+// margins (see their invariant comment) come out identical to before.
+const PLOT_W = 260, PLOT_H = 460, ROAD_W = 24, MARGIN = 60, BACK_H = 110;
 // CELL_W/H (2026-09-04, "make the neighborhood way more unique... not a
 // grid... real space between the houses") is the spacing BETWEEN plots —
 // bigger than PLOT_W/H on purpose, so each plot centers inside a larger
@@ -2941,7 +2947,7 @@ const PLOT_W = 210, PLOT_H = 300, ROAD_W = 24, MARGIN = 60, BACK_H = 110;
 // dead-center in a grid square. The margin (CELL-PLOT) comfortably exceeds
 // 2x the jitter range on each axis, so two neighboring plots can never
 // overlap even at max jitter in opposite directions.
-const CELL_W = 420, CELL_H = 520, JITTER_X = 34, JITTER_Y = 58;
+const CELL_W = 470, CELL_H = 680, JITTER_X = 34, JITTER_Y = 58;
 // Whole rows slide left/right and whole columns slide up/down as a unit
 // (same value for every plot sharing that row/col) so the grid weaves out of
 // alignment, without any risk of two neighbouring plots colliding.
@@ -3053,16 +3059,23 @@ function layoutMap() {
     // The plot splits into a back band (away from the road — Backyard) and
     // the rest (toward the road — Front Yard, where the house + door sit).
     const frontY0 = gy0 + BACK_H, frontH = gh - BACK_H;
-    // House sits near the BACK of the front band so the whole Front-Yard grid
-    // is in front of it (toward the road / the viewer) — otherwise placed
-    // yard items depth-sort behind the house, which is exactly what "front
-    // yard" should never do (Alex, 2026-09-06). Big exteriors drop a touch so
-    // their roof doesn't swallow the backyard band.
+    // House sits at the very back of the front band, anchored to its OWN
+    // real footprint (houseFootprint scales hard with exterior_level — a
+    // Mansion is 2x+ a Cottage) rather than a fixed fraction of frontH. Its
+    // roof-peak always lands HOUSE_MARGIN below frontY0, so no tier's roof
+    // ever pokes up into the Backyard band above it, and the placeable yard
+    // strip below is anchored to its actual drawn bottom edge (F.botH), so
+    // no tier's silhouette can ever overlap a placed item (Alex, 2026-09-17:
+    // a Mansion made everything placed in the yard "look like it's on top of
+    // the house" — the old fixed yard rect didn't grow with the house at all).
     const exLvl = (entry.house && entry.house.exterior_level) || 0;
-    const bx = gx0 + gw * 0.5, by = frontY0 + frontH * 0.40 + (exLvl >= 2 ? 22 : 0);  // house feet
+    const F = houseFootprint(exLvl);
+    const HOUSE_MARGIN = 14;
+    const bx = gx0 + gw * 0.5, by = frontY0 + F.topH + HOUSE_MARGIN;  // house feet
     const h = { ...entry, bx, by, smoke: [], plotX, plotY, gx0, gy0, gw, gh };
 
-    const yard = { x: gx0 + 6, y: frontY0 + 6, w: gw - 12, h: frontH - 12 };
+    const yardTop = by + F.botH + 10;
+    const yard = { x: gx0 + 6, y: yardTop, w: gw - 12, h: Math.max(40, frontY0 + frontH - 6 - yardTop) };
     h.yardArea = yard;
     const yc = h.yard_cols || 8, yr = h.yard_rows || 5;
     const mtp = Math.max(3, Math.min(yard.w / yc, yard.h / yr));
