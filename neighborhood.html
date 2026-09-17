@@ -3020,18 +3020,24 @@ function layoutMap() {
   }
   // A full basketball court, out in the open land below the neighbourhood
   // opposite the lake (Alex, 2026-09-19: "add a full court to the
-  // neighborhood... you can play where you are running as your player").
+  // neighborhood... you can play where you are running as your player";
+  // 2026-09-19: "much bigger... make sense left to right" — a real court is
+  // much longer between the hoops than it is wide, so the hoops sit on the
+  // WEST/EAST ends with the long axis running left-right, not top-bottom).
   // A fixed rect + two hoops, walked on directly from the open map — no
   // separate room/scene, see stepPlayer's court branch and drawBasketballCourt.
-  MAP.court = {
-    x: WORLD_PAD_X + (MAP.worldW - 2 * WORLD_PAD_X) * 0.74,
-    y: MAP.worldH - LAKE_BAND * 0.5,
-    w: 210, h: 118,
-  };
-  MAP.court.hoops = [
-    { x: MAP.court.x, y: MAP.court.y - MAP.court.h / 2 + 6, side: "N" },
-    { x: MAP.court.x, y: MAP.court.y + MAP.court.h / 2 - 6, side: "S" },
-  ];
+  {
+    const availW = MAP.worldW - 2 * WORLD_PAD_X;
+    const cw = clamp(availW * 0.5, 260, 460);
+    const ch = clamp(LAKE_BAND * 0.55, 160, 210);
+    let cx = WORLD_PAD_X + availW * 0.72;
+    cx = clamp(cx, WORLD_PAD_X + cw / 2 + 10, MAP.worldW - WORLD_PAD_X - cw / 2 - 10);
+    MAP.court = { x: cx, y: MAP.worldH - LAKE_BAND * 0.5, w: cw, h: ch };
+    MAP.court.hoops = [
+      { x: MAP.court.x - MAP.court.w / 2 + 8, y: MAP.court.y, side: "W" },
+      { x: MAP.court.x + MAP.court.w / 2 - 8, y: MAP.court.y, side: "E" },
+    ];
+  }
   // Short straight paths connecting Town Hall to its two neighbours.
   MAP.pathSegs.push({ ax: MAP.townHall.bx, ay: MAP.townHall.by, bx: MAP.tavern.bx, by: MAP.tavern.by });
   MAP.pathSegs.push({ ax: MAP.townHall.bx, ay: MAP.townHall.by, bx: MAP.casino.bx, by: MAP.casino.by });
@@ -3408,19 +3414,33 @@ function clampMapCam() {
 // player"). Surface + markings + both hoops; the hoops are also drawn here
 // (not via drawItem) since they're bigger and face inward toward center court.
 function drawCourtHoop(g, x, y, side, t, fx) {
-  const dir = side === "N" ? 1 : -1;   // backboard sits at the edge, rim points into the court
+  // Hoops sit on the west/east ends now (2026-09-19, "make sense left to
+  // right") — the rim itself is always the same shape (a hoop is round
+  // regardless of which end of the court it's on), only which way the
+  // backboard leans off the baseline point changes.
+  const horiz = side === "W" || side === "E";
+  const dir = (side === "N" || side === "W") ? 1 : -1;   // + = backboard/rim sit further along +x (horiz) or +y (vertical) than the baseline point
   g.strokeStyle = "#9aa0a6"; g.lineWidth = 3;
-  g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 26 * dir); g.stroke();
-  const bw = 30, bh = 18, by = y - bh * 0.3 * dir;
-  g.fillStyle = "#e8dcc4"; g.fillRect(x - bw / 2, by, bw, bh * dir);
-  g.strokeStyle = "#c0432f"; g.lineWidth = 1.6; g.strokeRect(x - bw * 0.3, by + bh * 0.25 * dir, bw * 0.6, bh * 0.5 * dir);
-  const rimY = by + bh * dir + 5 * dir;
+  g.beginPath(); g.moveTo(x, y);
+  if (horiz) g.lineTo(x + 24 * dir, y); else g.lineTo(x, y + 26 * dir);
+  g.stroke();
+  const boardLong = 30, boardShort = 16;
+  const bcx = horiz ? x + dir * (24 - boardShort * 0.3) : x;
+  const bcy = horiz ? y : y + dir * (26 - boardShort * 0.3);
+  g.fillStyle = "#e8dcc4";
+  if (horiz) g.fillRect(bcx - boardShort / 2, bcy - boardLong / 2, boardShort, boardLong);
+  else g.fillRect(bcx - boardLong / 2, bcy - boardShort / 2, boardLong, boardShort);
+  g.strokeStyle = "#c0432f"; g.lineWidth = 1.6;
+  if (horiz) g.strokeRect(bcx - boardShort * 0.26, bcy - boardLong * 0.24, boardShort * 0.52, boardLong * 0.48);
+  else g.strokeRect(bcx - boardLong * 0.24, bcy - boardShort * 0.26, boardLong * 0.48, boardShort * 0.52);
+  const rimX = horiz ? bcx + dir * (boardShort * 0.5 + 5) : bcx;
+  const rimY = horiz ? bcy : bcy + dir * (boardShort * 0.5 + 5);
   const glowCol = fx ? (fx.made ? "#5cf27a" : "#ff5c5c") : null;
   g.strokeStyle = glowCol || "#e8583a"; g.lineWidth = 2.6;
-  g.beginPath(); g.ellipse(x, rimY, 11, 3.4, 0, 0, 7); g.stroke();
+  g.beginPath(); g.ellipse(rimX, rimY, 11, 3.4, 0, 0, 7); g.stroke();
   g.strokeStyle = "rgba(255,255,255,0.7)"; g.lineWidth = 1;
-  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI; g.beginPath(); g.moveTo(x + Math.cos(a) * 10, rimY + Math.sin(a) * 3), g.lineTo(x + Math.cos(a) * 6, rimY + 13); g.stroke(); }
-  if (fx) GLOWS.push({ x, y: rimY, r: 34, col: glowCol, i: 0.6 * (1 - clamp((performance.now() - fx.t0) / 900, 0, 1)) });
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI; g.beginPath(); g.moveTo(rimX + Math.cos(a) * 10, rimY + Math.sin(a) * 3); g.lineTo(rimX + Math.cos(a) * 6, rimY + 13); g.stroke(); }
+  if (fx) GLOWS.push({ x: rimX, y: rimY, r: 34, col: glowCol, i: 0.6 * (1 - clamp((performance.now() - fx.t0) / 900, 0, 1)) });
 }
 function drawBasketballCourt(g, court, t) {
   const { x: cx, y: cy, w, h } = court;
@@ -3432,18 +3452,18 @@ function drawBasketballCourt(g, court, t) {
   for (let i = 0; i < h; i += 4) { g.fillStyle = i % 8 ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)"; g.fillRect(x0, y0 + i, w, 4); }
   g.strokeStyle = "rgba(255,255,255,0.85)"; g.lineWidth = 2;
   g.strokeRect(x0 + 3, y0 + 3, w - 6, h - 6);
-  g.beginPath(); g.moveTo(x0 + 3, cy); g.lineTo(x0 + w - 3, cy); g.stroke();
-  g.beginPath(); g.arc(cx, cy, 16, 0, 7); g.stroke();
+  g.beginPath(); g.moveTo(cx, y0 + 3); g.lineTo(cx, y0 + h - 3); g.stroke();   // center line — vertical now, splitting left/right halves
+  g.beginPath(); g.arc(cx, cy, 18, 0, 7); g.stroke();
   for (const hp of court.hoops) {
-    const dir = hp.side === "N" ? 1 : -1;
-    const keyW = 44, keyH = 30;
-    g.strokeRect(hp.x - keyW / 2, hp.y - (dir > 0 ? 0 : keyH), keyW, keyH);
-    g.beginPath(); g.arc(hp.x, hp.y + keyH * dir, 15, 0, Math.PI * 2); g.stroke();
+    const dir = hp.side === "W" ? 1 : -1;
+    const keyDepth = 52, keyWide = 58;   // depth = into the court (x), wide = along the baseline (y)
+    g.strokeRect(dir > 0 ? hp.x : hp.x - keyDepth, hp.y - keyWide / 2, keyDepth, keyWide);
+    g.beginPath(); g.arc(hp.x + keyDepth * dir, hp.y, 17, 0, Math.PI * 2); g.stroke();
     // a simplified "three point" arc bulging toward center court
     const r3 = Math.min(w, h) * 0.42;
     g.beginPath();
-    if (dir > 0) g.arc(hp.x, hp.y, r3, 0, Math.PI);
-    else g.arc(hp.x, hp.y, r3, Math.PI, Math.PI * 2);
+    if (dir > 0) g.arc(hp.x, hp.y, r3, -Math.PI / 2, Math.PI / 2);
+    else g.arc(hp.x, hp.y, r3, Math.PI / 2, Math.PI * 1.5);
     g.stroke();
   }
   const fx = SHOT_FX && (performance.now() - SHOT_FX.t0 < 900) ? SHOT_FX : null;
