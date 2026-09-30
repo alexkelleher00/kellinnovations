@@ -184,6 +184,17 @@
     color: #ffd166; background: rgba(255,209,102,0.12); padding: 2px 8px; border-radius: 999px;
   }
 
+  /* ── Login toast (2026-09-30, "I am watching you Lemberg") ── */
+  .gm-login-toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+    max-width: 92vw; width: 440px; background: var(--surface); border: 1px solid var(--accent);
+    border-radius: 12px; padding: 14px 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    font-size: 0.86rem; line-height: 1.4; z-index: 700; opacity: 0;
+    transition: opacity 0.35s, transform 0.35s;
+  }
+  .gm-login-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .gm-login-toast strong { color: var(--accent); }
+
   /* ── Ideas & feedback box ── */
   .gm-feedback-panel {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -607,6 +618,7 @@
     document.getElementById("loginWrap").style.display = currentUser ? "none" : "block";
     document.getElementById("appWrap").style.display = currentUser ? "block" : "none";
     if (!currentUser) return;
+    showLoginToast();
 
     document.getElementById("avatarBtn").textContent = currentUser.avatar_emoji;
     document.getElementById("profileName").textContent = currentUser.name;
@@ -864,6 +876,28 @@
 
   function escHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // A little house-rules reminder, once per browser session, the first time
+  // someone's logged in (Alex, 2026-09-30, after the Rooftop Runner farming
+  // incident: "add a funny message about how hacking and bots are frowned
+  // upon... I am watching you lemberg"). sessionStorage so it's not shown
+  // again on every page nav within the same session/tab, but does show
+  // again next time someone actually opens a fresh session.
+  function showLoginToast() {
+    try {
+      if (sessionStorage.getItem("gm_login_toast_shown")) return;
+      sessionStorage.setItem("gm_login_toast_shown", "1");
+    } catch (e) { /* private browsing etc. — just skip the flag, worst case it shows twice */ }
+    const el = document.createElement("div");
+    el.className = "gm-login-toast";
+    el.innerHTML = `👀 <strong>House rules:</strong> hacking, bots, and "creative" score submissions are strictly frowned upon around here. I am watching you, Lemberg.`;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("show"));
+    setTimeout(() => {
+      el.classList.remove("show");
+      setTimeout(() => el.remove(), 400);
+    }, 7000);
   }
 
   async function boot() {
