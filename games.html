@@ -884,10 +884,19 @@
   // upon... I am watching you lemberg"). sessionStorage so it's not shown
   // again on every page nav within the same session/tab, but does show
   // again next time someone actually opens a fresh session.
+  //
+  // Alex, 2026-09-30: "I only want that login message to appear once per
+  // person total please not every login. or at least feel free to delete it
+  // after tomorrow night." Switched sessionStorage -> localStorage (persists
+  // across sessions/tabs on the same browser, as close to "once per person"
+  // as a no-backend flag gets) AND added the hard expiry he explicitly
+  // green-lit as the fallback — after Oct 2 2026 this just stops firing
+  // entirely, no cleanup needed later.
   function showLoginToast() {
+    if (Date.now() >= new Date(2026, 9, 2).getTime()) return;   // expires the night of Oct 1 2026
     try {
-      if (sessionStorage.getItem("gm_login_toast_shown")) return;
-      sessionStorage.setItem("gm_login_toast_shown", "1");
+      if (localStorage.getItem("gm_login_toast_shown")) return;
+      localStorage.setItem("gm_login_toast_shown", "1");
     } catch (e) { /* private browsing etc. — just skip the flag, worst case it shows twice */ }
     const el = document.createElement("div");
     el.className = "gm-login-toast";

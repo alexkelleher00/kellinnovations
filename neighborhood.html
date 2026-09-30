@@ -334,6 +334,7 @@
     <div class="hn-topbar-right">
       <span class="hn-toggle on" id="labelsToggle">Labels</span>
       <span class="hn-toggle" id="dayNightToggle">☀ Auto&nbsp;day/night</span>
+      <span class="hn-toggle" id="fastTravelBtn">🗺️ Fast&nbsp;travel</span>
       <span class="hn-chip" id="coinChip" style="display:none;">🪙 <span id="coinBalance">0</span> KellsCoins</span>
     </div>
   </div>
@@ -440,6 +441,11 @@ function trophiesFor(name) {
   return out;
 }
 let catalogData = null;     // { items, pets, rooms, exteriors, wall_colors, roof_colors, yard_colors, floor_colors }
+// Bruins/Red Sox/Patriots scores for any placed TV (Alex, 2026-09-30: "is it
+// possible to have any tv... display the most recent score"). Fetched once
+// at boot, refreshed every few minutes — see the `tv` ITEM_DRAW entry and
+// loadSportsScores() near boot().
+let SPORTS_SCORES = null;
 let mine = null;            // { house, rooms, placed, inventory, pets }
 let mapData = null;         // { houses: [...] }
 let selectedRoomKey = "yard";
@@ -514,7 +520,7 @@ const FOOTPRINTS = {
   jacuzzi_room: [3, 2], trampoline: [3, 3], hammock: [3, 1], gazebo: [3, 3], statue: [1, 2],
   pool: [5, 4], court: [6, 4], helipad: [4, 4], ufo: [3, 2], dragon: [3, 3], mansion_gate: [4, 2],
   basketball: [2, 1], palm: [2, 3], sunflower: [2, 2], fireworks: [2, 2],
-  diving_board: [2, 1],
+  diving_board: [2, 1], boat: [3, 2],
 };
 function fp(itemOrKey) {
   // base (rotation-0) footprint of an item's *key*, ignoring any placed w/h
@@ -1681,6 +1687,17 @@ const ITEM_DRAW = {
     g.fillStyle = "rgba(120,190,230,0.35)"; g.fillRect(bandX - 3, sy + 3, 6, sh - 6);
     g.fillStyle = "rgba(255,255,255,0.14)";
     g.beginPath(); g.moveTo(sx + 3, sy + sh - 3); g.lineTo(sx + sw * 0.5, sy + 3); g.lineTo(sx + sw * 0.5 + 8, sy + 3); g.closePath(); g.fill();
+    // Bruins/Red Sox/Patriots score ticker, cycling every 4s through
+    // whatever's found (Alex, 2026-09-30: "have any tv... display the most
+    // recent score... just the score and matchup would be funny enough").
+    if (SPORTS_SCORES && SPORTS_SCORES.length) {
+      const game = SPORTS_SCORES[Math.floor(t / 4) % SPORTS_SCORES.length];
+      g.fillStyle = "rgba(10,11,22,0.62)"; g.fillRect(sx + 2, sy + sh - TP * 0.42, sw - 4, TP * 0.42);
+      g.font = `700 ${TP * 0.15}px system-ui,sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillStyle = "#ffd166"; g.fillText(game.label, sx + sw / 2, sy + sh - TP * 0.3);
+      g.font = `600 ${TP * 0.13}px system-ui,sans-serif`; g.fillStyle = "#e9e9f4";
+      g.fillText(game.text, sx + sw / 2, sy + sh - TP * 0.12);
+    }
     GLOWS.push({ x: sx + sw / 2, y: sy + sh / 2, r: 30, col: "#5aa9d6", i: 0.28 });
   },
   // Tall — leans up the back wall like the TV. Footprint stays 1×2 on the
@@ -1852,6 +1869,20 @@ const ITEM_DRAW = {
     for (let i = 0; i < 3; i++) { g.strokeStyle = "#9aa0a6"; g.lineWidth = 2; g.beginPath(); g.moveTo(x + TP * 0.1, y + TP * (0.3 + i * 0.25)); g.lineTo(x + TP * 0.46, y + TP * (0.3 + i * 0.25)); g.stroke(); }
     g.fillStyle = "#e8dcc4"; g.fillRect(x + TP * 0.42, y, W - TP * 0.42, TP * 0.22);
     g.fillStyle = "#c9bd9e"; g.fillRect(x + TP * 0.42, y + TP * 0.18, W - TP * 0.42, TP * 0.05);
+  },
+  // A little rowboat, resting on land here (as placed decor); owning one at
+  // all is what actually unlocks sailing at the lake/beach — see
+  // boatablePondAt/boardBoat (Alex, 2026-09-30: "purchasing of boats and
+  // driving them at the beach and at the lake").
+  boat(g, x, y, TP, w, h) {
+    const W = w * TP, H = h * TP, cx = x + W / 2, cy = y + H * 0.6;
+    ovShadow(g, cx, y + H, W * 0.42, TP * 0.14, 0.22);
+    g.fillStyle = "#6b4a2b"; g.beginPath(); g.ellipse(cx, cy, W * 0.46, H * 0.32, 0, 0, 7); g.fill();
+    g.fillStyle = "#8a5a2b"; g.beginPath(); g.ellipse(cx, cy - H * 0.06, W * 0.4, H * 0.24, 0, 0, 7); g.fill();
+    g.strokeStyle = "rgba(0,0,0,0.25)"; g.lineWidth = 1.4; g.beginPath(); g.ellipse(cx, cy, W * 0.46, H * 0.32, 0, 0, 7); g.stroke();
+    g.strokeStyle = "#5a3d20"; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(cx - W * 0.38, cy - H * 0.02); g.lineTo(cx + W * 0.38, cy - H * 0.02); g.stroke();
+    g.fillStyle = "#3a2a18"; g.fillRect(cx - W * 0.05, cy - H * 0.18, W * 0.1, H * 0.14);   // middle bench seat
   },
   trampoline(g, x, y, TP, w, h) {
     const cx = x + w * TP / 2, cy = y + h * TP / 2, rx = w * TP * 0.46, ry = h * TP * 0.4;
@@ -2297,7 +2328,7 @@ function mkPet(type, rgn, i) {
    player's own account avatar_emoji so it's unmistakably "you" among the
    ambient strollers (who show their name instead).
    ═══════════════════════════════════════════════════════════════════════ */
-const PLAYER = { x: 0, y: 0, dir: "S", phase: 0, moving: false, speed: 70, lastEnter: 0, moveTarget: null,
+const PLAYER = { x: 0, y: 0, dir: "S", phase: 0, moving: false, speed: 140, lastEnter: 0, moveTarget: null,
                   drunk: 0, drunkThreshold: 0, smokeUntil: 0 };
 // How wobbly/slow movement gets as PLAYER.drunk climbs — applied wherever dx/dy
 // is computed just before moveEntity (map + interior + hall + venue), so
@@ -2566,6 +2597,7 @@ function moveEntity(pos, dir, speed, dt, rects, bounds) {
 function mapPrompt() {
   if (PLAYER.sitting) return { kind: "stand", label: "🪑 Stand up" };
   if (SHOT) return null;   // charging a shot — the canvas meter is up, DOM hud prompt stays hidden
+  if (PLAYER.boating) return { kind: "boat", boarding: false, label: "🚤 Get out" };
   const reach = 26;
   const bench = (MAP.benches || []).find(b => Math.hypot(PLAYER.x - b.x, PLAYER.y - b.y) < reach);
   if (bench) return { kind: "sit", seat: bench, label: "🪑 Sit down" };
@@ -2573,6 +2605,12 @@ function mapPrompt() {
   if (nh && nh.dist < SHOOT_REACH) {
     const dunk = nh.dist < DUNK_RANGE;
     return { kind: "shoot", hoop: nh.hoop, dunk, label: dunk ? "🏀 Tap to dunk!" : "🏀 Hold to shoot" };
+  }
+  const water = boatablePondAt(PLAYER.x, PLAYER.y);
+  if (water) {
+    return ownsBoat()
+      ? { kind: "boat", boarding: true, pond: water, label: "🚤 Board boat" }
+      : { kind: "boat_locked", label: "🚤 Buy a boat at Town Hall to sail here" };
   }
   const other = nearbyOtherPlayer("map", "", 30);
   if (other) return { kind: "invite", other, label: `🎲 Invite ${String(other.name || "them").split(" ")[0]} to 3 Man` };
@@ -2584,9 +2622,34 @@ function mapActivate() {
   if (p.kind === "sit") sitOnSeat(p.seat);
   else if (p.kind === "stand") standUp();
   else if (p.kind === "invite") sendInvite(p.other);
-  // "shoot" is deliberately NOT handled here — it's a hold-to-charge action
-  // wired straight to pointerdown/up + keydown/up (see startShotCharge /
-  // releaseShot), not the tap-once pattern every other prompt kind uses.
+  else if (p.kind === "boat") { if (p.boarding) boardBoat(p.pond); else disembarkBoat(); }
+  // "boat_locked" and "shoot" are deliberately not handled here — locked is
+  // just informational (nothing to tap), and shoot is a hold-to-charge
+  // action wired straight to pointerdown/up + keydown/up (see
+  // startShotCharge/releaseShot), not the tap-once pattern the rest use.
+}
+// Boats (Alex, 2026-09-30: "allow the purchasing of boats and driving them
+// at the beach and at the lake... please make a beach"). Only the two `big`
+// ponds (the lake, the new ocean/beach) are boatable — not the decorative
+// puddle by Town Hall. Ownership is "ever bought one," placed or not — a
+// boat isn't really a yard decoration, owning one just unlocks sailing.
+function boatablePondAt(x, y) {
+  for (const p of (MAP.ponds || [])) {
+    if (!p.big) continue;
+    const dx = (x - p.x) / p.rx, dy = (y - p.y) / p.ry, d2 = dx * dx + dy * dy;
+    if (d2 <= (p.beach ? 2.4 : 1.35)) return p;
+  }
+  return null;
+}
+function ownsBoat() {
+  if (!mine) return false;
+  return (mine.inventory || []).some(i => i.key === "boat") || (mine.placed || []).some(i => i.key === "boat");
+}
+function boardBoat(pond) {
+  PLAYER.boating = true; PLAYER.boatPond = pond; PLAYER.moveTarget = null;
+}
+function disembarkBoat() {
+  PLAYER.boating = false; PLAYER.boatPond = null;
 }
 // ── Basketball court (Alex, 2026-09-19: "add a full court to the
 // neighborhood... running as your player... tap and hold release... hold to
@@ -2622,7 +2685,12 @@ function releaseShot() {
   SHOT = null;
 }
 function resolveShot(hoop, made, dunk) {
-  SHOT_FX = { hoop, made, dunk, t0: performance.now() };
+  // fromX/fromY capture the player's spot at release so drawShotFlight can
+  // actually animate the ball traveling there — Alex, 2026-09-30: "the
+  // basketball shooting... I don't think it worked" — the math always
+  // resolved correctly (verified), the real problem was zero visible
+  // feedback beyond a toast; this is the fix, not a logic bug.
+  SHOT_FX = { hoop, made, dunk, t0: performance.now(), fromX: PLAYER.x, fromY: PLAYER.y };
   toast(made ? (dunk ? "🔥 SLAM DUNK!" : "🏀 Swish!") : (dunk ? "😬 Rimmed out!" : "❌ Brick"));
 }
 // Called from wireMap's pointerup — returns true if it consumed the tap.
@@ -2638,7 +2706,9 @@ function stepPlayer(dt) {
   const el = document.getElementById("hudPrompt"), btn = document.getElementById("sceneActionBtn");
   if (MAP.prompt) {
     el.style.display = "block";
-    const sub = MAP.prompt.kind === "shoot" && !MAP.prompt.dunk ? "hold this · or hold E, release to shoot" : "tap this · or press E";
+    const sub = MAP.prompt.kind === "shoot" && !MAP.prompt.dunk ? "hold this · or hold E, release to shoot"
+      : MAP.prompt.kind === "boat_locked" ? "🪙 5,000 at the Town Hall shop"
+      : "tap this · or press E";
     el.innerHTML = `${MAP.prompt.label}<span class="sub">${sub}</span>`;
     btn.style.display = ""; btn.textContent = "E";
   } else { el.style.display = "none"; btn.style.display = "none"; }
@@ -2649,7 +2719,15 @@ function stepPlayer(dt) {
     if (!held && !PLAYER.moveTarget) { PLAYER.moving = false; return; }
     standUp();
   }
-  if (SHOT) { PLAYER.moving = false; return; }   // planted for the shot meter — released via pointerup/keyup, not a move key
+  if (SHOT) {
+    // A touch that starts a charge can lose its pointerup/pointercancel to a
+    // browser gesture (scroll/pan takeover mid-hold) without ever telling
+    // us — without this the player would be frozen next to the hoop
+    // forever, unable to do anything, reading as "the game is broken"
+    // (Alex, 2026-09-30). Auto-releases well past the meter's real window.
+    if (performance.now() - SHOT.t0 > CHARGE_MS + 2500) releaseShot();
+    PLAYER.moving = false; return;
+  }
 
   let dx = 0, dy = 0;
   for (const k of PLAYER_KEYS) { const d = MOVE_KEYS[k]; if (d) { dx += d[0]; dy += d[1]; } }
@@ -2662,12 +2740,19 @@ function stepPlayer(dt) {
     else { dx = tx; dy = ty; }
   }
   if (!dx && !dy) { PLAYER.moving = false; return; }
-  const rects = solidRects();
   const w = drunkWobble(dx, dy);
-  const r = moveEntity(PLAYER, { x: w.dx, y: w.dy }, PLAYER.speed * w.speedMul, dt, rects, {
+  // Boating ignores normal land solids entirely (a boat floats over the
+  // whole water body) and is bounded to that pond's box instead of the
+  // world edge — "driving them at the beach and at the lake."
+  const rects = PLAYER.boating ? [] : solidRects();
+  const bounds = PLAYER.boating && PLAYER.boatPond ? {
+    x0: PLAYER.boatPond.x - PLAYER.boatPond.rx * 1.15, x1: PLAYER.boatPond.x + PLAYER.boatPond.rx * 1.15,
+    y0: PLAYER.boatPond.y - PLAYER.boatPond.ry * 1.15, y1: PLAYER.boatPond.y + PLAYER.boatPond.ry * 1.15,
+  } : {
     x0: WORLD_PAD_X + 6, y0: WORLD_PAD_Y + 6,
     x1: MAP.worldW - WORLD_PAD_X - 6, y1: MAP.worldH - WORLD_PAD_Y - 6,
-  });
+  };
+  const r = moveEntity(PLAYER, { x: w.dx, y: w.dy }, PLAYER.speed * w.speedMul, dt, rects, bounds);
   if (r.bx && r.by && PLAYER.moveTarget) PLAYER.moveTarget = null;   // fully wedged — give up on the tap target
   PLAYER.phase += PLAYER.speed * dt;
   PLAYER.moving = true;
@@ -2700,7 +2785,11 @@ function drawPlayer(g, sc) {
   // "rotated flat" pose (floating) plus a ripple ring, jumping gets its own
   // bounce/squash-stretch since a trampoline has no equivalent existing pose.
   const soaking = !!PLAYER.soaking, jumping = !!PLAYER.jumping, swimming = !!PLAYER.swimming;
-  const resting = sit || lying || soaking || jumping || swimming;
+  // Boats (Alex, 2026-09-30: "purchasing of boats and driving them at the
+  // beach and at the lake") reuse the sit pose (you're seated in the hull)
+  // plus a hull drawn underneath — see the `boating` branch below.
+  const boating = !!PLAYER.boating;
+  const resting = sit || lying || soaking || jumping || swimming || boating;
   // Lying down (and swimming, floating) reuses the E-facing walk sprite,
   // rotated on its side, so it reads as "flat" instead of just a shorter sit
   // (Alex, 2026-09-16).
@@ -2708,7 +2797,7 @@ function drawPlayer(g, sc) {
   const dir = flat ? "E" : (PLAYER.dir === "W" ? "E" : PLAYER.dir);
   const flip = flat ? false : (PLAYER.dir === "W");
   const frame = (resting || !PLAYER.moving) ? PEOPLE_SPR[dir][0] : PEOPLE_SPR[dir][Math.floor(PLAYER.phase / 5) % 2 ? 1 : 2];
-  let yoff = sit ? 5 * sc : lying ? 2 * sc : soaking ? 7 * sc : swimming ? 3 * sc : 0;
+  let yoff = sit ? 5 * sc : lying ? 2 * sc : soaking ? 7 * sc : swimming ? 3 * sc : boating ? 4 * sc : 0;
   let scaleX = 1, scaleY = 1, shadowMul = 1;
   if (jumping) {
     const b = Math.abs(Math.sin((PLAYER.jumpPhase || 0) * 6));   // 0 (grounded) .. 1 (peak)
@@ -2735,6 +2824,19 @@ function drawPlayer(g, sc) {
       const bp = ((performance.now() / 500) + i / 3) % 1;
       g.beginPath(); g.arc(PLAYER.x + (i - 1) * 5 * sc, PLAYER.y + 5 * sc - bp * 15 * sc, (1.6 - bp) * sc, 0, 7); g.fill();
     }
+  } else if (boating) {
+    // A little rowboat hull under the seated player, gently bobbing, with a
+    // small wake ripple — the same shadow ellipses above still read fine as
+    // the hull's own shadow on the water.
+    const bob = Math.sin(performance.now() / 420) * 1.2 * sc;
+    const bw = 20 * sc, bh = 9 * sc, by = PLAYER.y + 3 * sc + bob;
+    g.fillStyle = "#6b4a2b"; g.beginPath(); g.ellipse(PLAYER.x, by, bw / 2, bh / 2, 0, 0, 7); g.fill();
+    g.fillStyle = "#8a5a2b"; g.beginPath(); g.ellipse(PLAYER.x, by - 1.5 * sc, bw / 2 - 2 * sc, bh / 2 - 1.6 * sc, 0, 0, 7); g.fill();
+    g.strokeStyle = "rgba(0,0,0,0.25)"; g.lineWidth = 1; g.beginPath(); g.ellipse(PLAYER.x, by, bw / 2, bh / 2, 0, 0, 7); g.stroke();
+    const rp = (performance.now() / 900) % 1;
+    g.strokeStyle = "rgba(255,255,255,0.4)"; g.lineWidth = 1; g.globalAlpha = 1 - rp;
+    g.beginPath(); g.ellipse(PLAYER.x, by + 2 * sc, (10 + rp * 14) * sc, (3 + rp * 4) * sc, 0, 0, 7); g.stroke();
+    g.globalAlpha = 1;
   }
   g.save(); g.translate(Math.round(PLAYER.x), Math.round(PLAYER.y + yoff)); g.scale(sc * scaleX, sc * scaleY);
   if (flat) g.rotate(-Math.PI / 2);
@@ -3014,13 +3116,20 @@ function layoutMap() {
     MAP.ponds = [
       { x: th.gx0 + th.gw + 46, y: th.gy0 + th.gh * 0.5, rx: 44, ry: 30 },
       { x: WORLD_PAD_X + (MAP.worldW - 2 * WORLD_PAD_X) * 0.32, y: MAP.worldH - LAKE_BAND * 0.5, rx: 230, ry: 125, big: true },
+      // The ocean/beach, hugging the world's west edge like a real coastline
+      // (Alex, 2026-09-30: "please make a beach and what not... driving
+      // [boats] at the beach and at the lake" — a second, distinct water
+      // body from the lake, with the extra-wide sand ring pondZone() gives
+      // any `beach:true` pond).
+      { x: WORLD_PAD_X - 40, y: MAP.worldH - LAKE_BAND * 0.5, rx: 200, ry: 300, big: true, beach: true },
     ];
     MAP.pond = MAP.ponds[0];   // back-compat for anything still reading .pond
+    MAP.beach = MAP.ponds.find(p => p.beach);
     // A gazebo right on the lake shore, guaranteed every layout (Alex,
     // 2026-09-19: "npcs... onto the gazebo by the lake") — scatterLandmarks()
     // below still scatters a few more randomly elsewhere, but this one spot
     // is fixed so there's always a specific "the gazebo by the lake" to walk to.
-    const lake = MAP.ponds.find(p => p.big);
+    const lake = MAP.ponds.find(p => p.big && !p.beach);
     MAP.lakeGazebo = { kind: "gazebo", x: lake.x, y: lake.y - lake.ry - 22, scale: 1.7, landmark: true };
     MAP.decor.push(MAP.lakeGazebo);
   }
@@ -3322,7 +3431,10 @@ function pondZone(x, y) {
   let z = 0;
   for (const p of (MAP.ponds || [])) {
     const dx = (x - p.x) / p.rx, dy = (y - p.y) / p.ry, d2 = dx * dx + dy * dy;
-    const zz = d2 <= 1 ? 1 : d2 <= 1.35 ? 2 : 0;
+    // A beach gets a much wider sand ring than a regular pond's thin rim —
+    // reads as an actual shore to walk/lounge on, not just a wet edge.
+    const sandMult = p.beach ? 2.4 : 1.35;
+    const zz = d2 <= 1 ? 1 : d2 <= sandMult ? 2 : 0;
     if (zz > z) z = zz;
     if (z === 1) return 1;
   }
@@ -3374,7 +3486,7 @@ function buildMapGround() {
     x.beginPath(); x.ellipse(p.x - p.rx * 0.3, p.y - p.ry * 0.3, p.rx * 0.24, p.ry * 0.12, -0.4, 0, 7); x.fill();
     x.fillStyle = "rgba(255,255,255,0.2)";
     x.beginPath(); x.ellipse(p.x + p.rx * 0.28, p.y + p.ry * 0.12, p.rx * 0.16, p.ry * 0.07, -0.3, 0, 7); x.fill();
-    if (p.big) {   // a few lily pads on the lake
+    if (p.big && !p.beach) {   // a few lily pads on the lake (not the ocean)
       for (let i = 0; i < 7; i++) {
         const lx = p.x + (hash2(i, 61) - 0.5) * p.rx * 1.4, ly = p.y + (hash2(i, 62) - 0.5) * p.ry * 1.4;
         if (((lx - p.x) / p.rx) ** 2 + ((ly - p.y) / p.ry) ** 2 > 0.75) continue;
@@ -3494,6 +3606,36 @@ function drawDribbleBall(g, x, y, t) {
   g.beginPath(); g.moveTo(bx - 3.4, by); g.lineTo(bx + 3.4, by); g.stroke();
   g.beginPath(); g.arc(bx, by, 3.4, 0, 7); g.stroke();
 }
+// The ball actually flying from the player to the hoop on release — arcs in
+// over FLIGHT_MS, then either vanishes into the net (make) or kicks back off
+// the rim and drops (miss). Alex, 2026-09-30: the shot math always resolved
+// correctly, but with nothing but a toast to show for it, releasing felt
+// like nothing happened — this is the real, visible feedback.
+function drawShotFlight(g, fx, now) {
+  const FLIGHT_MS = 450, BOUNCE_MS = 350;
+  const t = now - fx.t0;
+  if (t < 0) return;
+  let bx, by;
+  if (t <= FLIGHT_MS) {
+    const p = t / FLIGHT_MS;
+    const arc = Math.sin(p * Math.PI) * 30;
+    bx = fx.fromX + (fx.hoop.x - fx.fromX) * p;
+    by = fx.fromY + (fx.hoop.y - fx.fromY) * p - arc;
+  } else if (!fx.made && t <= FLIGHT_MS + BOUNCE_MS) {
+    const p = (t - FLIGHT_MS) / BOUNCE_MS;
+    const bdx = fx.fromX - fx.hoop.x, bdy = fx.fromY - fx.hoop.y, blen = Math.hypot(bdx, bdy) || 1;
+    bx = fx.hoop.x + (bdx / blen) * 20 * p;
+    by = fx.hoop.y + (bdy / blen) * 20 * p - Math.sin(p * Math.PI) * 10 + p * 16;
+  } else {
+    return;   // made: sank the net; missed: finished bouncing away
+  }
+  g.fillStyle = "rgba(0,0,0,0.18)"; g.beginPath(); g.ellipse(bx, fx.hoop.y + 6, 3.5, 1.4, 0, 0, 7); g.fill();
+  g.fillStyle = "#c9702f"; g.beginPath(); g.arc(bx, by, 4, 0, 7); g.fill();
+  g.strokeStyle = "#3a2313"; g.lineWidth = 0.8;
+  g.beginPath(); g.moveTo(bx - 4, by); g.lineTo(bx + 4, by); g.stroke();
+  g.beginPath(); g.moveTo(bx, by - 4); g.lineTo(bx, by + 4); g.stroke();
+  g.beginPath(); g.arc(bx, by, 4, 0, 7); g.stroke();
+}
 // The hold-to-shoot charge meter (Alex: "tap and hold release... like NBA
 // 2K where you hold to get it green") — a vertical bar over the player's
 // head, cursor climbing from empty to full over CHARGE_MS, a green band to
@@ -3578,6 +3720,7 @@ function drawMapScene(now, dt) {
   }
   ents.sort((a, b) => a.y - b.y);
   ents.forEach(e => e.d());
+  if (SHOT_FX) drawShotFlight(g, SHOT_FX, performance.now());
   drawShotMeter(g, PLAYER.x, PLAYER.y);
 
   g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
@@ -5927,6 +6070,44 @@ function openBuildPicker() {
   }));
 }
 
+// Fast travel (Alex, 2026-09-30: "add fast travel to get around the map").
+// A simple destination picker — reuses the same #pickModal every other
+// picker (adopt/build) already uses. Teleports through the existing
+// cross-fade so it doesn't feel like a hard cut, and hands the camera back
+// to normal follow-mode at the new spot.
+function fastTravelDestinations() {
+  const out = [];
+  if (MAP.townHall) out.push({ label: "🏛️ Town Hall", x: MAP.townHall.bx, y: MAP.townHall.by + 30 });
+  if (MAP.tavern) out.push({ label: "🍺 The Tavern", x: MAP.tavern.bx, y: MAP.tavern.by + 26 });
+  if (MAP.casino) out.push({ label: "🎰 The Casino", x: MAP.casino.bx, y: MAP.casino.by + 30 });
+  if (MAP.court) out.push({ label: "🏀 The Court", x: MAP.court.x, y: MAP.court.y + MAP.court.h / 2 + 16 });
+  if (MAP.lakeGazebo) out.push({ label: "🌳 The Lake Gazebo", x: MAP.lakeGazebo.x, y: MAP.lakeGazebo.y + 10 });
+  if (currentUser) {
+    const h = MAP.houses.find(x => x.user_id === currentUser.id);
+    if (h) out.push({ label: "🏠 My House", x: h.bx, y: h.by + 28 });
+  }
+  return out;
+}
+function openFastTravelPicker() {
+  const dests = fastTravelDestinations();
+  const c = document.getElementById("pickContent");
+  c.innerHTML = `<h3 style="margin-top:0;">🗺️ Fast Travel</h3>
+    <div class="hn-shop-grid" style="max-height:none; grid-template-columns:1fr;">
+      ${dests.map((d, i) => `<button class="hn-mini-btn" data-dest="${i}" style="width:100%; text-align:left; padding:10px 14px; font-size:0.85rem;">${d.label}</button>`).join("")}
+    </div>`;
+  document.getElementById("pickModal").classList.add("open");
+  c.querySelectorAll("[data-dest]").forEach(btn => btn.addEventListener("click", () => {
+    const d = dests[Number(btn.dataset.dest)];
+    document.getElementById("pickModal").classList.remove("open");
+    if (SCENE !== "map") { activeTab = "map"; document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "map")); document.getElementById("mapView").style.display = "block"; document.getElementById("mineView").style.display = "none"; }
+    beginFade(() => {
+      PLAYER.x = d.x; PLAYER.y = d.y; PLAYER.moveTarget = null;
+      MAP.follow = true; MAP.userZoomed = false;
+    });
+  }));
+}
+document.getElementById("fastTravelBtn").addEventListener("click", () => openFastTravelPicker());
+
 function showError(msg) {
   const el = document.getElementById("hnError");
   if (el) { el.textContent = msg; clearTimeout(showError._t); showError._t = setTimeout(() => { el.textContent = ""; }, 4000); }
@@ -6070,6 +6251,15 @@ window.addEventListener("keydown", e => {
   }
 });
 
+async function loadSportsScores() {
+  try {
+    const res = await api("/sportsscores");
+    SPORTS_SCORES = (res.games || []).map(g => ({
+      ...g,
+      text: g.state === "pre" ? `${g.away} @ ${g.home} · ${g.detail}` : `${g.away} ${g.awayScore} - ${g.homeScore} ${g.home} · ${g.state === "in" ? g.detail || "LIVE" : "Final"}`,
+    }));
+  } catch (e) { /* a TV with no score ticker is fine, not worth surfacing an error for */ }
+}
 async function boot() {
   try { catalogData = await api("/catalog"); }
   catch (e) { document.getElementById("mapStage").insertAdjacentHTML("beforeend", `<div class="hn-stage-hint" style="bottom:auto;top:12px;">Couldn't reach the neighborhood server.</div>`); return; }
@@ -6085,6 +6275,11 @@ async function boot() {
   loadDrunkState();   // pick up an in-progress binge from earlier today, if any
 
   try { await loadMap(); } catch (e) { console.warn(e); }
+  // Fire-and-forget so `mine.inventory` (boat ownership) is available on the
+  // open map without waiting on the "My House" tab ever being opened.
+  if (currentUser) loadMine().catch(() => {});
+  loadSportsScores();
+  setInterval(loadSportsScores, 5 * 60 * 1000);
   requestAnimationFrame(tick);
   if (currentUser) setInterval(pingPresence, 1500);
 }
@@ -6110,6 +6305,10 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
     renderExteriorActions, drinkFlavor, lieOnBed, mapPrompt, mapActivate, mapTapActivate, scatterBenches,
     pingPresence, presenceScene, stepOtherPlayers, sendInvite, nearbyOtherPlayer, drawOtherPlayer, otherPlayerPal,
     spawnAmbientNpcs, buildVenueNpcs, nearestHoop, inCourtBounds, startShotCharge, releaseShot, resolveShot,
+    boatablePondAt, ownsBoat, boardBoat, disembarkBoat, openFastTravelPicker, fastTravelDestinations,
+    loadSportsScores, ITEM_DRAW,
+    get SPORTS_SCORES() { return SPORTS_SCORES; },
+    set SPORTS_SCORES(v) { SPORTS_SCORES = v; },
     get SHOT() { return SHOT; },
     get SHOT_FX() { return SHOT_FX; },
     set LEADERBOARD(v) { LEADERBOARD = v; },
@@ -6130,6 +6329,7 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
     get currentUser() { return currentUser; },
     set currentUser(v) { currentUser = v; },
     get mine() { return mine; },
+    set mine(v) { mine = v; },
     get armedItemId() { return armedItemId; },
     get selectedRoomKey() { return selectedRoomKey; },
     get decorCount() { return MAP.decor.length; },
