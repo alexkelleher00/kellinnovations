@@ -2430,6 +2430,7 @@ function presenceScene() {
   if (SCENE === "map" && activeTab === "map") return { scene: "map", room: "" };
   if (activeTab === "mine" && SCENE === "hall" && HALL) return { scene: "hall", room: "" };
   if (activeTab === "mine" && SCENE === "venue" && VENUE) return { scene: "venue", room: VENUE.kind + ":" + VENUE.roomKey };
+  if (activeTab === "mine" && SCENE === "beach" && BEACH) return { scene: "beach", room: "" };
   return null;   // private house interior, place-mode, a modal open, etc. — stay invisible
 }
 async function pingPresence() {
@@ -2598,6 +2599,7 @@ function mapPrompt() {
   if (PLAYER.sitting) return { kind: "stand", label: "🪑 Stand up" };
   if (SHOT) return null;   // charging a shot — the canvas meter is up, DOM hud prompt stays hidden
   if (PLAYER.boating) return { kind: "boat", boarding: false, label: "🚤 Get out" };
+  if (PLAYER.swimming) return { kind: "pondswim", diving: false, label: "🏊 Climb out" };
   const reach = 26;
   const bench = (MAP.benches || []).find(b => Math.hypot(PLAYER.x - b.x, PLAYER.y - b.y) < reach);
   if (bench) return { kind: "sit", seat: bench, label: "🪑 Sit down" };
@@ -2606,12 +2608,24 @@ function mapPrompt() {
     const dunk = nh.dist < DUNK_RANGE;
     return { kind: "shoot", hoop: nh.hoop, dunk, label: dunk ? "🏀 Tap to dunk!" : "🏀 Hold to shoot" };
   }
+  // The beach's open-map marker is just a portal into the full beach scene
+  // now (Alex, 2026-10-01: "the beach needs to be like an entire area that
+  // loads... a whole massive beach area") — the lake is still directly
+  // boatable/swimmable right here on the open map, same as before.
+  if (MAP.beachPortal && Math.hypot(PLAYER.x - MAP.beachPortal.x, PLAYER.y - MAP.beachPortal.y) < 70) {
+    return { kind: "enterbeach", label: "🏖️ Enter the Beach" };
+  }
   const water = boatablePondAt(PLAYER.x, PLAYER.y);
   if (water) {
     return ownsBoat()
       ? { kind: "boat", boarding: true, pond: water, label: "🚤 Board boat" }
       : { kind: "boat_locked", label: "🚤 Buy a boat at Town Hall to sail here" };
   }
+  // Any pond at all, including the small Town Hall one (Alex, 2026-10-01:
+  // "should be able to swim in the pond") — this only fires once you're
+  // actually standing IN the water (pondZone's "1" ring), not just near it.
+  const swimPond = swimmablePondAt(PLAYER.x, PLAYER.y);
+  if (swimPond) return { kind: "pondswim", diving: true, pond: swimPond, label: "🏊 Dive in" };
   const other = nearbyOtherPlayer("map", "", 30);
   if (other) return { kind: "invite", other, label: `🎲 Invite ${String(other.name || "them").split(" ")[0]} to 3 Man` };
   return null;
@@ -2623,6 +2637,8 @@ function mapActivate() {
   else if (p.kind === "stand") standUp();
   else if (p.kind === "invite") sendInvite(p.other);
   else if (p.kind === "boat") { if (p.boarding) boardBoat(p.pond); else disembarkBoat(); }
+  else if (p.kind === "pondswim") { if (p.diving) divePond(p.pond); else climbOutOfPond(); }
+  else if (p.kind === "enterbeach") openBeach();
   // "boat_locked" and "shoot" are deliberately not handled here — locked is
   // just informational (nothing to tap), and shoot is a hold-to-charge
   // action wired straight to pointerdown/up + keydown/up (see
@@ -2633,11 +2649,25 @@ function mapActivate() {
 // ponds (the lake, the new ocean/beach) are boatable — not the decorative
 // puddle by Town Hall. Ownership is "ever bought one," placed or not — a
 // boat isn't really a yard decoration, owning one just unlocks sailing.
+// 2026-10-01: "only they can drive their boat" — already true as written,
+// ownsBoat() reads the CURRENT account's own mine.inventory/placed, so
+// boarding is gated per-account with no extra work needed here.
 function boatablePondAt(x, y) {
+  // The beach is a portal into its own scene now, not directly boatable
+  // here on the open map (see mapPrompt's "enterbeach" check) — only the
+  // lake works in place.
   for (const p of (MAP.ponds || [])) {
-    if (!p.big) continue;
-    const dx = (x - p.x) / p.rx, dy = (y - p.y) / p.ry, d2 = dx * dx + dy * dy;
-    if (d2 <= (p.beach ? 2.4 : 1.35)) return p;
+    if (!p.big || p.beach) continue;
+    const dx = (x - p.x) / p.rx, dy = (y - p.y) / p.ry;
+    if (dx * dx + dy * dy <= 1.35) return p;
+  }
+  return null;
+}
+function swimmablePondAt(x, y) {
+  for (const p of (MAP.ponds || [])) {
+    if (p.beach) continue;   // portal into the beach scene instead — see mapPrompt
+    const dx = (x - p.x) / p.rx, dy = (y - p.y) / p.ry;
+    if (dx * dx + dy * dy <= 1) return p;   // literally in the water, not just the sand ring
   }
   return null;
 }
@@ -2646,15 +2676,29 @@ function ownsBoat() {
   return (mine.inventory || []).some(i => i.key === "boat") || (mine.placed || []).some(i => i.key === "boat");
 }
 function boardBoat(pond) {
+  PLAYER.swimming = false; PLAYER.poolBounds = null;   // mutually exclusive with swimming
   PLAYER.boating = true; PLAYER.boatPond = pond; PLAYER.moveTarget = null;
 }
 function disembarkBoat() {
   PLAYER.boating = false; PLAYER.boatPond = null;
 }
+function divePond(pond) {
+  PLAYER.boating = false; PLAYER.boatPond = null;   // mutually exclusive with boating
+  PLAYER.swimming = true; PLAYER.moveTarget = null;
+  const inset = pond.rx * 0.12;
+  PLAYER.poolBounds = { x0: pond.x - pond.rx + inset, y0: pond.y - pond.ry + inset, x1: pond.x + pond.rx - inset, y1: pond.y + pond.ry - inset };
+}
+function climbOutOfPond() {
+  PLAYER.swimming = false; PLAYER.poolBounds = null;
+}
 // ── Basketball court (Alex, 2026-09-19: "add a full court to the
 // neighborhood... running as your player... tap and hold release... hold to
 // get it green... if in paint you can dunk") ───────────────────────────────
-const SHOOT_REACH = 62, DUNK_RANGE = 26, CHARGE_MS = 900, GREEN_LO = 0.60, GREEN_HI = 0.76;
+// Alex, 2026-10-01: "I need to be able to shoot from the 3 point line or at
+// least kinda far out" — the 3pt arc itself is drawn at r3 = min(w,h)*0.42
+// (~78px on the live court), so SHOOT_REACH needs real headroom past that,
+// not just barely cover the paint.
+const SHOOT_REACH = 115, DUNK_RANGE = 26, CHARGE_MS = 900, GREEN_LO = 0.60, GREEN_HI = 0.76;
 let SHOT = null;      // { hoop, t0 } while a jumpshot meter is charging
 let SHOT_FX = null;   // { hoop, made, dunk, t0 } brief make/miss celebration, ~900ms
 function nearestHoop(x, y) {
@@ -2741,18 +2785,21 @@ function stepPlayer(dt) {
   }
   if (!dx && !dy) { PLAYER.moving = false; return; }
   const w = drunkWobble(dx, dy);
-  // Boating ignores normal land solids entirely (a boat floats over the
-  // whole water body) and is bounded to that pond's box instead of the
-  // world edge — "driving them at the beach and at the lake."
-  const rects = PLAYER.boating ? [] : solidRects();
+  // Boating/swimming both ignore normal land solids (a boat floats over the
+  // water, a swimmer stays in it) and are bounded to the water body instead
+  // of the world edge — "driving them at the beach and at the lake" /
+  // "should be able to swim in the pond."
+  const inWater = PLAYER.boating || PLAYER.swimming;
+  const rects = inWater ? [] : solidRects();
   const bounds = PLAYER.boating && PLAYER.boatPond ? {
     x0: PLAYER.boatPond.x - PLAYER.boatPond.rx * 1.15, x1: PLAYER.boatPond.x + PLAYER.boatPond.rx * 1.15,
     y0: PLAYER.boatPond.y - PLAYER.boatPond.ry * 1.15, y1: PLAYER.boatPond.y + PLAYER.boatPond.ry * 1.15,
-  } : {
+  } : PLAYER.swimming && PLAYER.poolBounds ? PLAYER.poolBounds : {
     x0: WORLD_PAD_X + 6, y0: WORLD_PAD_Y + 6,
     x1: MAP.worldW - WORLD_PAD_X - 6, y1: MAP.worldH - WORLD_PAD_Y - 6,
   };
-  const r = moveEntity(PLAYER, { x: w.dx, y: w.dy }, PLAYER.speed * w.speedMul, dt, rects, bounds);
+  const swimSpeed = PLAYER.swimming ? PLAYER.speed * 0.65 : PLAYER.speed;
+  const r = moveEntity(PLAYER, { x: w.dx, y: w.dy }, swimSpeed * w.speedMul, dt, rects, bounds);
   if (r.bx && r.by && PLAYER.moveTarget) PLAYER.moveTarget = null;   // fully wedged — give up on the tap target
   PLAYER.phase += PLAYER.speed * dt;
   PLAYER.moving = true;
@@ -3080,6 +3127,15 @@ function layoutMap() {
   const LAKE_BAND = 340;   // extra world below the last row for a big lake
   MAP.worldW = WORLD_PAD_X * 2 + cols * CELL_W;
   MAP.worldH = WORLD_PAD_Y * 2 + rows * CELL_H + LAKE_BAND;
+  // True vertical center of the LAKE_BAND strip itself — NOT `worldH -
+  // LAKE_BAND/2`, which is off by a full WORLD_PAD_Y because worldH already
+  // includes the bottom world-padding margin *after* the band. That bug
+  // pushed the lake/court/beach too far down, deep enough that the court
+  // (tall enough to notice) had its southern half sitting past the player's
+  // walkable y-bound entirely — "doesn't let me walk on the bottom half,
+  // like it cuts off" (Alex, 2026-10-01). Every LAKE_BAND feature's y must
+  // be computed from this, not from worldH directly.
+  const LAKE_BAND_CENTER_Y = WORLD_PAD_Y + rows * CELL_H + LAKE_BAND / 2;
   const cellPad = { x: (CELL_W - PLOT_W) / 2, y: (CELL_H - PLOT_H) / 2 };
   const plotX0 = (col, row) => WORLD_PAD_X + col * CELL_W + cellPad.x + rowStagger(row);
   const plotY0 = (col, row) => WORLD_PAD_Y + row * CELL_H + cellPad.y + colStagger(col);
@@ -3115,16 +3171,19 @@ function layoutMap() {
     const th = MAP.townHall;
     MAP.ponds = [
       { x: th.gx0 + th.gw + 46, y: th.gy0 + th.gh * 0.5, rx: 44, ry: 30 },
-      { x: WORLD_PAD_X + (MAP.worldW - 2 * WORLD_PAD_X) * 0.32, y: MAP.worldH - LAKE_BAND * 0.5, rx: 230, ry: 125, big: true },
-      // The ocean/beach, hugging the world's west edge like a real coastline
-      // (Alex, 2026-09-30: "please make a beach and what not... driving
-      // [boats] at the beach and at the lake" — a second, distinct water
-      // body from the lake, with the extra-wide sand ring pondZone() gives
-      // any `beach:true` pond).
-      { x: WORLD_PAD_X - 40, y: MAP.worldH - LAKE_BAND * 0.5, rx: 200, ry: 300, big: true, beach: true },
+      { x: WORLD_PAD_X + (MAP.worldW - 2 * WORLD_PAD_X) * 0.32, y: LAKE_BAND_CENTER_Y, rx: 230, ry: 125, big: true },
+      // The shoreline on the open map, hugging the world's west edge — a
+      // portal into the full beach scene (Alex, 2026-10-01: "the beach needs
+      // to be like an entire area that loads like in stardew, like a whole
+      // massive beach area"), same auto-enter pattern as a house/Town Hall
+      // door. Kept modestly sized here on purpose — the actual "massive
+      // beach" is BEACH_W x BEACH_H in its own loaded scene (see SCENE
+      // "beach" / buildBeach / drawBeachScene below), not this map marker.
+      { x: WORLD_PAD_X - 20, y: LAKE_BAND_CENTER_Y, rx: 130, ry: 110, big: true, beach: true },
     ];
     MAP.pond = MAP.ponds[0];   // back-compat for anything still reading .pond
     MAP.beach = MAP.ponds.find(p => p.beach);
+    MAP.beachPortal = { x: MAP.beach.x + MAP.beach.rx * 0.5, y: MAP.beach.y };
     // A gazebo right on the lake shore, guaranteed every layout (Alex,
     // 2026-09-19: "npcs... onto the gazebo by the lake") — scatterLandmarks()
     // below still scatters a few more randomly elsewhere, but this one spot
@@ -3147,7 +3206,7 @@ function layoutMap() {
     const ch = clamp(LAKE_BAND * 0.55, 160, 210);
     let cx = WORLD_PAD_X + availW * 0.72;
     cx = clamp(cx, WORLD_PAD_X + cw / 2 + 10, MAP.worldW - WORLD_PAD_X - cw / 2 - 10);
-    MAP.court = { x: cx, y: MAP.worldH - LAKE_BAND * 0.5, w: cw, h: ch };
+    MAP.court = { x: cx, y: LAKE_BAND_CENTER_Y, w: cw, h: ch };
     MAP.court.hoops = [
       { x: MAP.court.x - MAP.court.w / 2 + 8, y: MAP.court.y, side: "W" },
       { x: MAP.court.x + MAP.court.w / 2 - 8, y: MAP.court.y, side: "E" },
@@ -3542,30 +3601,49 @@ function drawCourtHoop(g, x, y, side, t, fx) {
   // Hoops sit on the west/east ends now (2026-09-19, "make sense left to
   // right") — the rim itself is always the same shape (a hoop is round
   // regardless of which end of the court it's on), only which way the
-  // backboard leans off the baseline point changes.
+  // backboard leans off the baseline point changes. Redone 2026-10-01
+  // ("the hoops needs to look better") — a real square-tube pole, a
+  // shaded/glass-look backboard with a proper shooter's square, and a thick
+  // tube rim with a highlight instead of a thin stroke circle.
   const horiz = side === "W" || side === "E";
-  const dir = (side === "N" || side === "W") ? 1 : -1;   // + = backboard/rim sit further along +x (horiz) or +y (vertical) than the baseline point
-  g.strokeStyle = "#9aa0a6"; g.lineWidth = 3;
-  g.beginPath(); g.moveTo(x, y);
-  if (horiz) g.lineTo(x + 24 * dir, y); else g.lineTo(x, y + 26 * dir);
-  g.stroke();
-  const boardLong = 30, boardShort = 16;
+  const dir = (side === "N" || side === "W") ? 1 : -1;
+  const poleLen = 26;
+  g.fillStyle = "#6b6f78";
+  if (horiz) g.fillRect(x - 1.5, y - 2.5, (poleLen + 2) * dir, 5); else g.fillRect(x - 2.5, y - 1.5, 5, (poleLen + 2) * dir);
+  g.fillStyle = "rgba(255,255,255,0.3)";
+  if (horiz) g.fillRect(x - 1.5, y - 2.5, (poleLen + 2) * dir, 1.2); else g.fillRect(x - 1.5, y - 1.5, 1.2, (poleLen + 2) * dir);
+  const boardLong = 32, boardShort = 18;
   const bcx = horiz ? x + dir * (24 - boardShort * 0.3) : x;
   const bcy = horiz ? y : y + dir * (26 - boardShort * 0.3);
-  g.fillStyle = "#e8dcc4";
-  if (horiz) g.fillRect(bcx - boardShort / 2, bcy - boardLong / 2, boardShort, boardLong);
-  else g.fillRect(bcx - boardLong / 2, bcy - boardShort / 2, boardLong, boardShort);
-  g.strokeStyle = "#c0432f"; g.lineWidth = 1.6;
-  if (horiz) g.strokeRect(bcx - boardShort * 0.26, bcy - boardLong * 0.24, boardShort * 0.52, boardLong * 0.48);
-  else g.strokeRect(bcx - boardLong * 0.24, bcy - boardShort * 0.26, boardLong * 0.48, boardShort * 0.52);
-  const rimX = horiz ? bcx + dir * (boardShort * 0.5 + 5) : bcx;
-  const rimY = horiz ? bcy : bcy + dir * (boardShort * 0.5 + 5);
+  const bw = horiz ? boardShort : boardLong, bh = horiz ? boardLong : boardShort;
+  g.fillStyle = "rgba(0,0,0,0.25)"; g.fillRect(bcx - bw / 2 + 1.5, bcy - bh / 2 + 1.5, bw, bh);
+  const boardGrad = lgrad(g, bcx - bw / 2, bcy - bh / 2, bcx + bw / 2, bcy + bh / 2, "#f2ead8", "#d4c9a8");
+  g.fillStyle = boardGrad; g.fillRect(bcx - bw / 2, bcy - bh / 2, bw, bh);
+  g.strokeStyle = "#8a7d5a"; g.lineWidth = 1; g.strokeRect(bcx - bw / 2, bcy - bh / 2, bw, bh);
+  g.strokeStyle = "#c0432f"; g.lineWidth = 1.8;
+  if (horiz) g.strokeRect(bcx - boardShort * 0.26, bcy - boardLong * 0.22, boardShort * 0.52, boardLong * 0.44);
+  else g.strokeRect(bcx - boardLong * 0.22, bcy - boardShort * 0.26, boardLong * 0.44, boardShort * 0.52);
+  const rimX = horiz ? bcx + dir * (boardShort * 0.5 + 6) : bcx;
+  const rimY = horiz ? bcy : bcy + dir * (boardShort * 0.5 + 6);
+  const clang = fx && !fx.made && Math.abs(performance.now() - fx.t0 - 450) < 180;   // brief flash right when the ball hits the rim on a miss
   const glowCol = fx ? (fx.made ? "#5cf27a" : "#ff5c5c") : null;
-  g.strokeStyle = glowCol || "#e8583a"; g.lineWidth = 2.6;
-  g.beginPath(); g.ellipse(rimX, rimY, 11, 3.4, 0, 0, 7); g.stroke();
-  g.strokeStyle = "rgba(255,255,255,0.7)"; g.lineWidth = 1;
-  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI; g.beginPath(); g.moveTo(rimX + Math.cos(a) * 10, rimY + Math.sin(a) * 3); g.lineTo(rimX + Math.cos(a) * 6, rimY + 13); g.stroke(); }
-  if (fx) GLOWS.push({ x: rimX, y: rimY, r: 34, col: glowCol, i: 0.6 * (1 - clamp((performance.now() - fx.t0) / 900, 0, 1)) });
+  // rim: a real tube — dark base ellipse, bright top highlight, thick stroke
+  g.strokeStyle = "#8a2a1c"; g.lineWidth = 4.2;
+  g.beginPath(); g.ellipse(rimX, rimY + 0.6, 11.5, 3.8, 0, 0, 7); g.stroke();
+  g.strokeStyle = clang ? "#fff" : (glowCol || "#ff6a3c"); g.lineWidth = 2.6;
+  g.beginPath(); g.ellipse(rimX, rimY, 11.5, 3.8, 0, 0, 7); g.stroke();
+  // net: a hanging mesh (two tiers, slight pinch) instead of 8 straight spokes
+  g.strokeStyle = "rgba(255,255,255,0.75)"; g.lineWidth = 1;
+  for (let i = 0; i < 10; i++) {
+    const a = i / 10 * Math.PI;
+    const topX = rimX + Math.cos(a) * 10.5, topY = rimY + Math.sin(a) * 3.4;
+    const midX = rimX + Math.cos(a) * 6, midY = rimY + 7;
+    const botX = rimX + Math.cos(a) * 3, botY = rimY + 13;
+    g.beginPath(); g.moveTo(topX, topY); g.lineTo(midX, midY); g.lineTo(botX, botY); g.stroke();
+  }
+  g.strokeStyle = "rgba(255,255,255,0.35)"; g.lineWidth = 0.8;
+  g.beginPath(); g.ellipse(rimX, rimY + 7, 6, 2, 0, 0, 7); g.stroke();
+  if (fx) GLOWS.push({ x: rimX, y: rimY, r: clang ? 50 : 34, col: clang ? "#fff" : glowCol, i: (clang ? 0.85 : 0.6) * (1 - clamp((performance.now() - fx.t0) / 900, 0, 1)) });
 }
 function drawBasketballCourt(g, court, t) {
   const { x: cx, y: cy, w, h } = court;
@@ -3612,29 +3690,39 @@ function drawDribbleBall(g, x, y, t) {
 // correctly, but with nothing but a toast to show for it, releasing felt
 // like nothing happened — this is the real, visible feedback.
 function drawShotFlight(g, fx, now) {
-  const FLIGHT_MS = 450, BOUNCE_MS = 350;
+  // Alex, 2026-10-01: "real like ball clanging off rim or real hoop
+  // mechanics and real like ball going through hoop" — a make now visibly
+  // drops THROUGH the rim and net (not just arrives and vanishes), and a
+  // miss kicks sharply off the rim — the rim's own clang-flash is in
+  // drawCourtHoop, timed off this same fx.t0 so they land together.
+  const FLIGHT_MS = 450, DROP_MS = 220, BOUNCE_MS = 400;
   const t = now - fx.t0;
   if (t < 0) return;
-  let bx, by;
+  let bx, by, scale = 1;
   if (t <= FLIGHT_MS) {
     const p = t / FLIGHT_MS;
-    const arc = Math.sin(p * Math.PI) * 30;
+    const arc = Math.sin(p * Math.PI) * 32;
     bx = fx.fromX + (fx.hoop.x - fx.fromX) * p;
     by = fx.fromY + (fx.hoop.y - fx.fromY) * p - arc;
+  } else if (fx.made && t <= FLIGHT_MS + DROP_MS) {
+    // straight down through the net, shrinking slightly (receding into it)
+    const p = (t - FLIGHT_MS) / DROP_MS;
+    bx = fx.hoop.x; by = fx.hoop.y + p * 14; scale = 1 - p * 0.4;
   } else if (!fx.made && t <= FLIGHT_MS + BOUNCE_MS) {
+    // a sharp, fairly violent kick off the rim — not a lazy arc
     const p = (t - FLIGHT_MS) / BOUNCE_MS;
     const bdx = fx.fromX - fx.hoop.x, bdy = fx.fromY - fx.hoop.y, blen = Math.hypot(bdx, bdy) || 1;
-    bx = fx.hoop.x + (bdx / blen) * 20 * p;
-    by = fx.hoop.y + (bdy / blen) * 20 * p - Math.sin(p * Math.PI) * 10 + p * 16;
+    bx = fx.hoop.x + (bdx / blen) * 26 * Math.min(1, p * 1.6);
+    by = fx.hoop.y - Math.sin(Math.min(1, p * 1.4) * Math.PI) * 16 + p * p * 26;
   } else {
     return;   // made: sank the net; missed: finished bouncing away
   }
-  g.fillStyle = "rgba(0,0,0,0.18)"; g.beginPath(); g.ellipse(bx, fx.hoop.y + 6, 3.5, 1.4, 0, 0, 7); g.fill();
-  g.fillStyle = "#c9702f"; g.beginPath(); g.arc(bx, by, 4, 0, 7); g.fill();
-  g.strokeStyle = "#3a2313"; g.lineWidth = 0.8;
-  g.beginPath(); g.moveTo(bx - 4, by); g.lineTo(bx + 4, by); g.stroke();
-  g.beginPath(); g.moveTo(bx, by - 4); g.lineTo(bx, by + 4); g.stroke();
-  g.beginPath(); g.arc(bx, by, 4, 0, 7); g.stroke();
+  g.fillStyle = "rgba(0,0,0,0.18)"; g.beginPath(); g.ellipse(bx, fx.hoop.y + 6, 3.5 * scale, 1.4 * scale, 0, 0, 7); g.fill();
+  g.fillStyle = "#c9702f"; g.beginPath(); g.arc(bx, by, 4 * scale, 0, 7); g.fill();
+  g.strokeStyle = "#3a2313"; g.lineWidth = 0.8 * scale;
+  g.beginPath(); g.moveTo(bx - 4 * scale, by); g.lineTo(bx + 4 * scale, by); g.stroke();
+  g.beginPath(); g.moveTo(bx, by - 4 * scale); g.lineTo(bx, by + 4 * scale); g.stroke();
+  g.beginPath(); g.arc(bx, by, 4 * scale, 0, 7); g.stroke();
 }
 // The hold-to-shoot charge meter (Alex: "tap and hold release... like NBA
 // 2K where you hold to get it green") — a vertical bar over the player's
@@ -4365,6 +4453,7 @@ function openTrophyPanel() {
 function sceneActivate() {
   if (SCENE === "hall") { hallActivate(); return; }
   if (SCENE === "venue") { venueActivate(); return; }
+  if (SCENE === "beach") { beachActivate(); return; }
   if (SCENE === "map") { mapActivate(); return; }
   if (SCENE !== "interior" || !INTERIOR || INTERIOR.panel || sceneFade.active) return;
   const p = INTERIOR.prompt;
@@ -5089,6 +5178,247 @@ function leaveVenue() {
   fitMapView();
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   THE BEACH — a real separate loaded scene (Alex, 2026-10-01: "the beach
+   needs to be like an entire area that loads like in stardew, like a whole
+   massive beach area"). Walked into from MAP.beachPortal on the open map
+   (same cross-fade every other scene uses), reuses #interiorStage/
+   #interiorCanvas like HALL/VENUE do, but is NOT built on buildRoomState —
+   a house-shaped room grid doesn't fit "a whole beach", so this has its own
+   ground canvas + simple follow-camera, more like a miniature version of
+   the open map than an interior room. Swimming/boating both work here too,
+   confined to BEACH's water rect instead of a pond ellipse.
+   ═══════════════════════════════════════════════════════════════════════ */
+const BEACH_W = 1300, BEACH_H = 820;
+let BEACH = null;   // { oceanX0, decor, pier, groundCv, cam, prompt }
+
+function buildBeachGround() {
+  const c = BEACH.groundCv = document.createElement("canvas");
+  c.width = BEACH_W; c.height = BEACH_H;
+  const x = c.getContext("2d"); crisp(x);
+  const { oceanX0 } = BEACH;
+  for (let yy = 0; yy < BEACH_H; yy += 4) {
+    for (let xx = 0; xx < BEACH_W; xx += 4) {
+      const nz = hash2(xx, yy);
+      let col;
+      if (xx < oceanX0 - 18) {
+        col = nz < 0.15 ? "#dcc48c" : nz > 0.88 ? "#efe0ac" : "#e6d29c";   // dry sand
+      } else if (xx < oceanX0 + 10) {
+        col = nz < 0.3 ? "#cdbb8e" : "#d8c9a0";                            // wet sand at the waterline
+      } else {
+        const depth = clamp((xx - oceanX0) / (BEACH_W - oceanX0), 0, 1);
+        col = depth < 0.3 ? (nz < 0.2 ? "#3f9fc4" : "#4aafd6") : (nz < 0.2 ? "#1f5f84" : "#2a74a0");
+      }
+      x.fillStyle = col; x.fillRect(xx, yy, 4, 4);
+    }
+  }
+  // a few long wave crests out in the ocean
+  x.strokeStyle = "rgba(255,255,255,0.3)"; x.lineWidth = 2;
+  for (let i = 0; i < 10; i++) {
+    const wy = (i / 10) * BEACH_H + 20;
+    x.beginPath();
+    for (let xx = oceanX0 + 30; xx < BEACH_W; xx += 14) {
+      const yy = wy + Math.sin(xx * 0.04 + i) * 8;
+      xx === oceanX0 + 30 ? x.moveTo(xx, yy) : x.lineTo(xx, yy);
+    }
+    x.stroke();
+  }
+  // the pier, baked into the ground texture (planks)
+  const { pier } = BEACH;
+  x.fillStyle = "#8a6a42";
+  for (let i = 0; i * 10 < pier.len; i++) x.fillRect(pier.x0 + i * 10, pier.y - 11, 9, 22);
+  x.fillStyle = "rgba(0,0,0,0.18)"; x.fillRect(pier.x0, pier.y - 11, pier.len, 3);
+}
+function buildBeach() {
+  const oceanX0 = BEACH_W * 0.4;
+  const pier = { x0: oceanX0 - 14, y: BEACH_H * 0.55, len: 260 };
+  const decor = [];
+  for (let i = 0; i < 20; i++) {
+    const x = 20 + hash2(i, 801) * (oceanX0 * 0.82);
+    const y = hash2(i, 802) * BEACH_H;
+    if (Math.abs(y - pier.y) < 40 && x > oceanX0 - 60) continue;
+    decor.push({ kind: "palm", x, y, scale: 0.9 + hash2(i, 803) * 0.6 });
+  }
+  for (let i = 0; i < 7; i++) {
+    const x = oceanX0 - 40 - hash2(i, 811) * 90;
+    const y = 60 + i * (BEACH_H - 120) / 6 + (hash2(i, 812) - 0.5) * 30;
+    if (Math.abs(y - pier.y) < 50) continue;
+    decor.push({ kind: "umbrella", x, y, col: ["#c0432f", "#2f6dc0", "#3aa657", "#c99a2e"][i % 4] });
+  }
+  BEACH = { oceanX0, pier, decor, cam: { x: oceanX0 * 0.5, y: BEACH_H * 0.5 }, prompt: null };
+  buildBeachGround();
+  PLAYER.x = 40; PLAYER.y = BEACH_H * 0.5; PLAYER.dir = "E"; PLAYER.moveTarget = null;
+  PLAYER.sitting = false; PLAYER.lying = false; PLAYER.soaking = false; PLAYER.jumping = false;
+  PLAYER.swimming = false; PLAYER.boating = false; PLAYER.poolBounds = null; PLAYER.boatPond = null;
+  PLAYER.lastEnter = performance.now();
+  document.getElementById("interiorBanner").textContent = "🏖️ The Beach";
+}
+function openBeach() {
+  beginFade(() => {
+    SCENE = "beach"; activeTab = "mine";
+    document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "mine"));
+    document.getElementById("mapView").style.display = "none";
+    document.getElementById("mineView").style.display = "block";
+    document.getElementById("loginHint").style.display = "none";
+    document.getElementById("editorWrap").style.display = "none";
+    document.getElementById("interiorStage").style.display = "flex";
+    document.getElementById("placeModeBtn").style.display = "none";
+    const cv = document.getElementById("interiorCanvas");
+    cv.style.width = ""; cv.style.height = "";
+    cv.style.position = "relative"; cv.style.inset = "auto";
+    buildBeach();
+  });
+}
+function leaveBeach() {
+  BEACH = null; SCENE = "map"; activeTab = "map";
+  document.getElementById("hudPrompt").style.display = "none";
+  document.getElementById("sceneActionBtn").style.display = "none";
+  document.getElementById("placeModeBtn").style.display = "";
+  document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "map"));
+  document.getElementById("mapView").style.display = "block";
+  document.getElementById("mineView").style.display = "none";
+  document.getElementById("interiorStage").style.display = "none";
+  document.getElementById("editorWrap").style.display = currentUser ? "block" : "none";
+  if (MAP.beachPortal) { PLAYER.x = MAP.beachPortal.x + 40; PLAYER.y = MAP.beachPortal.y; PLAYER.dir = "E"; }
+  PLAYER.moveTarget = null; PLAYER.lastEnter = performance.now();
+  MAP.follow = true;
+  fitMapView();
+}
+function beachPrompt() {
+  if (PLAYER.sitting) return { kind: "stand", label: "🪑 Stand up" };
+  if (PLAYER.boating) return { kind: "boat", boarding: false, label: "🚤 Get out" };
+  if (PLAYER.swimming) return { kind: "pondswim", diving: false, label: "🏊 Climb out" };
+  if (PLAYER.x < 70) return { kind: "beachexit", label: "⬅️ Back to the neighborhood" };
+  const atWater = PLAYER.x > BEACH.oceanX0 - 14;
+  if (atWater) {
+    return ownsBoat()
+      ? { kind: "boat", boarding: true, pond: null, label: "🚤 Board boat" }
+      : { kind: "pondswim", diving: true, pond: null, label: "🏊 Dive in" };
+  }
+  const bench = (BEACH.decor || []).find(d => d.kind === "umbrella" && Math.hypot(PLAYER.x - d.x, PLAYER.y - (d.y + 10)) < 20);
+  if (bench) return { kind: "sit", seat: { x0: bench.x - 10, y0: bench.y - 2, x1: bench.x + 10, y1: bench.y + 14 }, label: "🪑 Relax in a chair" };
+  return null;
+}
+function beachActivate() {
+  const p = BEACH && BEACH.prompt;
+  if (!p) return;
+  if (p.kind === "sit") sitOnSeat(p.seat);
+  else if (p.kind === "stand") standUp();
+  else if (p.kind === "beachexit") beginFade(() => leaveBeach());
+  else if (p.kind === "boat") { if (p.boarding) { PLAYER.swimming = false; PLAYER.poolBounds = null; PLAYER.boating = true; } else PLAYER.boating = false; }
+  else if (p.kind === "pondswim") {
+    if (p.diving) {
+      PLAYER.boating = false;
+      PLAYER.swimming = true; PLAYER.moveTarget = null;
+      PLAYER.poolBounds = { x0: BEACH.oceanX0 - 10, y0: 10, x1: BEACH_W - 10, y1: BEACH_H - 10 };
+    } else { PLAYER.swimming = false; PLAYER.poolBounds = null; }
+  }
+}
+function stepBeach(dt) {
+  if (!BEACH || anyModalOpen() || sceneFade.active) { PLAYER.moving = false; return; }
+  BEACH.prompt = beachPrompt();
+  const el = document.getElementById("hudPrompt"), btn = document.getElementById("sceneActionBtn");
+  if (BEACH.prompt) {
+    el.style.display = "block";
+    el.innerHTML = `${BEACH.prompt.label}<span class="sub">tap this · or press E</span>`;
+    btn.style.display = ""; btn.textContent = "E";
+  } else { el.style.display = "none"; btn.style.display = "none"; }
+
+  if (PLAYER.sitting) {
+    let held = false;
+    for (const k of PLAYER_KEYS) if (MOVE_KEYS[k]) held = true;
+    if (!held && !PLAYER.moveTarget) { PLAYER.moving = false; return; }
+    standUp();
+  }
+
+  let dx = 0, dy = 0;
+  for (const k of PLAYER_KEYS) { const d = MOVE_KEYS[k]; if (d) { dx += d[0]; dy += d[1]; } }
+  if (dx || dy) PLAYER.moveTarget = null;
+  else if (PLAYER.moveTarget) {
+    const tx = PLAYER.moveTarget.x - PLAYER.x, ty = PLAYER.moveTarget.y - PLAYER.y;
+    if (Math.hypot(tx, ty) < 4) PLAYER.moveTarget = null; else { dx = tx; dy = ty; }
+  }
+  if (!dx && !dy) { PLAYER.moving = false; return; }
+  const inWater = PLAYER.boating || PLAYER.swimming;
+  // Can't just wade off the sand without diving in / boarding first — the
+  // ocean itself is a solid wall until one of those is active.
+  const rects = inWater ? [] : [{ x0: BEACH.oceanX0 - 6, y0: 0, x1: BEACH_W, y1: BEACH_H }];
+  const bounds = { x0: 4, y0: 4, x1: BEACH_W - 4, y1: BEACH_H - 4 };
+  const w = drunkWobble(dx, dy);
+  const speed = (PLAYER.swimming ? PLAYER.speed * 0.65 : PLAYER.speed) * w.speedMul;
+  const r = moveEntity(PLAYER, { x: w.dx, y: w.dy }, speed, dt, rects, bounds);
+  if (r.bx && r.by && PLAYER.moveTarget) PLAYER.moveTarget = null;
+  PLAYER.phase += PLAYER.speed * dt;
+  PLAYER.moving = true;
+  PLAYER.dir = Math.abs(r.dx) >= Math.abs(r.dy) ? (r.dx > 0 ? "E" : "W") : (r.dy > 0 ? "S" : "N");
+}
+function drawBeachDecor(g, d) {
+  const { x, y } = d;
+  // A real natural palm, standalone — drawMapDecor has no "palm" case at
+  // all (silently fell through to its rock default, caught in testing) and
+  // drawTinyPalm is the neon Vegas-casino palm (cyan fronds), wrong look
+  // entirely for a real beach. ITEM_DRAW.palm is tile-grid-relative (yard
+  // placement), not free world coords, so not a direct fit either — this is
+  // its own simple renderer.
+  if (d.kind === "palm") {
+    const s = d.scale || 1;
+    ovShadow(g, x, y, 10 * s, 3.5 * s, 0.22);
+    g.strokeStyle = "#6b4a2b"; g.lineWidth = 4 * s;
+    g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 4 * s, y - 20 * s, x + 2 * s, y - 34 * s); g.stroke();
+    const topX = x + 2 * s, topY = y - 34 * s;
+    g.fillStyle = "#3f7d38";
+    for (const a of [-1.3, -0.7, -0.1, 0.5, 1.1, 1.7]) {
+      g.beginPath();
+      g.moveTo(topX, topY);
+      g.quadraticCurveTo(topX + Math.cos(a) * 10 * s, topY + Math.sin(a) * 5 * s - 6 * s, topX + Math.cos(a) * 18 * s, topY + Math.sin(a) * 10 * s);
+      g.quadraticCurveTo(topX + Math.cos(a) * 9 * s, topY + Math.sin(a) * 5 * s, topX, topY);
+      g.closePath(); g.fill();
+    }
+    g.fillStyle = "#5fa257"; g.beginPath(); g.arc(topX, topY, 4 * s, 0, 7); g.fill();
+    return;
+  }
+  if (d.kind === "umbrella") {
+    ovShadow(g, x, y, 14, 4, 0.22);
+    g.fillStyle = "#6b4a2b"; g.fillRect(x - 1.5, y - 34, 3, 34);
+    g.fillStyle = d.col || "#c0432f";
+    g.beginPath(); g.moveTo(x - 20, y - 30); g.quadraticCurveTo(x, y - 48, x + 20, y - 30); g.quadraticCurveTo(x, y - 24, x - 20, y - 30); g.fill();
+    g.strokeStyle = "rgba(0,0,0,0.2)"; g.lineWidth = 1; g.stroke();
+    // a beach chair beneath it
+    g.fillStyle = "#e8dcc4"; g.fillRect(x - 10, y - 2, 20, 14);
+    g.fillStyle = "#c9bd9e"; g.fillRect(x - 10, y - 2, 20, 4);
+  }
+}
+function drawBeachScene(now, dt) {
+  if (!BEACH) return;
+  stepBeach(dt);
+  const cv = document.getElementById("interiorCanvas");
+  const box = cv.parentElement;
+  const W = box.clientWidth || 520, H = Math.round(window.innerHeight * 0.6);
+  if (cv.width !== Math.round(W * DPR) || cv.height !== Math.round(H * DPR)) fitCanvas(cv, W, H);
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  const g = cv.getContext("2d");
+  const zoom = clamp(Math.min(W, H) / 420, 0.9, 1.6);
+  BEACH.zoom = zoom;   // so the canvas tap handler can map screen -> world coords
+  const t = Math.min(1, dt * 5);
+  BEACH.cam.x += (PLAYER.x - BEACH.cam.x) * t; BEACH.cam.y += (PLAYER.y - BEACH.cam.y) * t;
+  const hw = W / (2 * zoom), hh = H / (2 * zoom);
+  BEACH.cam.x = clamp(BEACH.cam.x, hw, BEACH_W - hw); BEACH.cam.y = clamp(BEACH.cam.y, hh, BEACH_H - hh);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
+  g.fillStyle = "#7ec6e6"; g.fillRect(0, 0, W, H);
+  const f = zoom * DPR;
+  g.setTransform(f, 0, 0, f, Math.round(W * DPR / 2 - BEACH.cam.x * f), Math.round(H * DPR / 2 - BEACH.cam.y * f));
+  crisp(g);
+  g.drawImage(BEACH.groundCv, 0, 0);
+  GLOWS = [];
+  const ents = [];
+  for (const d of BEACH.decor) ents.push({ y: d.y, d: () => drawBeachDecor(g, d) });
+  ents.push({ y: PLAYER.y, d: () => drawPlayer(g, 1.6) });
+  ents.sort((a, b) => a.y - b.y);
+  ents.forEach(e => e.d());
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); crisp(g);
+  paintGlows(g, W, H, BEACH.cam, zoom, W / 2, H / 2);
+}
+
 /* ── Drinking / smoking / blackout (Alex, 2026-09-12; funnier + less
    punishing + a hidden random threshold that persists 24h, 2026-09-14) ── */
 // Escalating flavor text by how close you are to your (hidden, random)
@@ -5623,12 +5953,22 @@ async function togglePlaceMode() {
     if (moved) return;
     if (SCENE === "hall" && typeof hallTapActivate === "function" && hallTapActivate()) return;
     if (SCENE === "venue" && typeof venueTapActivate === "function" && venueTapActivate()) return;
+    if (SCENE === "beach" && BEACH && BEACH.prompt) { sceneActivate(); return; }
     // Tapping the canvas activates a sit / stand / trophy prompt; the
     // "place items" prompt is the E key / top-right button only, so a tap
     // in your own house still walks you around.
     if (SCENE === "interior" && INTERIOR && INTERIOR.prompt && !INTERIOR.panel &&
         (INTERIOR.prompt.kind === "sit" || INTERIOR.prompt.kind === "lie" || INTERIOR.prompt.kind === "stand" || INTERIOR.prompt.kind === "trophy")) {
       sceneActivate(); return;
+    }
+    if (SCENE === "beach" && BEACH) {
+      const b = cv.getBoundingClientRect();
+      const zoom = BEACH.zoom || 1;
+      PLAYER.moveTarget = {
+        x: clamp(BEACH.cam.x + (e.clientX - b.left - b.width / 2) / zoom, 4, BEACH_W - 4),
+        y: clamp(BEACH.cam.y + (e.clientY - b.top - b.height / 2) / zoom, 4, BEACH_H - 4),
+      };
+      return;
     }
     const rs = SCENE === "hall" ? (HALL && HALL.rs) : SCENE === "venue" ? (VENUE && VENUE.rs) : (INTERIOR && INTERIOR.rs);
     if (!rs || (INTERIOR && INTERIOR.placeMode) || (HALL && HALL.panel) || (INTERIOR && INTERIOR.panel) || (VENUE && VENUE.panel)) return;
@@ -5648,6 +5988,7 @@ document.getElementById("interiorLeaveBtn").addEventListener("click", () => {
   if (SCENE === "interior") beginFade(() => leaveInterior());
   else if (SCENE === "hall") beginFade(() => leaveHall());
   else if (SCENE === "venue") beginFade(() => leaveVenue());
+  else if (SCENE === "beach") beginFade(() => leaveBeach());
 });
 document.getElementById("sceneActionBtn").addEventListener("click", () => sceneActivate());
 // The HUD prompt bubble is itself the button — most discoverable ("there's a
@@ -5679,6 +6020,7 @@ window.addEventListener("keydown", e => {
   if (SCENE === "hall" && HALL && HALL.prompt && !HALL.panel && (k === "Enter" || eKey)) { e.preventDefault(); sceneActivate(); }
   else if (SCENE === "interior" && INTERIOR && INTERIOR.prompt && !INTERIOR.panel && eKey) { e.preventDefault(); sceneActivate(); }
   else if (SCENE === "venue" && VENUE && VENUE.prompt && !VENUE.panel && (k === "Enter" || eKey)) { e.preventDefault(); sceneActivate(); }
+  else if (SCENE === "beach" && BEACH && BEACH.prompt && (k === "Enter" || eKey)) { e.preventDefault(); sceneActivate(); }
   else if (SCENE === "map" && MAP.prompt && (k === "Enter" || eKey)) { e.preventDefault(); sceneActivate(); }
 });
 window.addEventListener("keyup", e => {
@@ -6187,6 +6529,7 @@ function tick(now) {
     if (SCENE === "interior" && INTERIOR && !INTERIOR.placeMode) drawInteriorScene(now, dt);
     else if (SCENE === "hall" && typeof HALL !== "undefined" && HALL) drawHallInterior(now, dt);
     else if (SCENE === "venue" && VENUE) drawVenueScene(now, dt);
+    else if (SCENE === "beach" && BEACH) drawBeachScene(now, dt);
     else if (ROOM) drawRoomInto(ROOM, now, dt);
   }
   if (document.getElementById("detailModal").classList.contains("open") && DETAIL) drawRoomInto(DETAIL, now, dt);
@@ -6203,9 +6546,10 @@ async function switchTab(key) {
   // The tab bar is Map vs. My-House-editor. The walkable interior / Town Hall
   // are modes you walk into — clicking a tab exits them cleanly first.
   if (SCENE !== "map") {
-    if (key === "map") { beginFade(() => (SCENE === "hall" ? leaveHall() : SCENE === "venue" ? leaveVenue() : leaveInterior())); return; }
+    if (key === "map") { beginFade(() => (SCENE === "hall" ? leaveHall() : SCENE === "venue" ? leaveVenue() : SCENE === "beach" ? leaveBeach() : leaveInterior())); return; }
     if (SCENE === "hall") leaveHall();
     else if (SCENE === "venue") leaveVenue();
+    else if (SCENE === "beach") leaveBeach();
     else { INTERIOR = null; SCENE = "map"; }
   }
   document.querySelectorAll(".hn-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === key));
@@ -6306,6 +6650,9 @@ if (location.protocol === "file:" || location.hostname === "localhost" || locati
     pingPresence, presenceScene, stepOtherPlayers, sendInvite, nearbyOtherPlayer, drawOtherPlayer, otherPlayerPal,
     spawnAmbientNpcs, buildVenueNpcs, nearestHoop, inCourtBounds, startShotCharge, releaseShot, resolveShot,
     boatablePondAt, ownsBoat, boardBoat, disembarkBoat, openFastTravelPicker, fastTravelDestinations,
+    swimmablePondAt, divePond, climbOutOfPond,
+    openBeach, leaveBeach, buildBeach, stepBeach, drawBeachScene, beachPrompt, beachActivate,
+    get BEACH() { return BEACH; },
     loadSportsScores, ITEM_DRAW,
     get SPORTS_SCORES() { return SPORTS_SCORES; },
     set SPORTS_SCORES(v) { SPORTS_SCORES = v; },
