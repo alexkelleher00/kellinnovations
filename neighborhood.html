@@ -104,6 +104,10 @@
 
   /* ── Walkable interior / Town Hall scene ──────────────────────────── */
   .hn-interior-stage { display: flex; align-items: center; justify-content: center; background: #10131f; }
+  /* The beach is a real separate "screen" (Alex, 2026-10-01: "I need this
+     as like a whole nother screen you can travel to") — noticeably taller
+     than the fixed 68vh every other walkable scene uses. */
+  .hn-interior-stage.hn-beach-stage { height: 90vh; height: 90dvh; }
   .hn-interior-stage > #interiorCanvas {
     position: relative; inset: auto; min-width: 0; min-height: 0;
     width: 100%; height: 100%; object-fit: contain;   /* scale the room to fill the stage, letterboxed, aspect kept */
@@ -2889,6 +2893,31 @@ function drawPlayer(g, sc) {
   if (flat) g.rotate(-Math.PI / 2);
   blit(g, frame, PLAYER_PAL, -6, flat ? -13 : -16, flip);   // swimming/lying: draw a bit lower, "in" the water/bed rather than floating above it
   g.restore();
+  // An actual cigar held up to the mouth, puffing (Alex, 2026-10-01: "an
+  // animation of actually smoking a cigar or something") — not just the
+  // screen-haze filter buySmoke already applies, a real visible prop on the
+  // avatar itself, for the whole 9s window, wherever the player is.
+  if (PLAYER.smokeUntil && performance.now() < PLAYER.smokeUntil) {
+    const now = performance.now();
+    const faceR = !flip;                       // which side the raised hand/cigar sits on
+    const hx = PLAYER.x + (faceR ? 5 : -5) * sc, hy = PLAYER.y + yoff - (flat ? 11 : 13) * sc;
+    g.save(); g.translate(hx, hy); g.rotate(faceR ? -0.5 : 0.5);
+    g.fillStyle = "#c9a15a"; g.fillRect(0, -1.1 * sc, 8 * sc, 2.2 * sc);
+    g.fillStyle = "#8a6a38"; g.fillRect(6.5 * sc, -1.1 * sc, 1.8 * sc, 2.2 * sc);
+    g.restore();
+    const tipX = hx + (faceR ? 8 : -8) * sc, tipY = hy - 0.3 * sc;
+    const puffPhase = (now / 1500) % 1;         // a fresh puff drifts up roughly every 1.5s
+    g.fillStyle = "#ff9a3c"; g.beginPath(); g.arc(tipX, tipY, 1.3 * sc, 0, 7); g.fill();
+    GLOWS.push({ x: tipX, y: tipY, r: 12 * sc, col: "#ff9a3c", i: 0.3 + Math.sin(now / 260) * 0.12 });
+    for (let i = 0; i < 2; i++) {
+      const p = ((puffPhase + i * 0.5) % 1);
+      const sx = tipX + Math.sin(p * 7 + i) * 3 * sc * p;
+      const sy = tipY - p * 20 * sc;
+      g.globalAlpha = (1 - p) * 0.5;
+      g.fillStyle = "#d6d0c0"; g.beginPath(); g.arc(sx, sy, (1 + p * 3.5) * sc, 0, 7); g.fill();
+    }
+    g.globalAlpha = 1;
+  }
 }
 
 // Scenery scattered in each plot's margin (MAP.decor, built in layoutMap) —
@@ -3173,13 +3202,15 @@ function layoutMap() {
       { x: th.gx0 + th.gw + 46, y: th.gy0 + th.gh * 0.5, rx: 44, ry: 30 },
       { x: WORLD_PAD_X + (MAP.worldW - 2 * WORLD_PAD_X) * 0.32, y: LAKE_BAND_CENTER_Y, rx: 230, ry: 125, big: true },
       // The shoreline on the open map, hugging the world's west edge — a
-      // portal into the full beach scene (Alex, 2026-10-01: "the beach needs
-      // to be like an entire area that loads like in stardew, like a whole
-      // massive beach area"), same auto-enter pattern as a house/Town Hall
-      // door. Kept modestly sized here on purpose — the actual "massive
-      // beach" is BEACH_W x BEACH_H in its own loaded scene (see SCENE
-      // "beach" / buildBeach / drawBeachScene below), not this map marker.
-      { x: WORLD_PAD_X - 20, y: LAKE_BAND_CENTER_Y, rx: 130, ry: 110, big: true, beach: true },
+      // portal into the full beach scene (Alex, 2026-10-01 x2: "that beach
+      // feels like a joke, it's smaller than the lake" — fair, the first
+      // pass undersold it as "just a portal" and shrank it below the lake;
+      // now it's bigger than the lake right here on the open map too, on
+      // top of the actual destination (BEACH_W x BEACH_H, see buildBeach
+      // below) being much bigger again. ry stays inside the safe half of
+      // LAKE_BAND (170px) so it can't re-trigger the walkable-cutoff bug
+      // the court had — it goes wide instead of tall.
+      { x: WORLD_PAD_X - 20, y: LAKE_BAND_CENTER_Y, rx: 300, ry: 150, big: true, beach: true },
     ];
     MAP.pond = MAP.ponds[0];   // back-compat for anything still reading .pond
     MAP.beach = MAP.ponds.find(p => p.beach);
@@ -4828,11 +4859,21 @@ function buildVenueFixtures(kind, roomKey, rs) {
           g.fillStyle = lgrad(g, pt.x - 15, pt.y - 20, pt.x + 15, pt.y - 20, "#9c7448", "#6b4a2e");
           g.beginPath(); g.ellipse(pt.x, pt.y - 19, 15, 7, 0, 0, 7); g.fill();
           g.strokeStyle = "rgba(0,0,0,0.25)"; g.lineWidth = 1; g.beginPath(); g.ellipse(pt.x, pt.y - 19, 15, 7, 0, 0, 7); g.stroke();
-          for (const so of [-24, 24]) {
-            g.fillStyle = "#2a2420"; g.fillRect(pt.x + so - 2, pt.y - 9, 4, 9);
-            g.fillStyle = "#6b4a2e"; g.beginPath(); g.ellipse(pt.x + so, pt.y - 11, 7, 4, 0, 0, 7); g.fill();
-          }
         } });
+      // Stools are their own sittable fixtures now (Alex, 2026-10-01:
+      // "should be able to sit at the tavern and what not at those
+      // tables") — same rect-seat mechanic sofas/smoking chairs use.
+      for (const so of [-24, 24]) {
+        const sx = pt.x + so, sy = pt.y - 11;
+        const seat = { x0: sx - 7, y0: sy - 9, x1: sx + 7, y1: sy + 8 };
+        out.push({ zone: { x0: sx - 1, y0: sy - 1, x1: sx + 1, y1: sy + 1 }, solid: seat, sortY: sy + 8,
+          prompt: { kind: "sit", seat, label: "🪑 Sit down" },
+          draw: (g) => {
+            g.fillStyle = "#2a2420"; g.fillRect(sx - 2, sy + 2, 4, 9);
+            g.fillStyle = "#6b4a2e"; g.beginPath(); g.ellipse(sx, sy, 7, 4, 0, 0, 7); g.fill();
+            g.strokeStyle = "rgba(0,0,0,0.2)"; g.lineWidth = 0.8; g.beginPath(); g.ellipse(sx, sy, 7, 4, 0, 0, 7); g.stroke();
+          } });
+      }
     }
     return out;
   }
@@ -5189,7 +5230,11 @@ function leaveVenue() {
    the open map than an interior room. Swimming/boating both work here too,
    confined to BEACH's water rect instead of a pond ellipse.
    ═══════════════════════════════════════════════════════════════════════ */
-const BEACH_W = 1300, BEACH_H = 820;
+// 2026-10-01: "that beach feels like a joke... I need this as like a whole
+// nother screen you can travel to" — roughly 2.6x the area of the first
+// pass (1300x820 -> 2200x1300), genuinely bigger than the open map's own
+// lake footprint, with more decor scattered through it to match.
+const BEACH_W = 2200, BEACH_H = 1300;
 let BEACH = null;   // { oceanX0, decor, pier, groundCv, cam, prompt }
 
 function buildBeachGround() {
@@ -5212,10 +5257,11 @@ function buildBeachGround() {
       x.fillStyle = col; x.fillRect(xx, yy, 4, 4);
     }
   }
-  // a few long wave crests out in the ocean
+  // long wave crests out in the ocean — enough rows to cover the taller
+  // ocean without visibly repeating
   x.strokeStyle = "rgba(255,255,255,0.3)"; x.lineWidth = 2;
-  for (let i = 0; i < 10; i++) {
-    const wy = (i / 10) * BEACH_H + 20;
+  for (let i = 0; i < 18; i++) {
+    const wy = (i / 18) * BEACH_H + 20;
     x.beginPath();
     for (let xx = oceanX0 + 30; xx < BEACH_W; xx += 14) {
       const yy = wy + Math.sin(xx * 0.04 + i) * 8;
@@ -5223,29 +5269,38 @@ function buildBeachGround() {
     }
     x.stroke();
   }
-  // the pier, baked into the ground texture (planks)
-  const { pier } = BEACH;
+  // two piers, baked into the ground texture (planks)
   x.fillStyle = "#8a6a42";
-  for (let i = 0; i * 10 < pier.len; i++) x.fillRect(pier.x0 + i * 10, pier.y - 11, 9, 22);
-  x.fillStyle = "rgba(0,0,0,0.18)"; x.fillRect(pier.x0, pier.y - 11, pier.len, 3);
+  for (const pr of [BEACH.pier, BEACH.pier2]) {
+    for (let i = 0; i * 10 < pr.len; i++) x.fillRect(pr.x0 + i * 10, pr.y - 11, 9, 22);
+    x.fillStyle = "rgba(0,0,0,0.18)"; x.fillRect(pr.x0, pr.y - 11, pr.len, 3);
+    x.fillStyle = "#8a6a42";
+  }
 }
 function buildBeach() {
   const oceanX0 = BEACH_W * 0.4;
-  const pier = { x0: oceanX0 - 14, y: BEACH_H * 0.55, len: 260 };
+  const pier = { x0: oceanX0 - 14, y: BEACH_H * 0.5, len: 320 };
+  const pier2 = { x0: oceanX0 - 14, y: BEACH_H * 0.86, len: 180 };
   const decor = [];
-  for (let i = 0; i < 20; i++) {
-    const x = 20 + hash2(i, 801) * (oceanX0 * 0.82);
+  for (let i = 0; i < 46; i++) {
+    const x = 20 + hash2(i, 801) * (oceanX0 * 0.84);
     const y = hash2(i, 802) * BEACH_H;
-    if (Math.abs(y - pier.y) < 40 && x > oceanX0 - 60) continue;
-    decor.push({ kind: "palm", x, y, scale: 0.9 + hash2(i, 803) * 0.6 });
+    if ((Math.abs(y - pier.y) < 44 || Math.abs(y - pier2.y) < 36) && x > oceanX0 - 70) continue;
+    decor.push({ kind: "palm", x, y, scale: 0.85 + hash2(i, 803) * 0.7 });
   }
-  for (let i = 0; i < 7; i++) {
-    const x = oceanX0 - 40 - hash2(i, 811) * 90;
-    const y = 60 + i * (BEACH_H - 120) / 6 + (hash2(i, 812) - 0.5) * 30;
-    if (Math.abs(y - pier.y) < 50) continue;
-    decor.push({ kind: "umbrella", x, y, col: ["#c0432f", "#2f6dc0", "#3aa657", "#c99a2e"][i % 4] });
+  for (let i = 0; i < 16; i++) {
+    const x = oceanX0 - 40 - hash2(i, 811) * 110;
+    const y = 50 + i * (BEACH_H - 100) / 15 + (hash2(i, 812) - 0.5) * 24;
+    if (Math.abs(y - pier.y) < 50 || Math.abs(y - pier2.y) < 44) continue;
+    decor.push({ kind: "umbrella", x, y, col: ["#c0432f", "#2f6dc0", "#3aa657", "#c99a2e", "#7d4fbf"][i % 5] });
   }
-  BEACH = { oceanX0, pier, decor, cam: { x: oceanX0 * 0.5, y: BEACH_H * 0.5 }, prompt: null };
+  for (let i = 0; i < 12; i++) {
+    const x = 15 + hash2(i, 821) * (oceanX0 * 0.3);
+    const y = hash2(i, 822) * BEACH_H;
+    decor.push({ kind: "rock", x, y, scale: 0.7 + hash2(i, 823) * 0.5 });
+  }
+  decor.push({ kind: "lifeguard", x: oceanX0 - 36, y: BEACH_H * 0.18 });
+  BEACH = { oceanX0, pier, pier2, decor, cam: { x: oceanX0 * 0.5, y: BEACH_H * 0.5 }, prompt: null };
   buildBeachGround();
   PLAYER.x = 40; PLAYER.y = BEACH_H * 0.5; PLAYER.dir = "E"; PLAYER.moveTarget = null;
   PLAYER.sitting = false; PLAYER.lying = false; PLAYER.soaking = false; PLAYER.jumping = false;
@@ -5262,6 +5317,7 @@ function openBeach() {
     document.getElementById("loginHint").style.display = "none";
     document.getElementById("editorWrap").style.display = "none";
     document.getElementById("interiorStage").style.display = "flex";
+    document.getElementById("interiorStage").classList.add("hn-beach-stage");
     document.getElementById("placeModeBtn").style.display = "none";
     const cv = document.getElementById("interiorCanvas");
     cv.style.width = ""; cv.style.height = "";
@@ -5278,6 +5334,7 @@ function leaveBeach() {
   document.getElementById("mapView").style.display = "block";
   document.getElementById("mineView").style.display = "none";
   document.getElementById("interiorStage").style.display = "none";
+  document.getElementById("interiorStage").classList.remove("hn-beach-stage");
   document.getElementById("editorWrap").style.display = currentUser ? "block" : "none";
   if (MAP.beachPortal) { PLAYER.x = MAP.beachPortal.x + 40; PLAYER.y = MAP.beachPortal.y; PLAYER.dir = "E"; }
   PLAYER.moveTarget = null; PLAYER.lastEnter = performance.now();
@@ -5386,6 +5443,22 @@ function drawBeachDecor(g, d) {
     // a beach chair beneath it
     g.fillStyle = "#e8dcc4"; g.fillRect(x - 10, y - 2, 20, 14);
     g.fillStyle = "#c9bd9e"; g.fillRect(x - 10, y - 2, 20, 4);
+    return;
+  }
+  if (d.kind === "rock") {
+    const s = d.scale || 1;
+    ovShadow(g, x, y, 9 * s, 3 * s, 0.2);
+    g.fillStyle = "#9a9a9a"; g.beginPath(); g.ellipse(x, y, 8 * s, 5 * s, 0, 0, 7); g.fill();
+    g.fillStyle = "#b4b4b4"; g.beginPath(); g.ellipse(x - 1.5 * s, y - 1.5 * s, 4.5 * s, 2.6 * s, 0, 0, 7); g.fill();
+    return;
+  }
+  if (d.kind === "lifeguard") {
+    ovShadow(g, x, y, 10, 3.5, 0.24);
+    g.fillStyle = "#c0432f"; g.fillRect(x - 10, y - 26, 20, 16);
+    g.fillStyle = "#e8dcc4"; g.fillRect(x - 8, y - 24, 16, 12);
+    g.fillStyle = "#8a5a2b"; g.fillRect(x - 2, y - 10, 4, 10); g.fillRect(x - 9, y, 4, 10); g.fillRect(x + 5, y, 4, 10);
+    g.fillStyle = "#fff"; g.font = '700 7px system-ui,sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText("🛟", x, y - 18);
   }
 }
 function drawBeachScene(now, dt) {
@@ -5393,11 +5466,17 @@ function drawBeachScene(now, dt) {
   stepBeach(dt);
   const cv = document.getElementById("interiorCanvas");
   const box = cv.parentElement;
-  const W = box.clientWidth || 520, H = Math.round(window.innerHeight * 0.6);
+  // #interiorCanvas's own CSS (width/height:100%, object-fit:contain)
+  // handles on-screen sizing within whatever box #interiorStage actually
+  // is — setting cv.style.width/height here would just fight that, same
+  // mistake avoided in drawVenueScene/drawHallInterior. The stage itself
+  // gets a taller CSS height specifically while SCENE is "beach" (see
+  // openBeach's hn-beach-stage class toggle) so this reads from a real,
+  // already-bigger box instead of trying to override it from here.
+  const W = box.clientWidth || 520, H = box.clientHeight || 420;
   if (cv.width !== Math.round(W * DPR) || cv.height !== Math.round(H * DPR)) fitCanvas(cv, W, H);
-  cv.style.width = W + "px"; cv.style.height = H + "px";
   const g = cv.getContext("2d");
-  const zoom = clamp(Math.min(W, H) / 420, 0.9, 1.6);
+  const zoom = clamp(Math.min(W, H) / 460, 0.75, 1.4);
   BEACH.zoom = zoom;   // so the canvas tap handler can map screen -> world coords
   const t = Math.min(1, dt * 5);
   BEACH.cam.x += (PLAYER.x - BEACH.cam.x) * t; BEACH.cam.y += (PLAYER.y - BEACH.cam.y) * t;
@@ -6511,6 +6590,14 @@ function tick(now) {
   if (dt > 0.05) dt = 0.05;
   if (autoDayNight && !REDUCED) timeOfDay = (timeOfDay + dt * 0.35) % 24;
   stepOtherPlayers(dt);
+  // Belt-and-braces: the beach's taller stage class should only ever be on
+  // while SCENE is actually "beach" — every real exit path (Leave button,
+  // switchTab, the in-scene exit prompt) already calls leaveBeach() which
+  // removes it, this just guarantees it can never get stuck on.
+  const _interiorStageEl = document.getElementById("interiorStage");
+  if (SCENE !== "beach" && _interiorStageEl.classList.contains("hn-beach-stage")) {
+    _interiorStageEl.classList.remove("hn-beach-stage");
+  }
 
   // Sober up slowly over real time, in any scene.
   if (PLAYER.drunk > 0) {
