@@ -154,8 +154,17 @@
   .gm-trophy-card .s { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
 
   /* ── Leaderboards ── */
+  .gm-lb-picker {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px; max-width: 480px;
+  }
+  .gm-lb-picker label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .gm-lb-picker select {
+    flex: 1; padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 0.9rem; font-family: inherit;
+  }
+  .gm-lb-picker select:focus { outline: none; border-color: var(--accent); }
   .gm-lb-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
+    display: grid; grid-template-columns: minmax(0, 480px); gap: 12px;
     margin-bottom: 40px;
   }
   .gm-lb-card {
@@ -298,6 +307,10 @@
       <span class="section-hdr-icon">🥇</span>
       <span class="section-hdr-label">Leaderboards</span>
     </div>
+    <div class="gm-lb-picker">
+      <label for="lbSelect">Game</label>
+      <select id="lbSelect"></select>
+    </div>
     <div id="leaderboardGrid" class="gm-lb-grid"></div>
 
     <div class="section-hdr">
@@ -375,6 +388,14 @@
           <h3>Skee-Ball Alley</h3>
           <p>9 balls, time your release into the rings for points.</p>
           <span class="gm-earn-tag">🪙 1 per point</span>
+        </div>
+      </a>
+      <a href="typing.html" class="project-card gm-game-card">
+        <div class="project-card-icon">⌨️</div>
+        <div class="project-card-body">
+          <h3>Typing Test</h3>
+          <p>Type the passage as fast and accurately as you can. Server-timed, so your WPM is real.</p>
+          <span class="gm-earn-tag">🪙 5 per net WPM + 20 play</span>
         </div>
       </a>
       <a href="rooftoprunner.html" class="project-card gm-game-card">
@@ -546,7 +567,7 @@
     flappygolf5: "Flappy Golf · Course 5", flappygolf6: "Flappy Golf · Course 6",
     tetris: "Tetris",
     basketshot: "Buzzer Beater", skeeball: "Skee-Ball Alley", rooftoprunner: "Rooftop Runner",
-    spaceinvaders: "Space Invaders", pacchomp: "Pac-Chomp",
+    spaceinvaders: "Space Invaders", pacchomp: "Pac-Chomp", typing: "Typing Test",
   };
 
   // best_score is a single integer column but it means something different
@@ -567,6 +588,7 @@
     rooftoprunner: v => `${v.toLocaleString()} roofs`,
     spaceinvaders: v => `${v.toLocaleString()} pts`,
     pacchomp: v => `${v.toLocaleString()} pts`,
+    typing: v => `${v.toLocaleString()} WPM`,
   };
   const fmtBest = (game, v) => (BEST_FMT[game] ? BEST_FMT[game](v) : v.toLocaleString());
 
@@ -652,26 +674,41 @@
     } catch (e) { /* leave the section empty */ }
   }
 
+  const LB_ORDER = ["flappygolf", "flappygolf2", "flappygolf3", "flappygolf4", "flappygolf5", "flappygolf6",
+                    "flappybird", "spaceinvaders", "pacchomp", "basketshot", "skeeball", "rooftoprunner", "typing",
+                    "2048", "letterfall"];
+  let lbData = {};
+
   async function loadLeaderboard() {
     try {
       const { games } = await api("/leaderboard");
-      const box = document.getElementById("leaderboardGrid");
-      const order = ["flappygolf", "flappygolf2", "flappygolf3", "flappygolf4", "flappygolf5", "flappygolf6",
-                     "flappybird", "spaceinvaders", "pacchomp", "basketshot", "skeeball", "rooftoprunner", "2048", "letterfall"];
-      box.innerHTML = order.filter(g => games[g]).map(g => {
-        const rows = games[g];
-        const body = rows.length
-          ? rows.map((r, i) => `
-              <div class="gm-lb-row ${currentUser && r.name === currentUser.name ? "me" : ""}">
-                <span class="rank">${i + 1}</span>
-                <span class="who">${r.avatar_emoji || "🙂"} ${escHtml(r.name || "Player")}</span>
-                <span class="val">${fmtBest(g, r.best_score)}</span>
-              </div>`).join("")
-          : `<div class="gm-lb-empty">No scores yet</div>`;
-        return `<div class="gm-lb-card"><h4>${GAME_LABELS[g] || g}</h4>${body}</div>`;
-      }).join("");
+      lbData = games;
+      const select = document.getElementById("lbSelect");
+      const keep = select.value;
+      const available = LB_ORDER.filter(g => games[g]);
+      select.innerHTML = available.map(g => `<option value="${g}">${GAME_LABELS[g] || g}</option>`).join("");
+      if (keep && available.includes(keep)) select.value = keep;
+      renderLeaderboard();
     } catch (e) { /* best-effort — leave the section empty */ }
   }
+
+  function renderLeaderboard() {
+    const g = document.getElementById("lbSelect").value;
+    const box = document.getElementById("leaderboardGrid");
+    if (!g || !lbData[g]) { box.innerHTML = ""; return; }
+    const rows = lbData[g];
+    const body = rows.length
+      ? rows.map((r, i) => `
+          <div class="gm-lb-row ${currentUser && r.name === currentUser.name ? "me" : ""}">
+            <span class="rank">${i + 1}</span>
+            <span class="who">${r.avatar_emoji || "🙂"} ${escHtml(r.name || "Player")}</span>
+            <span class="val">${fmtBest(g, r.best_score)}</span>
+          </div>`).join("")
+      : `<div class="gm-lb-empty">No scores yet</div>`;
+    box.innerHTML = `<div class="gm-lb-card"><h4>${GAME_LABELS[g] || g}</h4>${body}</div>`;
+  }
+
+  document.getElementById("lbSelect").addEventListener("change", renderLeaderboard);
 
   // ── Avatar picker ──────────────────────────────────────────────────
   document.getElementById("avatarBtn").addEventListener("click", async () => {

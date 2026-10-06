@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Typing Test — Kelleher Innovations</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .ty-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; max-width: 760px; margin: 0 auto; }
+  .ty-topbar { width: 100%; }
+  .ty-exit-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 0.82rem; font-weight: 700; text-decoration: none;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .ty-exit-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .ty-hud { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .ty-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.85rem; font-weight: 700;
+  }
+  .ty-chip.balance { color: #ffd166; }
+  .ty-passage {
+    width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px 24px; font-size: 1.12rem; line-height: 1.75; letter-spacing: 0.01em;
+    font-family: "Consolas", "Menlo", monospace; user-select: none; min-height: 7em;
+  }
+  .ty-passage .ch { color: var(--muted); transition: color 0.08s; }
+  .ty-passage .ch.ok { color: var(--text); }
+  .ty-passage .ch.bad { color: #ff6b6b; background: rgba(255,107,107,0.14); border-radius: 3px; }
+  .ty-passage .ch.cur { border-bottom: 2px solid var(--accent); }
+  .ty-input {
+    width: 100%; padding: 12px 14px; background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-family: "Consolas", "Menlo", monospace; font-size: 1rem;
+  }
+  .ty-input:focus { outline: none; border-color: var(--accent); }
+  .ty-hint { color: var(--muted); font-size: 0.85rem; text-align: center; }
+  .ty-error { color: #ff6b6b; font-size: 0.82rem; min-height: 1.2em; text-align: center; }
+  .ty-btn {
+    padding: 9px 18px; background: var(--accent); color: #000; border: none;
+    border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    font-family: inherit; transition: background 0.2s, transform 0.15s;
+  }
+  .ty-btn:hover { background: #00e0e0; transform: translateY(-1px); }
+  .ty-btn.ghost { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .ty-btn.ghost:hover { border-color: var(--accent); color: var(--accent); background: var(--surface); }
+  .ty-results {
+    width: 100%; background: var(--surface); border: 1px solid var(--accent); border-radius: 12px;
+    padding: 20px; display: none; text-align: center;
+  }
+  .ty-results.show { display: block; }
+  .ty-results .big { font-size: 2.6rem; font-weight: 800; color: var(--accent); }
+  .ty-results .grid { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 12px 0; }
+  .ty-results .stat { min-width: 110px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; }
+  .ty-results .stat .n { font-size: 1.2rem; font-weight: 800; }
+  .ty-results .stat .l { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .ty-results .earn { color: #ffd166; font-weight: 700; }
+  .ty-results .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="site-brand">
+      <strong>Kelleher Innovations</strong>
+      <span>Building Intelligent Systems</span>
+    </a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="games.html">Games</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="ty-wrap">
+    <div class="ty-topbar">
+      <a href="games.html" class="ty-exit-btn">&larr; Exit to Games</a>
+    </div>
+    <h2>⌨️ Typing Test</h2>
+
+    <div class="ty-hud">
+      <span class="ty-chip">WPM: <span id="wpmEl">0</span></span>
+      <span class="ty-chip">Accuracy: <span id="accEl">100</span>%</span>
+      <span class="ty-chip">Time: <span id="timeEl">0.0</span>s</span>
+      <span class="ty-chip balance" id="coinChip" style="display:none;">🪙 <span id="coinBalance">0</span></span>
+    </div>
+
+    <div class="ty-passage" id="passage" aria-live="off"></div>
+    <input class="ty-input" id="typeInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+           placeholder="Start typing the passage above…" disabled>
+    <p class="ty-hint">Timer starts at your first keystroke. Paste is disabled. Type the whole passage — net WPM (correct characters only) is what counts.
+      <span id="loginHint"><a href="games.html">Log in</a> to earn KellsCoins: 5 per net WPM.</span></p>
+    <div class="ty-error" id="tyError"></div>
+
+    <div class="ty-results" id="results">
+      <div class="big" id="resWpm">0 WPM</div>
+      <div class="grid">
+        <div class="stat"><div class="n" id="resAcc">0%</div><div class="l">Accuracy</div></div>
+        <div class="stat"><div class="n" id="resGross">0</div><div class="l">Gross WPM</div></div>
+        <div class="stat"><div class="n" id="resErr">0</div><div class="l">Errors</div></div>
+        <div class="stat"><div class="n" id="resSec">0</div><div class="l">Seconds</div></div>
+      </div>
+      <div class="earn" id="resEarn"></div>
+      <div class="actions">
+        <button class="ty-btn" id="againBtn">New passage</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const GAMES_API = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:4567/games" : "https://api.kellinnovations.com/games";
+
+  const passageEl = document.getElementById("passage");
+  const input = document.getElementById("typeInput");
+  const errEl = document.getElementById("tyError");
+
+  let token = null;
+  let text = "";
+  let startedAt = null;     // local clock, display only — the server's own clock decides the result
+  let timerId = null;
+  let finished = false;
+  let busy = false;
+
+  async function call(path, body) {
+    const res = await fetch(GAMES_API + path, {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body || {}),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    return data;
+  }
+
+  (async () => {
+    try {
+      const me = await (await fetch(GAMES_API + "/auth/me", { credentials: "include" })).json();
+      if (me && me.id) {
+        document.getElementById("coinChip").style.display = "inline-flex";
+        document.getElementById("coinBalance").textContent = me.kellscoins.toLocaleString();
+        document.getElementById("loginHint").textContent = "";
+      }
+    } catch (e) { /* guest play is fine */ }
+    newRound();
+  })();
+
+  function renderPassage(typed) {
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < text.length; i++) {
+      const span = document.createElement("span");
+      span.textContent = text[i];
+      span.className = "ch";
+      if (i < typed.length) {
+        span.classList.add(typed[i] === text[i] ? "ok" : "bad");
+      } else if (i === typed.length) {
+        span.classList.add("cur");
+      }
+      frag.appendChild(span);
+    }
+    passageEl.replaceChildren(frag);
+  }
+
+  function liveStats(typed) {
+    let errors = 0;
+    for (let i = 0; i < typed.length; i++) if (typed[i] !== text[i]) errors++;
+    const correct = typed.length - errors;
+    const secs = startedAt ? (Date.now() - startedAt) / 1000 : 0;
+    const mins = secs / 60;
+    const wpm = mins > 0.02 ? Math.round((correct / 5) / mins) : 0;
+    const acc = typed.length ? Math.round(100 * correct / typed.length) : 100;
+    document.getElementById("wpmEl").textContent = wpm;
+    document.getElementById("accEl").textContent = acc;
+    document.getElementById("timeEl").textContent = secs.toFixed(1);
+  }
+
+  function tick() {
+    liveStats(input.value);
+  }
+
+  async function newRound() {
+    clearInterval(timerId);
+    finished = false;
+    busy = true;
+    startedAt = null;
+    errEl.textContent = "";
+    document.getElementById("results").classList.remove("show");
+    input.disabled = true;
+    input.value = "";
+    passageEl.textContent = "Loading passage…";
+    try {
+      const data = await call("/typing/start");
+      token = data.token;
+      text = data.text;
+      renderPassage("");
+      document.getElementById("wpmEl").textContent = 0;
+      document.getElementById("accEl").textContent = 100;
+      document.getElementById("timeEl").textContent = "0.0";
+      input.disabled = false;
+      input.focus();
+    } catch (e) {
+      passageEl.textContent = "";
+      errEl.textContent = e.message;
+    }
+    busy = false;
+  }
+
+  input.addEventListener("paste", e => e.preventDefault());
+  input.addEventListener("drop", e => e.preventDefault());
+
+  input.addEventListener("input", async () => {
+    if (finished || busy || !text) return;
+    if (input.value.length > text.length) input.value = input.value.slice(0, text.length);
+    const typed = input.value;
+
+    if (startedAt === null && typed.length > 0) {
+      startedAt = Date.now();
+      timerId = setInterval(tick, 100);
+      call("/typing/begin", { token }).catch(e => { errEl.textContent = e.message; });
+    }
+
+    renderPassage(typed);
+    liveStats(typed);
+
+    if (typed.length === text.length) {
+      finished = true;
+      clearInterval(timerId);
+      input.disabled = true;
+      await submit(typed);
+    }
+  });
+
+  async function submit(typed) {
+    try {
+      const r = await call("/typing/finish", { token, typed });
+      showResults(r);
+    } catch (e) {
+      errEl.textContent = e.message;
+      finished = false;
+      input.disabled = false;
+      input.focus();
+    }
+  }
+
+  function showResults(r) {
+    document.getElementById("resWpm").textContent = `${r.wpm} WPM`;
+    document.getElementById("resAcc").textContent = `${r.accuracy}%`;
+    document.getElementById("resGross").textContent = r.gross_wpm;
+    document.getElementById("resErr").textContent = r.errors;
+    document.getElementById("resSec").textContent = r.seconds;
+    const earn = document.getElementById("resEarn");
+    if (r.coins_awarded) {
+      earn.textContent = `+${r.coins_awarded.toLocaleString()} KellsCoins`;
+      if (r.balance !== null) {
+        document.getElementById("coinBalance").textContent = r.balance.toLocaleString();
+      }
+    } else {
+      earn.textContent = document.getElementById("coinChip").style.display === "none"
+        ? "Log in on the Games page to earn KellsCoins for your WPM." : "";
+    }
+    document.getElementById("wpmEl").textContent = r.wpm;
+    document.getElementById("results").classList.add("show");
+  }
+
+  document.getElementById("againBtn").addEventListener("click", newRound);
+</script>
+</body>
+</html>
